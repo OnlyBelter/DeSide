@@ -26,3 +26,6 @@ from .evaluate_result import plot_pca, plot_clustermap
 from .evaluate_result import compare_mean_exp_with_cell_frac_across_algo
 from .evaluate_result import ScatterPlot
 from .evaluate_result import plot_latent_z, plot_weights, plot_weights2
+from ..utility import set_fig_style
+
+set_fig_style()

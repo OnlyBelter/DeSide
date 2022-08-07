@@ -15,8 +15,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import gc
 
-sns.set(font_scale=1.5)
-sns.set_style('white')
+# sns.set(font_scale=1.5)
+# sns.set_style('white')
 
 
 class ScatterPlot(object):
@@ -1076,8 +1076,8 @@ def plot_pca(data: pd.DataFrame, result_fp=None, color_code=None, s=5, figsize=(
     :param explained_variance_ratio: pca_model.explained_variance_ratio_
     :return:
     """
-    sns.set(font_scale=1.5)
-    sns.set_style('white')
+    # sns.set_style('white')
+    # sns.set(font_scale=1.5)
     if data.shape[1] >= 3:
         pc_comb = [(0, 1), (1, 2), (0, 2)]
     elif data.shape[1] == 2:
@@ -1086,10 +1086,10 @@ def plot_pca(data: pd.DataFrame, result_fp=None, color_code=None, s=5, figsize=(
         raise IndexError(f'data should have >= 2 columns, but {data.shape[1]} got')
     n_class = np.ceil(len(data['class'].unique()) / 2)
     for pc1, pc2 in pc_comb:
-        plt.figure(figsize=figsize)
+        # plt.figure(figsize=figsize)
         if 'class' in data.columns:
             g = sns.jointplot(x=f'{label_name}{pc1 + 1}', y=f'{label_name}{pc2 + 1}',
-                              data=data, kind='scatter', hue='class', s=s, space=0)
+                              data=data, kind='scatter', hue='class', s=s, space=0, height=figsize[1])
             ax = g.ax_joint
             if explained_variance_ratio is not None and show_xy_labels:
                 ax.set(xlabel=f'PC{pc1 + 1} ({explained_variance_ratio[pc1] * 100:.1f}%)',
@@ -1126,11 +1126,9 @@ def plot_pca(data: pd.DataFrame, result_fp=None, color_code=None, s=5, figsize=(
             plt.tight_layout()
         if result_fp is not None:
             if '.png' in result_fp:
-                plt.savefig(result_fp.replace('.png', f'_{label_name}{pc1}_{label_name}{pc2}.png'),
-                            dpi=200, bbox_inches='tight')
+                plt.savefig(result_fp.replace('.png', f'_{label_name}{pc1}_{label_name}{pc2}.png'), bbox_inches='tight')
             if '.pdf' in result_fp:
-                plt.savefig(result_fp.replace('.pdf', f'_{label_name}{pc1}_{label_name}{pc2}.pdf'),
-                            dpi=200, bbox_inches='tight')
+                plt.savefig(result_fp.replace('.pdf', f'_{label_name}{pc1}_{label_name}{pc2}.pdf'), bbox_inches='tight')
 
 
 def compare_mean_exp_with_cell_frac_across_algo(cancer_type: str, algo2merged_fp: dict, signature_score_fp: str,

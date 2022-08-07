@@ -24,6 +24,7 @@ from .pub_func import default_core_marker_genes
 from .pub_func import get_cell_num
 from .pub_func import sorted_cell_types, get_inx2cell_type
 from .pub_func import do_pca_analysis, do_umap_analysis
+from .pub_func import set_fig_style
 
 
 subcell_type2abbr = {'B Cells (1)': 'B1', 'B Cells (2)': 'B2', 'B Cells (3)': 'B3', 'B Cells (4)': 'B4',
@@ -87,4 +88,3 @@ inx2single_cell_dataset_id = {
     6: 'nsclc_guo_06',
     7: 'pan_cancer_07'
 }
-

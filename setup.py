@@ -8,8 +8,7 @@ install_requires = ["matplotlib", "pandas==1.2.5", "scikit-learn==0.24.0",
                     "anndata>=0.8.0", "scanpy==1.8.0", "joblib", "leidenalg", "jupyterlab",
                     "umap-learn==0.5.1", "bbknn==1.5.1", "openpyxl", "tensorboard",
                     "build", "sphinx==3.5.4", "myst-parser==0.13.6", "fsspec",
-                    "h5py", "sphinx_book_theme", "tables==3.6.1", "statsmodels", "matplotlib-venn",
-                    "SciencePlots"]
+                    "h5py", "sphinx_book_theme", "tables==3.6.1", "statsmodels", "matplotlib-venn"]
 if sys.version_info < (3, 4, 0):
     install_requires.append("enum34")
 

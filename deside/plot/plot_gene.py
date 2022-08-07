@@ -9,7 +9,7 @@ from ..utility import check_dir, cell_type2abbr
 from matplotlib import rcParams
 import matplotlib.pyplot as plt
 from ..utility.pub_func import log_exp2cpm, cal_exp_by_gene_list
-sns.set(palette='muted', font_scale=1.5)
+# sns.set(palette='muted', font_scale=1.5)
 
 
 def plot_single_gene_exp(gene_name, exp_sorted, output_dir='',

@@ -11,7 +11,7 @@ from .plot_gene import compare_exp_between_group
 from ..utility import read_cancer_purity, check_dir, read_df, log2_transform
 from sklearn.metrics import median_absolute_error
 # sns.set()
-sns.set(font_scale=1.5)
+# sns.set(font_scale=1.5)
 # plt.rcParams.update({'font.size': 20})
 
 

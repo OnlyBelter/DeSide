@@ -17,7 +17,6 @@ from anndata import AnnData, read_h5ad
 from sklearn.metrics import mean_squared_error, r2_score
 import gzip
 import shutil
-sns.set()
 
 
 default_core_marker_genes = {'Cancer Cells': ['KRT19', 'KRT18', 'KRT8', 'EPCAM'],
@@ -51,9 +50,19 @@ def print_df(df):
     print(df.head(2))
 
 
+def set_fig_style():
+    sns.set_style("white")
+    plt.rcParams['figure.dpi'] = 300
+    try:
+        plt.style.use(['science', 'no-latex'])
+    except:
+        print('No science style')
+        sns.set(palette='muted', font_scale=1.5)
+
+
 def filter_gene_by_expression_log_mean(exp_df, min_exp_value=3, max_exp_value=10, min_exp_percent=0.8):
     """
-    𝐸𝑎(𝑖)=𝑙𝑜𝑔2(𝑎𝑣𝑒𝑟𝑎𝑔𝑒(𝑇𝑃𝑀(𝑖)1⋯𝑘)+1), excluded genes with 𝐸𝑎<threshold
+    Ea(i)=log2(ave(TPM(i)1..k)+1), excluded genes with Ea<threshold
 
     "As genes with high expression can bias deconvolution results,
      we excluded the genes whose expression exceeded 700 TPM",
@@ -857,7 +866,7 @@ def do_umap_analysis(exp_df, n_components=5, n_neighbors=15, min_dist=0.1, umap_
     :return:
     """
     if os.path.exists(umap_model_result_fp):
-        print(f'Loading t-SNE result from file: {umap_model_result_fp}')
+        print(f'Loading UMAP result from file: {umap_model_result_fp}')
         umap_model = load(umap_model_result_fp)
     else:
         umap_model = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist, n_components=n_components)

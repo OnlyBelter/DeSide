@@ -10,7 +10,7 @@ from ..utility import print_df, log2_transform, center_value
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import seaborn as sns
-sns.set()
+# sns.set()
 
 
 def plot_hcluster(exp_df, sample2subtype=None, method='sample_corr',

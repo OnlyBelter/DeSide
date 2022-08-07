@@ -118,7 +118,7 @@ def tcga_evaluation(marker_gene_file_path, total_result_dir, pred_cell_frac_tcga
     # outlier_file_path = 'outlier_samples.txt'
     outlier_file_path = outlier_file_path
 
-    cell_types_clustering = ['B Cells', 'CD8 T', 'Endothelial Cells', 'Fibroblasts', 'Macrophages', 'CD4 T']
+    cell_types_clustering = [i for i in cell_types if i != 'Cancer Cells']
     compare_exp_and_cell_fraction(merged_file_path=merged_signature_score_and_cell_frac_file_path,
                                   clustering_ct=cell_types_clustering, font_scale=1.5,
                                   cell_types=cell_types, outlier_file_path=None,
