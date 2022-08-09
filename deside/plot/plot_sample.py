@@ -1,8 +1,9 @@
 import os
-import seaborn as sns
-from ..utility import check_dir
+# import seaborn as sns
+from ..utility import check_dir, set_fig_style
 import matplotlib.pyplot as plt
 # sns.set(palette='muted', font_scale=1.5)
+set_fig_style()
 
 
 def plot_sample_distribution(re_sampled_df, marker_ratio_tcga, marker_ratio_simu_bulk,

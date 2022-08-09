@@ -6,7 +6,7 @@ from typing import Union
 import statsmodels.api as sm
 from sklearn.metrics import median_absolute_error
 from ..utility import (print_df, cal_relative_error, calculate_rmse, check_dir,
-                       get_corr, read_xy, read_df, get_inx2cell_type, log2_transform)
+                       get_corr, read_xy, read_df, get_inx2cell_type, log2_transform, set_fig_style)
 # from ..utility.read_file import ReadExp
 from .plot_nn import plot_corr_two_columns
 # import matplotlib
@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import gc
 
+set_fig_style()
 # sns.set(font_scale=1.5)
 # sns.set_style('white')
 
@@ -558,7 +559,7 @@ def compare_y_y_pred_decon(sample_name: str, purified_gep_file_path: str, result
     # y_pred = y_y_pred.loc[:, ['y_pred']]
     max_y = max(gep.loc[:, ['y', 'y_pred']].max())
 
-    sns.set(font_scale=font_scale)
+    # sns.set(font_scale=font_scale)
     # plt.rcParams['font.sans-serif'] = ['Arial Unicode MS']  # Show Chinese characters
     plt.figure(figsize=(8, 6))
     for i, group in gep.groupby('error_code'):
@@ -613,7 +614,7 @@ def y_y_pred_error_hist_decon(sample_name, purified_gep_file_path, result_file_d
     # y = gep.loc[:, ['y']]
     # y_pred = gep.loc[:, ['y_pred']]
 
-    sns.set(font_scale=font_scale)
+    # sns.set(font_scale=font_scale)
     plt.figure(figsize=(8, 6))
     # error_z_score = stats.zscore(gep['y'] - gep['y_pred'])
     plt.hist(gep['y'] - gep['y_pred'])
@@ -971,7 +972,7 @@ def compare_exp_and_cell_fraction(merged_file_path, result_dir,
     else:
         print(f'   Using previous cancer_type2cor file from: {cancer_type2corr_file_path}.')
         cancer_type2corr_df = pd.read_csv(cancer_type2corr_file_path, index_col=0)
-    sns.set(font_scale=1.5)
+    # sns.set(font_scale=1.5)
     if clustering_ct is not None:
         c_ct = {'clustering_ct': clustering_ct}
         other_ct = [ct for ct in cell_types if ct not in (clustering_ct + ['Cancer Cells'])]
@@ -986,7 +987,7 @@ def plot_clustermap(data: pd.DataFrame, columns: list, result_file_path: str):
     """
     plot cluster map for correlation table or cell fraction table
     """
-    sns.set(font_scale=1.5)
+    # sns.set(font_scale=1.5)
     g = sns.clustermap(data.loc[:, columns], cmap="vlag")
     plt.setp(g.ax_heatmap.xaxis.get_majorticklabels(), rotation=40)
     plt.tight_layout()
@@ -1033,7 +1034,7 @@ def compare_cell_fraction_across_cancer_type(merged_cell_fraction: pd.DataFrame,
             print(f'   {outlier_samples.shape[0]} outlier samples will be removed...')
             merged_cell_fraction = merged_cell_fraction.loc[~merged_cell_fraction.index.isin(outlier_samples.index),
                                    :].copy()
-    sns.set(font_scale=font_scale)
+    # sns.set(font_scale=font_scale)
     plt.figure(figsize=(10, 6))
     # Draw a nested boxplot to show bills by day and time
     # sns.set_color_codes('bright')
@@ -1126,9 +1127,11 @@ def plot_pca(data: pd.DataFrame, result_fp=None, color_code=None, s=5, figsize=(
             plt.tight_layout()
         if result_fp is not None:
             if '.png' in result_fp:
-                plt.savefig(result_fp.replace('.png', f'_{label_name}{pc1}_{label_name}{pc2}.png'), bbox_inches='tight')
+                plt.savefig(result_fp.replace('.png', f'_{label_name}{pc1}_{label_name}{pc2}.png'),
+                            bbox_inches='tight', dpi=200)
             if '.pdf' in result_fp:
-                plt.savefig(result_fp.replace('.pdf', f'_{label_name}{pc1}_{label_name}{pc2}.pdf'), bbox_inches='tight')
+                plt.savefig(result_fp.replace('.pdf', f'_{label_name}{pc1}_{label_name}{pc2}.pdf'),
+                            bbox_inches='tight', dpi=200)
 
 
 def compare_mean_exp_with_cell_frac_across_algo(cancer_type: str, algo2merged_fp: dict, signature_score_fp: str,

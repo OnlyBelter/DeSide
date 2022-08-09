@@ -1,18 +1,19 @@
 import os
 # import importlib
-import umap
+# import umap
 import numpy as np
 import pandas as pd
 import seaborn as sns
 # import scipy.stats as stats
 import matplotlib.pyplot as plt
-from joblib import dump, load
+# from joblib import dump, load
 from .plot_gene import compare_exp_between_group
-from ..utility import read_cancer_purity, check_dir, read_df, log2_transform
+from ..utility import read_cancer_purity, check_dir, read_df, log2_transform, set_fig_style
 from sklearn.metrics import median_absolute_error
 # sns.set()
 # sns.set(font_scale=1.5)
 # plt.rcParams.update({'font.size': 20})
+set_fig_style()
 
 
 def plot_loss(history_df, output_dir=None, x_label='n_epoch', y_label='MSE', file_name=None):
@@ -24,7 +25,7 @@ def plot_loss(history_df, output_dir=None, x_label='n_epoch', y_label='MSE', fil
     :param file_name:
     :return:
     """
-    sns.set(font_scale=1.5)
+    # sns.set(font_scale=1.5)
     plt.figure(figsize=(8, 6))
     if 'loss' in history_df.columns:
         plt.plot(history_df['epoch'], history_df['loss'], label='loss')
@@ -77,8 +78,8 @@ def plot_corr_two_columns(df: pd.DataFrame, output_dir: str, col_name1: str = 'C
     check_dir(output_dir)
     result_file_path = os.path.join(output_dir, '{}_vs_predicted_{}_proportion.png'.format(col_name1, col_name2))
     if not os.path.exists(result_file_path):
-        sns.set(font_scale=font_scale)
-        # plt.rcParams['font.sans-serif'] = ['Arial Unicode MS']  # 用来正常显示中文标签
+        # sns.set(font_scale=font_scale)
+        # plt.rcParams['font.sans-serif'] = ['Arial Unicode MS']  # show Chinese characters
         plt.figure(figsize=(8, 8))
         df_col1 = df[col_name1].copy()
         df_col2 = df[col_name2].copy()

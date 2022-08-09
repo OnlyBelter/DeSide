@@ -5,11 +5,13 @@ import scanpy as sc
 import anndata as an
 import seaborn as sns
 import scipy.stats as stats
-from ..utility import check_dir, cell_type2abbr
+from ..utility import check_dir, cell_type2abbr, set_fig_style
 from matplotlib import rcParams
 import matplotlib.pyplot as plt
 from ..utility.pub_func import log_exp2cpm, cal_exp_by_gene_list
 # sns.set(palette='muted', font_scale=1.5)
+
+set_fig_style()
 
 
 def plot_single_gene_exp(gene_name, exp_sorted, output_dir='',
@@ -116,7 +118,7 @@ def compare_exp_between_group(exp: pd.DataFrame, group_list: tuple, max_threshol
     :param xticks_rotation:
     :return:
     """
-    sns.set(font_scale=font_scale)
+    # sns.set(font_scale=font_scale)
     exp_one_by_one = []
     if 'CD8A+CD8B' in group_list:
         exp['CD8A+CD8B'] = exp['CD8A'] + exp['CD8B']

@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 # import anndata as an
 import seaborn as sns
+import matplotlib as mpl
 from pathlib import Path
 from joblib import dump, load
 import matplotlib.pyplot as plt
@@ -51,13 +52,18 @@ def print_df(df):
 
 
 def set_fig_style():
+    fig, ax = plt.subplots()
     sns.set_style("white")
-    plt.rcParams['figure.dpi'] = 300
     try:
         plt.style.use(['science', 'no-latex'])
     except:
         print('No science style')
         sns.set(palette='muted', font_scale=1.5)
+
+    mpl.rcParams['figure.dpi'] = 300
+    mpl.rcParams['figure.facecolor'] = 'white'
+    # print('figure.dpi will be set to', mpl.rcParams['figure.dpi'])
+    plt.close('all')
 
 
 def filter_gene_by_expression_log_mean(exp_df, min_exp_value=3, max_exp_value=10, min_exp_percent=0.8):
@@ -626,14 +632,10 @@ def save_key_params(all_vars: dict, save_to_file_path=None):
     if not os.path.exists(k_params_path):
         key_paths = ['result_dir', 'merged_sc_dataset_file_path', 'simu_bulk_exp_dir', 'generated_sc_dataset_dir',
                      'test_set_dir', 'tcga_data_dir', 'cancer_purity_file_path', 'marker_gene_file_path',
-                     'pre_trained_model_dir', 'pred_cell_frac_tcga_dir',
-                     'model_name2h5ad']
-        model_names = list(all_vars['model_name2h5ad'].keys())
+                     'pre_trained_model_dir', 'pred_cell_frac_tcga_dir']
+        model_names = ['DeSide']
         log_file_path = all_vars.get('log_file_path', '')
-        if 'DeSide' in model_names:
-            hyper_params = all_vars['deside_parameters']
-        else:
-            hyper_params = all_vars['scaden_architectures']
+        hyper_params = all_vars['deside_parameters']
         other_params = ['all_cell_types', 'dataset2parameters', 'cd4_high_in_cd8', 'n_base',
                         'total_cell_number', 'removed_cell_types', 'merge_t_cell', 'filter_simulated_bulk_cell',
                         'remove_cancer_cell_when_training']

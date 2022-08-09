@@ -6,11 +6,13 @@ import pandas as pd
 from sklearn.manifold import TSNE
 from scipy.spatial import distance
 from scipy.cluster import hierarchy
-from ..utility import print_df, log2_transform, center_value
+from ..utility import print_df, log2_transform, center_value, set_fig_style
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import seaborn as sns
 # sns.set()
+
+set_fig_style()
 
 
 def plot_hcluster(exp_df, sample2subtype=None, method='sample_corr',

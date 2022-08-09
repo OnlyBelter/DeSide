@@ -2,12 +2,12 @@ import os
 import numpy as np
 import pandas as pd
 import warnings
-from deside.decon_cf import DeSide
-from deside.utility import check_dir, print_msg
-from deside.utility.read_file import ReadH5AD
-from deside.utility.compare import mean_exp_of_marker_gene, read_and_merge_result, cal_gene_signature_score
-from deside.plot import (compare_exp_and_cell_fraction, plot_predicted_result,
-                         compare_cell_fraction_across_cancer_type, ScatterPlot, compare_y_y_pred_plot)
+from ..decon_cf import DeSide
+from ..utility import check_dir, print_msg, set_fig_style
+from ..utility.read_file import ReadH5AD
+from ..utility.compare import mean_exp_of_marker_gene, read_and_merge_result, cal_gene_signature_score
+from ..plot import (compare_exp_and_cell_fraction, plot_predicted_result,
+                    compare_cell_fraction_across_cancer_type, ScatterPlot, compare_y_y_pred_plot)
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=UserWarning)
 

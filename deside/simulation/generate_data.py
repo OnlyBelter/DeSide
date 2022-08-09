@@ -354,7 +354,7 @@ class BulkGEPGenerator(object):
         self.bulk_dataset_name = bulk_dataset_name
         self.n_samples = None  # the number of generated bulk cell GEPs
         self.generated_bulk_gep = None
-        self.generated_bulk_gep_fp = None  # .h5ad file path of generated bulk GEPs, log2(TPM+1)
+        # self.generated_bulk_gep_fp = None  # .h5ad file path of generated bulk GEPs, log2(TPM+1)
         self.generated_bulk_gep_counter = 0
         self.n_round = 0
         self.generated_cell_frac = None
@@ -379,7 +379,7 @@ class BulkGEPGenerator(object):
         self.sct_dataset_file_path = sct_dataset_file_path
         self.sct_dataset_obs = None
         self.median_gep_ref = None  # median GEP of reference dataset
-        if check_basic_info:
+        if check_basic_info and not os.path.exists(self.generated_bulk_gep_fp):
             self.check_basic_info()
 
     def _generate_cell_fraction(self, sampling_method: str, n_cell_frac: int, sampling_range: dict = None,
