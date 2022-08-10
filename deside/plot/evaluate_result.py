@@ -5,11 +5,11 @@ from typing import Union
 # from scipy import stats
 import statsmodels.api as sm
 from sklearn.metrics import median_absolute_error
-from ..utility import (print_df, cal_relative_error, calculate_rmse, check_dir,
-                       get_corr, read_xy, read_df, get_inx2cell_type, log2_transform, set_fig_style)
+from ..utility import (print_df, cal_relative_error, calculate_rmse, check_dir, get_corr, read_xy, read_df,
+                       get_inx2cell_type, log2_transform, set_fig_style, get_core_zone_of_pca)
 # from ..utility.read_file import ReadExp
 from .plot_nn import plot_corr_two_columns
-# import matplotlib
+import matplotlib.patches as patches
 # import importlib
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -1071,7 +1071,7 @@ def compare_cell_fraction_across_cancer_type(merged_cell_fraction: pd.DataFrame,
 
 def plot_pca(data: pd.DataFrame, result_fp=None, color_code=None, s=5, figsize=(8, 8),
              color_code2label: dict = None, explained_variance_ratio: np.array = None, label_name='PC',
-             show_legend=True, show_xy_labels=True, anno=None):
+             show_legend=True, show_xy_labels=True, anno=None, show_core_zone_of_tcga=False):
     """
     plot PCA result of simulated bulk cell dataset
     :param data: PCA table, samples by PCs
@@ -1082,7 +1082,8 @@ def plot_pca(data: pd.DataFrame, result_fp=None, color_code=None, s=5, figsize=(
     :param label_name: label name for x axis
     :param show_legend:
     :param show_xy_labels:
-    :param anno: annotation for x axis
+    :param anno: annotation for x axis, which layer was used to generate the data
+    :param show_core_zone_of_tcga: whether to show the core zone of TCGA data
     :return:
     """
     # sns.set_style('white')
@@ -1096,22 +1097,34 @@ def plot_pca(data: pd.DataFrame, result_fp=None, color_code=None, s=5, figsize=(
     for pc1, pc2 in pc_comb:
         # plt.figure(figsize=figsize)
         if 'class' in data.columns:
-            g = sns.jointplot(x=f'{label_name}{pc1 + 1}', y=f'{label_name}{pc2 + 1}',
-                              data=data, kind='scatter', hue='class', s=s, space=0, height=figsize[1], alpha=0.5)
+            col_x = f'{label_name}{pc1 + 1}'
+            col_y = f'{label_name}{pc2 + 1}'
+            g = sns.jointplot(x=col_x, y=col_y, data=data, kind='scatter', hue='class',
+                              s=s, space=0, height=figsize[1], alpha=0.5)
             ax = g.ax_joint
+            n_tcga, n_non_tcga = 0, 0
+            if show_core_zone_of_tcga and 'TCGA' in data['class'].unique():
+                coord, n_tcga, n_non_tcga = get_core_zone_of_pca(pca_data=data, col_x=col_x, col_y=col_y,
+                                                                 q_lower=0.1, q_upper=0.9)
+                width = coord['x_upper'] - coord['x_lower']
+                height = coord['y_upper'] - coord['y_lower']
+                rect = patches.Rectangle((coord['x_lower'], coord['y_lower']), width, height,
+                                         fill=False, color='red', linewidth=1,
+                                         linestyle='dashed', label='Core Zone of TCGA')
+                ax.add_patch(rect)
             if show_xy_labels:
+                x_label = col_x
+                y_label = col_y
                 if (explained_variance_ratio is not None) and (anno is not None):
-                    x_label = f'{label_name}{pc1 + 1} ({explained_variance_ratio[pc1] * 100:.1f}%, {anno})'
-                    y_label = f'{label_name}{pc2 + 1} ({explained_variance_ratio[pc2] * 100:.1f}%)'
+                    x_label = col_x + f' ({explained_variance_ratio[pc1] * 100:.1f}%, {anno})'
+                    y_label = col_y + f' ({explained_variance_ratio[pc2] * 100:.1f}%)'
                 elif explained_variance_ratio is not None:
-                    x_label = f'{label_name}{pc1 + 1} ({explained_variance_ratio[pc1] * 100:.1f}%)'
-                    y_label = f'{label_name}{pc2 + 1} ({explained_variance_ratio[pc2] * 100:.1f}%)'
+                    x_label = col_x + f' ({explained_variance_ratio[pc1] * 100:.1f}%)'
+                    y_label = col_y + f' ({explained_variance_ratio[pc2] * 100:.1f}%)'
                 elif anno is not None:
-                    x_label = f'{label_name}{pc1 + 1} ({anno})'
-                    y_label = f'{label_name}{pc2 + 1}'
-                else:
-                    x_label = f'{label_name}{pc1 + 1}'
-                    y_label = f'{label_name}{pc2 + 1}'
+                    x_label = col_x + f' ({anno})'
+                if show_core_zone_of_tcga:
+                    x_label += f'\nCore Zone: TCGA ({n_tcga}), Non-TCGA ({n_non_tcga})'
                 ax.set(xlabel=x_label, ylabel=y_label)
             else:
                 ax.set(xlabel=None, ylabel=None)
@@ -1120,7 +1133,7 @@ def plot_pca(data: pd.DataFrame, result_fp=None, color_code=None, s=5, figsize=(
                 # g_legend = ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.2 - 0.1 * n_class), ncol=2)
                 g_legend = ax.legend(loc='best', ncol=2)
                 for _ in g_legend.legendHandles:
-                    _.set_linewidth(2)
+                    _.set_linewidth(1)
             else:
                 ax.legend([], [], frameon=False)
             # remove the top and right ticks
