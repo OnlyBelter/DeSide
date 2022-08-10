@@ -138,9 +138,10 @@ def compare_exp_between_group(exp: pd.DataFrame, group_list: tuple, max_threshol
         hue = 'labels'
     ax = sns.boxplot(x="g_name", y="g_exp", palette=sns.color_palette("muted"),
                      hue=hue, data=exp_flatten, whis=[0, 100], hue_order=sample_labels, order=group_list)
+
     # Add in points to show each observation, http://seaborn.pydata.org/examples/horizontal_boxplot.html
     sns.stripplot(x="g_name", y="g_exp", data=exp_flatten,
-                  size=3, color=".3", linewidth=0, hue=hue, dodge=True, hue_order=sample_labels)
+                  size=3, color=".3", linewidth=0, hue=hue, dodge=True, hue_order=sample_labels, ax=ax)
     sns.despine(offset=10, trim=True, left=True)
 
     if len(sample_labels) >= 2:
@@ -148,6 +149,9 @@ def compare_exp_between_group(exp: pd.DataFrame, group_list: tuple, max_threshol
         n_half_label = int(len(labels) / 2)
         plt.legend(handles[0:n_half_label], labels[0:n_half_label], bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 
+    # remove the top and right ticks
+    ax.tick_params(axis='x', which='both', top=False)
+    ax.tick_params(axis='y', which='both', right=False)
     plt.xticks(rotation=xticks_rotation)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)

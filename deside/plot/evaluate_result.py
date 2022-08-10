@@ -908,7 +908,7 @@ def plot_n_cell_type_hist(cell_frac, sampling_method, result_dir, dataset=None):
 def compare_exp_and_cell_fraction(merged_file_path, result_dir,
                                   cell_types: list, clustering_ct: list = None,
                                   outlier_file_path=None, predicted_by='DeSide', font_scale=1.5,
-                                  signature_score_method: str = 'mean_exp'):
+                                  signature_score_method: str = 'mean_exp', update_figures=False):
     """
     Comparing the mean expression value (or gene signature score) of marker genes for each cell type
       and the predicted cell fraction
@@ -921,6 +921,7 @@ def compare_exp_and_cell_fraction(merged_file_path, result_dir,
     :param predicted_by: the name of prediction algorithm, DeSide or Scaden
     :param font_scale: font scaling
     :param signature_score_method:
+    :param update_figures: if update figures
     :return:
     """
     check_dir(result_dir)
@@ -933,7 +934,7 @@ def compare_exp_and_cell_fraction(merged_file_path, result_dir,
     cancer_types = list(merged_df['cancer_type'].unique())
     if 'T Cells' in cell_types and 'T Cells' not in merged_df.columns:
         merged_df['T Cells'] = merged_df.loc[:, ['CD4 T', 'CD8 T']].sum(axis=1)
-    if not os.path.exists(cancer_type2corr_file_path):
+    if (not os.path.exists(cancer_type2corr_file_path)) or update_figures:
         if outlier_file_path is not None:
             outlier_samples = pd.read_csv(outlier_file_path, index_col=0)
             if outlier_samples.shape[0] > 0:  # remove outliers
@@ -963,7 +964,8 @@ def compare_exp_and_cell_fraction(merged_file_path, result_dir,
                 cancer_type2corr[cancer_type][cell_type] = get_corr(current_df[col_name1], current_df[col_name2])
                 plot_corr_two_columns(df=current_df, col_name1=col_name1, col_name2=col_name2,
                                       predicted_by=predicted_by, font_scale=font_scale, scale_exp=False,
-                                      output_dir=current_result_dir, diagonal=False, cancer_type=cancer_type)
+                                      output_dir=current_result_dir, diagonal=False, cancer_type=cancer_type,
+                                      update_figures=update_figures)
 
             gc.collect()
         cancer_type2corr_df = pd.DataFrame.from_dict(cancer_type2corr, orient='index')
@@ -996,8 +998,7 @@ def plot_clustermap(data: pd.DataFrame, columns: list, result_file_path: str):
     plt.close('all')
 
 
-def compare_cell_fraction_across_cancer_type(merged_cell_fraction: pd.DataFrame, result_dir='.',
-                                             cell_type: str = '', font_scale=1.5,
+def compare_cell_fraction_across_cancer_type(merged_cell_fraction: pd.DataFrame, result_dir='.', cell_type: str = '',
                                              xlabel: str = 'Cancer Type',
                                              ylabel: str = 'Tumor purity in each sample (CPE)',
                                              outlier_file_path: str = None, cell_type2max: float = 0.0):
@@ -1012,8 +1013,6 @@ def compare_cell_fraction_across_cancer_type(merged_cell_fraction: pd.DataFrame,
     :param cell_type: current cell type to plot
 
     :param result_dir: where to save result
-
-    :param font_scale: scale font size
 
     :param xlabel: x label
 
@@ -1048,10 +1047,15 @@ def compare_cell_fraction_across_cancer_type(merged_cell_fraction: pd.DataFrame,
     # print(mean_for_each_cancer_type)
     ax = sns.boxplot(x=x, y=cell_type, palette=sns.color_palette("muted"), whis=[0, 100],
                      data=current_cancer_type_frac, showfliers=False, order=cancer_type_order)
-    ax.tick_params(labelsize=11)
+    # ax.tick_params(labelsize=11)
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=25, ha='right')
     # Add in points to show each observation, http://seaborn.pydata.org/examples/horizontal_boxplot.html
     sns.stripplot(x=x, y=cell_type, data=current_cancer_type_frac,
-                  size=2, color=".4", linewidth=0, dodge=True, order=cancer_type_order)
+                  size=2, color=".4", linewidth=0, dodge=True, order=cancer_type_order, ax=ax)
+    ax.grid(True, axis='y')
+    # remove the top and right ticks
+    ax.tick_params(axis='x', which='both', top=False)
+    ax.tick_params(axis='y', which='both', right=False)
     # sns.despine(offset=10, trim=True, left=True)
 
     # handles, labels = ax.get_legend_handles_labels()
@@ -1067,7 +1071,7 @@ def compare_cell_fraction_across_cancer_type(merged_cell_fraction: pd.DataFrame,
 
 def plot_pca(data: pd.DataFrame, result_fp=None, color_code=None, s=5, figsize=(8, 8),
              color_code2label: dict = None, explained_variance_ratio: np.array = None, label_name='PC',
-             show_legend=True, show_xy_labels=True):
+             show_legend=True, show_xy_labels=True, anno=None):
     """
     plot PCA result of simulated bulk cell dataset
     :param data: PCA table, samples by PCs
@@ -1075,6 +1079,10 @@ def plot_pca(data: pd.DataFrame, result_fp=None, color_code=None, s=5, figsize=(
     :param color_code: an np.array to mark the label of each sample
     :param color_code2label:
     :param explained_variance_ratio: pca_model.explained_variance_ratio_
+    :param label_name: label name for x axis
+    :param show_legend:
+    :param show_xy_labels:
+    :param anno: annotation for x axis
     :return:
     """
     # sns.set_style('white')
@@ -1085,25 +1093,41 @@ def plot_pca(data: pd.DataFrame, result_fp=None, color_code=None, s=5, figsize=(
         pc_comb = [(0, 1)]
     else:
         raise IndexError(f'data should have >= 2 columns, but {data.shape[1]} got')
-    n_class = np.ceil(len(data['class'].unique()) / 2)
     for pc1, pc2 in pc_comb:
         # plt.figure(figsize=figsize)
         if 'class' in data.columns:
             g = sns.jointplot(x=f'{label_name}{pc1 + 1}', y=f'{label_name}{pc2 + 1}',
-                              data=data, kind='scatter', hue='class', s=s, space=0, height=figsize[1])
+                              data=data, kind='scatter', hue='class', s=s, space=0, height=figsize[1], alpha=0.5)
             ax = g.ax_joint
-            if explained_variance_ratio is not None and show_xy_labels:
-                ax.set(xlabel=f'PC{pc1 + 1} ({explained_variance_ratio[pc1] * 100:.1f}%)',
-                       ylabel=f'PC{pc2 + 1} ({explained_variance_ratio[pc2] * 100:.1f}%)')
-            if not show_xy_labels:
+            if show_xy_labels:
+                if (explained_variance_ratio is not None) and (anno is not None):
+                    x_label = f'{label_name}{pc1 + 1} ({explained_variance_ratio[pc1] * 100:.1f}%, {anno})'
+                    y_label = f'{label_name}{pc2 + 1} ({explained_variance_ratio[pc2] * 100:.1f}%)'
+                elif explained_variance_ratio is not None:
+                    x_label = f'{label_name}{pc1 + 1} ({explained_variance_ratio[pc1] * 100:.1f}%)'
+                    y_label = f'{label_name}{pc2 + 1} ({explained_variance_ratio[pc2] * 100:.1f}%)'
+                elif anno is not None:
+                    x_label = f'{label_name}{pc1 + 1} ({anno})'
+                    y_label = f'{label_name}{pc2 + 1}'
+                else:
+                    x_label = f'{label_name}{pc1 + 1}'
+                    y_label = f'{label_name}{pc2 + 1}'
+                ax.set(xlabel=x_label, ylabel=y_label)
+            else:
                 ax.set(xlabel=None, ylabel=None)
             # Put the legend out of the figure
             if show_legend:
-                g_legend = ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.2 - 0.1 * n_class), ncol=2)
+                # g_legend = ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.2 - 0.1 * n_class), ncol=2)
+                g_legend = ax.legend(loc='best', ncol=2)
                 for _ in g_legend.legendHandles:
-                    _.set_linewidth(s)
+                    _.set_linewidth(2)
             else:
                 ax.legend([], [], frameon=False)
+            # remove the top and right ticks
+            g.ax_marg_x.tick_params(axis='x', which='both', top=False)
+            g.ax_marg_x.grid(False)
+            g.ax_marg_y.tick_params(axis='y', which='both', right=False)
+            g.ax_marg_y.grid(False)
         else:
             fig = plt.figure(figsize=(12, 8))
             ax = fig.add_subplot(111)

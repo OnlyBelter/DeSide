@@ -14,7 +14,8 @@ warnings.simplefilter(action='ignore', category=UserWarning)
 
 def tcga_evaluation(marker_gene_file_path, total_result_dir, pred_cell_frac_tcga_dir,
                     cell_types, tcga_data_dir, outlier_file_path=None, pre_trained_model_dir=None,
-                    model_name: str = None, signature_score_method: str = 'mean_exp', cancer_types: list = None):
+                    model_name: str = None, signature_score_method: str = 'mean_exp', cancer_types: list = None,
+                    update_figures=False):
     """
 
     :param marker_gene_file_path:
@@ -29,6 +30,7 @@ def tcga_evaluation(marker_gene_file_path, total_result_dir, pred_cell_frac_tcga
         mean_exp (the mean or max expression of corresponding marker genes for each cell type) or
         gene_signature_score (Combes et al., 2022, Cell 185, 184-203)
     :param cancer_types: a list of cancer types
+    :param update_figures: update figures or not
     :return:
     """
     # marker_gene_file_path = marker_gene_file_path
@@ -122,10 +124,10 @@ def tcga_evaluation(marker_gene_file_path, total_result_dir, pred_cell_frac_tcga
     compare_exp_and_cell_fraction(merged_file_path=merged_signature_score_and_cell_frac_file_path,
                                   clustering_ct=cell_types_clustering, font_scale=1.5,
                                   cell_types=cell_types, outlier_file_path=None,
-                                  result_dir=result_dir_new,
+                                  result_dir=result_dir_new, update_figures=update_figures,
                                   signature_score_method=signature_score_method)
 
-    print('Plot predicted cell fractions across all cancer types...')
+    print('Plot predicted cell proportion across all cancer types...')
     cell_types2max = {'B Cells': 0.1, 'CD4 T': 0.1, 'DC': 0.1, 'CD8 T': 0.1}
     across_all_dir = os.path.join(total_result_dir, 'across_all_cancer_type', model_name)
     for cell_type in cell_types:
@@ -133,7 +135,7 @@ def tcga_evaluation(marker_gene_file_path, total_result_dir, pred_cell_frac_tcga
         compare_cell_fraction_across_cancer_type(merged_cell_fraction=all_pred_cell_fractions_df,
                                                  result_dir=across_all_dir,
                                                  outlier_file_path=outlier_file_path,
-                                                 ylabel=f'Pred cell frac of {cell_type} by {model_name}',
+                                                 ylabel=f'Predicted cell prop. of {cell_type} by {model_name}',
                                                  cell_type=cell_type, cell_type2max=cell_type2max)
 
 
@@ -144,7 +146,7 @@ def run_step3(evaluation_dataset2path, log_file_path, result_dir, model_dir, all
 
     for dataset_name, file_path in evaluation_dataset2path.items():
         # if 'Test_set' in dataset_name:
-        print_msg(f'Evaluating on dataset {dataset_name}...', log_file_path=log_file_path)
+        print(f'   Evaluating on dataset {dataset_name}...')
         predicted_result_dir = os.path.join(result_dir, dataset_name)
         check_dir(predicted_result_dir)
         predicted_cell_frac_file_path = os.path.join(predicted_result_dir,
@@ -181,7 +183,8 @@ def run_step3(evaluation_dataset2path, log_file_path, result_dir, model_dir, all
 
 
 def run_step4(tcga_data_dir, cancer_types, log_file_path, model_dir, marker_gene_file_path, result_dir,
-              pred_cell_frac_tcga_dir, cancer_purity_file_path, all_cell_types, model_names, signature_score_method):
+              pred_cell_frac_tcga_dir, cancer_purity_file_path, all_cell_types, model_names, signature_score_method,
+              update_figures=False):
     # TCGA
     print_msg("Step 4: Predict cell fraction of TCGA...", log_file_path=log_file_path)
     # model_name = 'DeSide'
@@ -201,20 +204,20 @@ def run_step4(tcga_data_dir, cancer_types, log_file_path, model_dir, marker_gene
                 deside_model.predict(input_file=current_bulk_tpm,
                                      output_file_path=y_pred_file_path,
                                      exp_type='TPM', scaling_by_constant=True, scaling_by_sample=False)
-
-                print(f'   Plot and compare predicted result...')
-                # y_pred_file_path = os.path.join(current_result_dir, 'y_predicted_result.csv')
-                plot_predicted_result(cell_frac_result_fp=y_pred_file_path, bulk_exp_fp=current_bulk_tpm.T,
-                                      cancer_type=cancer_type, model_name=model_name, result_dir=current_result_dir,
-                                      cancer_purity_fp=cancer_purity_file_path, font_scale=1.5)
             else:
                 print(f'   Previous result existed: {y_pred_file_path}')
+            print(f'   Plot and compare predicted result...')
+            # y_pred_file_path = os.path.join(current_result_dir, 'y_predicted_result.csv')
+            plot_predicted_result(cell_frac_result_fp=y_pred_file_path, bulk_exp_fp=current_bulk_tpm.T,
+                                  cancer_type=cancer_type, model_name=model_name, result_dir=current_result_dir,
+                                  cancer_purity_fp=cancer_purity_file_path, update_figures=update_figures)
 
         tcga_evaluation(marker_gene_file_path=marker_gene_file_path, total_result_dir=result_dir,
                         pred_cell_frac_tcga_dir=pred_cell_frac_tcga_dir,
                         cell_types=all_cell_types, tcga_data_dir=tcga_data_dir,
                         pre_trained_model_dir=model_dir, model_name=model_name,
-                        signature_score_method=signature_score_method, cancer_types=cancer_types)
+                        signature_score_method=signature_score_method, cancer_types=cancer_types,
+                        update_figures=update_figures)
 
         # calculate the distribution of predicted cell proportions in TCGA
         # model_name = 'DeSide'

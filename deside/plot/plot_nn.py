@@ -51,7 +51,7 @@ def plot_loss(history_df, output_dir=None, x_label='n_epoch', y_label='MSE', fil
 
 def plot_corr_two_columns(df: pd.DataFrame, output_dir: str, col_name1: str = 'CPE',
                           col_name2: str = 'cancer_cell', cancer_type: str = '', diagonal: bool = True,
-                          predicted_by: str = None, font_scale: float = 1.5, scale_exp=False):
+                          predicted_by: str = None, font_scale: float = 1.5, scale_exp=False, update_figures=False):
     """
     Plot the relation between two columns in DataFrame `df`
 
@@ -73,11 +73,13 @@ def plot_corr_two_columns(df: pd.DataFrame, output_dir: str, col_name1: str = 'C
 
     :param scale_exp: if scale all expression values to range [0, 10] by x_i/max(x) * 10
 
+    :param update_figures: if update figures in output_dir
+
     :return: None
     """
     check_dir(output_dir)
     result_file_path = os.path.join(output_dir, '{}_vs_predicted_{}_proportion.png'.format(col_name1, col_name2))
-    if not os.path.exists(result_file_path):
+    if (not os.path.exists(result_file_path)) or update_figures:
         # sns.set(font_scale=font_scale)
         # plt.rcParams['font.sans-serif'] = ['Arial Unicode MS']  # show Chinese characters
         plt.figure(figsize=(8, 8))
@@ -94,19 +96,19 @@ def plot_corr_two_columns(df: pd.DataFrame, output_dir: str, col_name1: str = 'C
             corr[0, 1] = 0  # when all predicted cell fraction are 0, set corr to 0
         # corr2 = stats.pearsonr(df[col_name1], df[col_name2])
         mae = median_absolute_error(y_true=df_col1, y_pred=df_col2)
-        plt.scatter(df_col1, df_col2)
+        plt.scatter(df_col1, df_col2, s=8)
         plt.xlabel('{} ({})'.format(col_name1, cancer_type))
         # plt.xlabel('{} (头颈癌)'.format(col_name1))
         # plt.ylabel('预测 {} 比例 (样本数={})'.format(col_name2, df.shape[0]))
         x_left, x_right = plt.xlim()
         y_bottom, y_top = plt.ylim()
         if '_true' in col_name2:
-            plt.ylabel('{} frac. (n={})'.format(col_name2, df.shape[0]))
+            plt.ylabel('{} prop. (n={})'.format(col_name2, df.shape[0]))
         elif predicted_by:
-            plt.ylabel('Pred {} frac. by {} (n={})'.format(col_name2, predicted_by, df.shape[0]))
+            plt.ylabel('Predicted {} prop. by {} (n={})'.format(col_name2, predicted_by, df.shape[0]))
             # plt.ylabel('{}预测值 (样本数={})'.format(predicted_by, df.shape[0]))
         else:
-            plt.ylabel('{} frac. (n={})'.format(col_name2, df.shape[0]))
+            plt.ylabel('{} prop. (n={})'.format(col_name2, df.shape[0]))
         if 'CPE' in [col_name1, col_name2]:
             plt.text(0.05, 0.95, 'corr = {:.3f}'.format(corr[0, 1]))
             plt.text(0.05, 0.90, '$MAE$ = {:.3f}'.format(mae))
@@ -123,10 +125,10 @@ def plot_corr_two_columns(df: pd.DataFrame, output_dir: str, col_name1: str = 'C
             plt.text(0.1, 0.85, '$MAE$ = {:.3f}'.format(mae))
         elif ('_marker_mean' in col_name1) or ('_marker_max' in col_name1):
             # compare mean expression of marker genes and predicted cell fraction
-            plt.text(x_left + 0.2, y_top * 0.92, 'corr = {:.3f}'.format(corr[0, 1]))
+            plt.text(x_right * 0.05, y_top * 0.92, 'corr = {:.3f}'.format(corr[0, 1]))
         elif '_gene_signature_score' in col_name1:
             # compare mean expression of marker genes and predicted cell fraction
-            plt.text(x_left + 0.2, y_top * 0.92, 'corr = {:.3f}'.format(corr[0, 1]))
+            plt.text(x_right * 0.05, y_top * 0.92, 'corr = {:.3f}'.format(corr[0, 1]))
         if diagonal:
             plt.plot([0, 1], [0, 1], linestyle='--', color='tab:gray')
         plt.tight_layout()
@@ -138,7 +140,7 @@ def plot_corr_two_columns(df: pd.DataFrame, output_dir: str, col_name1: str = 'C
 
 def plot_predicted_result(cell_frac_result_fp, bulk_exp_fp, cancer_type,
                           model_name, result_dir, cancer_purity_fp: str = None,
-                          font_scale=2.0):
+                          font_scale=2.0, update_figures=False):
     """
     Plot and evaluate predicted results of DeSide or Scaden model for TCGA data
 
@@ -157,6 +159,8 @@ def plot_predicted_result(cell_frac_result_fp, bulk_exp_fp, cancer_type,
 
     :param font_scale: scale font size
 
+    :param update_figures: whether to update figures
+
     :return: None
     """
     y_pred = read_df(cell_frac_result_fp)  # cell fraction, sample by cell type
@@ -168,10 +172,8 @@ def plot_predicted_result(cell_frac_result_fp, bulk_exp_fp, cancer_type,
     merged_df1 = y_pred.merge(bulk_exp_cpm.T, left_index=True, right_index=True)
     plot_corr_two_columns(df=merged_df1, col_name2='CD8 T', col_name1='CD8A',
                           predicted_by=model_name, font_scale=font_scale,
-                          output_dir=result_dir, diagonal=False, cancer_type=cancer_type)
-    # plot_corr_two_columns(df=merged_df1, col_name2='CD8 T', col_name1='CD8A',
-    #                       predicted_by='DeSide', font_scale=2.8,
-    #                       output_dir=current_result_dir, diagonal=False, cancer_type=cancer_type)
+                          output_dir=result_dir, diagonal=False, cancer_type=cancer_type, update_figures=update_figures)
+
     if cancer_purity_fp is not None:
         # read cancer purity file
         cancer_purity = read_cancer_purity(cancer_purity_fp, sample_names=list(y_pred.index))
@@ -182,7 +184,7 @@ def plot_predicted_result(cell_frac_result_fp, bulk_exp_fp, cancer_type,
                                           f'cancer_purity_merged_{model_name}_predicted_result.csv'))
             plot_corr_two_columns(df=merged_df, col_name1='CPE', col_name2='Cancer Cells',
                                   output_dir=result_dir, font_scale=font_scale,
-                                  cancer_type=cancer_type, predicted_by=model_name)
+                                  cancer_type=cancer_type, predicted_by=model_name, update_figures=update_figures)
             # plot_corr_two_columns(df=merged_df, col_name1='CPE', col_name2='1-others',
             #                       output_dir=result_dir, font_scale=font_scale,
             #                       cancer_type=cancer_type, predicted_by=model_name)
@@ -205,8 +207,8 @@ def plot_predicted_result(cell_frac_result_fp, bulk_exp_fp, cancer_type,
     print('   Cell types: ', ', '.join(cell_types))
     compare_exp_between_group(exp=y_pred, group_list=tuple(cell_types),
                               result_dir=result_dir, xlabel=f'Cell Type ({cancer_type})',
-                              ylabel=f'Cell frac. by {model_name}',
-                              file_name='pred_cell_frac_before_decon.png', font_scale=font_scale - 0.4,
+                              ylabel=f'Cell prop. predicted by {model_name}',
+                              file_name='pred_cell_prop_before_decon.png', font_scale=font_scale - 0.4,
                               xticks_rotation=50)
 
 
