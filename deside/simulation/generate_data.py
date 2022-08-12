@@ -1066,7 +1066,9 @@ def get_gene_list_for_filtering(bulk_exp_file, tcga_file, result_file_path, q_co
     :param tcga_file:
     :param filtering_type: high_corr_gene, quantile_range, all_genes, high_corr_gene_and_quantile_range
     :param corr_result_fp:
-    :param quantile_range:
+    :param quantile_range: median gene expression (quantile_range[1], expected as 0.5) of simulated bulk cell GEPs that
+        is less than quantile_range[0] or greater than quantile_range[2] of the quantile expression value
+        of corresponding gene in TCGA dataset will be removed
     :param result_file_path:
     :return:
     """

@@ -1103,9 +1103,10 @@ def plot_pca(data: pd.DataFrame, result_fp=None, color_code=None, s=5, figsize=(
                               s=s, space=0, height=figsize[1], alpha=0.5)
             ax = g.ax_joint
             n_tcga, n_non_tcga = 0, 0
+            q_lower, q_upper = 0.1, 0.9
             if show_core_zone_of_tcga and 'TCGA' in data['class'].unique():
                 coord, n_tcga, n_non_tcga = get_core_zone_of_pca(pca_data=data, col_x=col_x, col_y=col_y,
-                                                                 q_lower=0.1, q_upper=0.9)
+                                                                 q_lower=q_lower, q_upper=q_upper)
                 width = coord['x_upper'] - coord['x_lower']
                 height = coord['y_upper'] - coord['y_lower']
                 rect = patches.Rectangle((coord['x_lower'], coord['y_lower']), width, height,
@@ -1124,7 +1125,8 @@ def plot_pca(data: pd.DataFrame, result_fp=None, color_code=None, s=5, figsize=(
                 elif anno is not None:
                     x_label = col_x + f' ({anno})'
                 if show_core_zone_of_tcga:
-                    x_label += f'\nCore Zone: TCGA ({n_tcga}), Non-TCGA ({n_non_tcga})'
+                    q_range = f'$q_{{{q_lower * 100:.0f}}}-q_{{{q_upper * 100:.0f}}}$'
+                    x_label += f'\nCore Zone ({q_range}): TCGA ({n_tcga}), Non-TCGA ({n_non_tcga})'
                 ax.set(xlabel=x_label, ylabel=y_label)
             else:
                 ax.set(xlabel=None, ylabel=None)

@@ -62,6 +62,8 @@ def set_fig_style():
 
     mpl.rcParams['figure.dpi'] = 300
     mpl.rcParams['figure.facecolor'] = 'white'
+    mpl.rcParams['pdf.fonttype'] = 42
+    mpl.rcParams['ps.fonttype'] = 42
     # print('figure.dpi will be set to', mpl.rcParams['figure.dpi'])
     plt.close('all')
 
