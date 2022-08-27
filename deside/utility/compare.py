@@ -2,7 +2,7 @@ import os
 import warnings
 import pandas as pd
 from scipy.stats import percentileofscore
-from .pub_func import check_dir, read_marker_gene, read_df
+from .pub_func import check_dir, read_marker_gene, read_df, sorted_cell_types
 # from ..decon_cf.scaden_main import evaluation
 from ..utility import log_exp2cpm, non_log2cpm, aggregate_marker_gene_exp
 
@@ -11,8 +11,8 @@ name_mapping_CIBERSORT = {"B cells": 'B Cells', "T cells CD8": 'CD8 T', "T cells
                           "Mast cells": 'Mast Cells', "Myocytes": 'myocyte', "CAFs": 'Fibroblasts',
                           "Endothelial cells": 'Endothelial cells', "Malignant cells": 'Cancer Cells'}
 # sorted_cell_types = ['T cell', 'Mast', 'Macrophage', 'Fibroblast', 'Endothelial', 'cancer_cell', 'B cell']
-sorted_cell_types = ['B Cells', 'CD4 T', 'CD8 T', 'Cancer Cells', 'DC', 'Endothelial cells',
-                     'Fibroblasts', 'Macrophages', 'Mast Cells', 'NK', 'Neutrophils']
+# sorted_cell_types = ['B Cells', 'CD4 T', 'CD8 T', 'Cancer Cells', 'DC', 'Endothelial cells',
+#                      'Fibroblasts', 'Macrophages', 'Mast Cells', 'NK', 'Neutrophils']
 
 # max_percentage_hnscc = {'T cell': 0.85, 'myocyte': 0, 'Mast': 0.1, 'Macrophage': 0.05,
 #                         'Fibroblast': 0.85, 'Endothelial': 0.25, 'Dendritic': 0,
@@ -38,114 +38,79 @@ def parse_result_from_cibersort(result_file_path):
     return result.loc[:, cell_types]
 
 
-# def evaluate_test_set_cibersort(cibersort_file_name, base_dir, cell_types=None):
-#     """
-#
-#     :param cibersort_file_name:
-#     :param base_dir:
-#     :param cell_types: cell types used for comparing
-#     :return:
-#     """
-#     # current_test_set = 'n1000_T_Fib_Cancer'
-#     _result_dir = os.path.join(base_dir, 'cell_fraction_by_CIBERSORT')
-#     _y_pred_file_path = os.path.join(_result_dir, 'converted_CIBERSORT_result.csv')
-#     if not os.path.exists(_y_pred_file_path):
-#         y_pred_by_ciber_file_path = os.path.join(_result_dir, cibersort_file_name)
-#         parsed_ciber = parse_result_from_cibersort(y_pred_by_ciber_file_path)
-#         print_df(parsed_ciber)
-#         parsed_ciber.to_csv(_y_pred_file_path)
-#     cell_fraction_file_path = os.path.join(base_dir, 'cell_fraction.csv')
-#     evaluation_file_path = os.path.join(_result_dir, 'model_performance_evaluation_CIBER.csv')
-#     if not os.path.exists(evaluation_file_path):
-#         evaluation(y_true_file_path=cell_fraction_file_path, y_pred_file_path=_y_pred_file_path,
-#                    result_file_path=evaluation_file_path, model_name='CIBERSORT', cell_types=cell_types)
-
-
-def _read_result(file_path, cell_type, algo):
+def _read_result(file_path, cell_type_name_mapping, cell_types, algo=None):
     """
-    read a single result file from different algorithm
+    read a single result file from different algorithms for performance comparison ()
     :param file_path:
-    :param cell_type:
+    :param cell_type_name_mapping: mapping from cell type names of current algo to cell type names in DeSide
     :param algo: the name of each algorithm, CIBERSORT, MuSiC, EPIC, Scaden, Scaden-web and DeSide
     :return:
     """
-    predicted_result = None
-    if algo == 'CIBERSORT':
-        cell_type_name_mapping = {'CD8Tcell': 'CD8 T', 'Malignant': 'Cancer Cells',
-                                  'CD4Tcell': 'CD4 T', 'Bcell': 'B Cells'}
-        predicted_result = pd.read_csv(file_path, sep='\t', index_col=0)
-        predicted_result.rename(columns=cell_type_name_mapping, inplace=True)
-        # print(predicted_result.head())
-    elif algo == 'MuSiC':
-        cell_type_name_mapping = {'CD8+Tcell': 'CD8 T', 'Malignant': 'Cancer Cells',
-                                  'Bcell': 'B Cells', 'CD4+Tcell': 'CD4 T'}
-        predicted_result = pd.read_csv(file_path, sep='\t', index_col=0)
-        predicted_result.rename(columns=cell_type_name_mapping, inplace=True)
-        predicted_result.index = predicted_result.index.map(lambda x: x.replace('.', '-'))
-    elif algo == 'EPIC':
-        cell_type_name_mapping = {'CD8_Tcells': 'CD8 T', 'Cancer.Cells': 'Cancer Cells',
-                                  'CD4_Tcells': 'CD4 T', 'Bcells': 'B Cells'}
-        predicted_result = pd.read_csv(file_path, skiprows=[0, 1, 2, 3, 4], sep='\t', index_col=0)
-        if 'Cancer.Cells' not in predicted_result.columns:
-            predicted_result['Cancer.Cells'] = 0
-        predicted_result.rename(columns=cell_type_name_mapping, inplace=True)
-        predicted_result.index = predicted_result.index.map(lambda x: x.replace('.', '-'))
-    elif algo == 'Scaden-web':
-        cell_type_name_mapping = {'CD8Tcells': 'CD8 T', 'Carcinoma': 'Cancer Cells', 'CD4Tcells': 'CD4 T'}
-        predicted_result = pd.read_csv(file_path, sep='\t', index_col=0)
-        predicted_result.rename(columns=cell_type_name_mapping, inplace=True)
-    elif (algo in ['Scaden', 'DeSide']) or ('Scaden' in algo):
-        predicted_result = pd.read_csv(file_path, index_col=0)
-    return predicted_result.loc[:, cell_type]
+    predicted_result = read_df(file_path)
+    predicted_result.rename(columns=cell_type_name_mapping, inplace=True)
+    predicted_result.index = predicted_result.index.map(lambda x: x.replace('.', '-'))
+    return predicted_result.loc[:, cell_types]
 
 
-def read_and_merge_result(raw_result_dir: str, cell_type: list, algo: str,
+def read_and_merge_result(raw_result_dir: str, cell_type_name_mapping: dict, algo: str,
                           result_file_path=None) -> pd.DataFrame:
     """
     read and merge predicted cell fractions of each algorithm
     :param raw_result_dir:
-    :param cell_type: a list of cell types
+    :param cell_type_name_mapping: mapping from cell type names of current algo to cell type names in DeSide
     :param algo: EPIC, CIBERSORT, MuSiC, DeSide and Scaden
     :param result_file_path:
     :return:
     """
+    cell_types = [i for i in sorted_cell_types if i in list(cell_type_name_mapping.values())]
     cancer_dataset2file_path = {}
     cancer_type = ''
     ds = ''  # reference dataset
+    assert os.path.exists(raw_result_dir), '{} does not exist'.format(raw_result_dir)
     for root, dirs, files in os.walk(raw_result_dir):
         for file_name in files:
-            if ('.txt' in file_name) or (f'y_predicted_result.csv' in file_name):
-                if algo == 'CIBERSORT':
-                    _, cancer_type, ds, _ = file_name.split('_')
+            if (('.txt' in file_name) or (f'.csv' in file_name)) and \
+                    ('cancer_purity' not in file_name) and ('signature_score' not in file_name):
+                if 'CIBERSORT' in algo:
+                    _, _, _, cancer_type, ds, _ = file_name.split('_')
                 elif algo == 'MuSiC':
                     cancer_type, ds, _ = file_name.split('_')
                     ds = ds.replace('LUAD1', 'LUAD')
-                elif algo == 'EPIC':
+                elif 'EPIC' in algo:
                     if 'NOref' in file_name:
                         _, cancer_type, ds = file_name.split('_')
                     else:
-                        _, cancer_type, _, ds = file_name.split('_')
-                    ds = ds.replace('.txt', '')
-                elif algo == 'Scaden-web':
-                    cancer_type, _ = file_name.split('_')
+                        cancer_type, _ = file_name.split('.')
+                    if algo == 'EPIC':
+                        ds = '46sig'
+                    else:  # EPIC_self_ref
+                        ds = 'self'
+                elif algo == 'Scaden':
+                    cancer_type = file_name.split('_')[-1].replace('.txt', '')
                     ds = 'Ascites'
-                elif (algo in ['Scaden', 'DeSide']) or 'Scaden' in algo:
+                elif algo == 'Scaden_simu_bulk':
+                    cancer_type = file_name.split('_')[-1].replace('.txt', '')
+                    ds = 'simu_bulk_2ds'
+                elif algo == 'DeSide':
                     # dir_names = root.split(os.path.sep)
                     # print(dir_names)
-                    ds, cancer_type = root.split(os.path.sep)[-2:]
+                    cancer_type = root.split(os.path.sep)[-1]
                     if '/' in cancer_type:
                         cancer_type = cancer_type.split('/')[-1]
-                    ds = ds.replace('_result', '')
+                    ds = 'simu_bulk_2ds'
+                if '.txt' in ds:
+                    ds = ds.replace('.txt', '')
                 cancer_type = cancer_type.replace('HNSCC', 'HNSC')
                 ds = ds.replace('HNSCC', 'HNSC')
+                assert os.path.exists(os.path.join(root, file_name)), f'{os.path.join(root, file_name)} does not exist'
                 cancer_dataset2file_path[cancer_type + '-' + ds + '_ref'] = os.path.join(root, file_name)
     # print(cancer_dataset2file_path)
     sample2cell_frac = {}
     counter = 0
-    columns = ['sample_id', 'cancer_type', 'reference_dataset'] + cell_type
+    columns = ['sample_id', 'cancer_type', 'reference_dataset'] + cell_types
 
     for cancer_dataset, file_path in cancer_dataset2file_path.items():
-        # print(cancer_dataset)
+        # print(cancer_dataset, file_path)
         cancer_type, ref_dataset = cancer_dataset.split('-')
         if 'Scaden' in algo:
             ref_dataset = ref_dataset.replace('Scaden_', '')
@@ -153,7 +118,8 @@ def read_and_merge_result(raw_result_dir: str, cell_type: list, algo: str,
             ref_dataset = ref_dataset.replace('DeSide_', '')
         if ref_dataset == 'ref':
             ref_dataset = 'Mixed_ref'
-        current_result = _read_result(file_path, cell_type, algo=algo)
+        current_result = _read_result(file_path, cell_type_name_mapping=cell_type_name_mapping,
+                                      cell_types=cell_types, algo=algo)
         for row in current_result.iterrows():
             sample_id = row[0]
             sample2cell_frac[counter] = [sample_id, cancer_type, ref_dataset] + list(row[1].values)

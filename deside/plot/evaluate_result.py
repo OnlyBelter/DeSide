@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import gc
 
-set_fig_style()
+# set_fig_style()
 # sns.set(font_scale=1.5)
 # sns.set_style('white')
 
@@ -633,7 +633,7 @@ def y_y_pred_error_hist_decon(sample_name, purified_gep_file_path, result_file_d
 
 
 def compare_cancer_cell_with_cpe(cancer_type: str, algo2merged_fp, cancer_purity_fp, inx2plot: dict,
-                                 result_file_name_prefix, result_dir='./figures'):
+                                 result_file_name_prefix, result_dir='./figures', error_metric='MAE'):
     """
     comparing predicted cell fraction of cancer cells with CPE value for a specific cancer type
     :param cancer_type:
@@ -642,6 +642,7 @@ def compare_cancer_cell_with_cpe(cancer_type: str, algo2merged_fp, cancer_purity
     :param inx2plot:
     :param result_file_name_prefix:
     :param result_dir:
+    :param error_metric: MAE or RMSE
     :return:
     """
     check_dir(result_dir)
@@ -649,13 +650,16 @@ def compare_cancer_cell_with_cpe(cancer_type: str, algo2merged_fp, cancer_purity
     cancer_purity = cancer_purity.loc[(cancer_purity['Cancer type'] == cancer_type) &
                                       (cancer_purity['CPE'].notna()), :]
     corr_list = [None] * len(inx2plot)
-    mae_list = [None] * len(inx2plot)
+    error_list = [None] * len(inx2plot)
     n_sample = 0
     m, n = 2, 3
     if len(inx2plot) == 4:
         m, n = 2, 2
+    elif len(inx2plot) == 8:
+        m, n = 2, 4
     if cancer_purity.shape[0] > 0:
-        fig, ax = plt.subplots(m, n, sharex='col', sharey='row', figsize=(5*n, 5*m))
+        fig, ax = plt.subplots(m, n, sharex='col', sharey='row', figsize=(1.2*n, 1.3*m), constrained_layout=True)
+        # plt.subplots_adjust(wspace=0.05, hspace=0.15)
         for i in range(m):
             for j in range(n):
                 plot_target = inx2plot[(i, j)]
@@ -665,7 +669,7 @@ def compare_cancer_cell_with_cpe(cancer_type: str, algo2merged_fp, cancer_purity
                     merged_result = merged_result.loc[(merged_result['reference_dataset'] == ref) &
                                                       (merged_result['cancer_type'] == cancer_type)].copy()
                     merged_result.set_index('sample_id', inplace=True)
-                    if algo == 'EPIC':
+                    if algo == 'EPIC' and 'otherCells' in merged_result.columns:
                         merged_result['Cancer Cells'] = merged_result.loc[:, ['Cancer Cells', 'otherCells']].sum(axis=1)
                     df = merged_result.merge(cancer_purity, left_index=True, right_index=True)
                     n_sample = df.shape[0]
@@ -676,20 +680,37 @@ def compare_cancer_cell_with_cpe(cancer_type: str, algo2merged_fp, cancer_purity
                         # print(merged_result.head())
                     col_name2 = 'CPE'
                     corr = np.corrcoef(df[col_name1], df[col_name2])
-                    mae = median_absolute_error(y_true=df[col_name1], y_pred=df[col_name2])
-                    ax[i, j].scatter(df[col_name1], df[col_name2])
-                    ax[i, j].set_xlabel('{} with {}'.format(algo, ref))
+                    if error_metric == 'MAE':
+                        error = median_absolute_error(y_true=df[col_name1], y_pred=df[col_name2])  # pd.series
+                    elif error_metric == 'RMSE':
+                        error = calculate_rmse(y_true=df[[col_name1]], y_pred=df[[col_name2]])  # pd.dataframe
+                    else:
+                        raise ValueError('error metric {} not supported, '
+                                         'only "MAE" or "RMSE" was supported'.format(error_metric))
+                    ax[i, j].scatter(df[col_name1], df[col_name2], s=1, alpha=0.8)
+                    if 'CIBERSORT' in algo:
+                        algo = 'C.SORT'
+                    elif 'Scaden' in algo:
+                        algo = 'Scaden'
+                    elif 'EPIC' in algo:
+                        algo = 'EPIC'
+                    if 'simu_bulk' in ref:
+                        ref = 'simu_2ds'
+                    ax[i, j].set_xlabel('{} - {}'.format(algo, ref.replace('_ref', '')), fontsize=8)
                     # plt.ylabel('{}预测值 (样本数={})'.format(predicted_by, df.shape[0]))
-                    ax[i, j].text(0.45, 0.15, 'corr = {:.3f}'.format(corr[0, 1]))
-                    ax[i, j].text(0.45, 0.05, '$MAE$ = {:.3f}'.format(mae))
+                    ax[i, j].text(0.4, 0.18, 'corr = {:.2f}'.format(corr[0, 1]), fontsize=6)
+                    if error_metric == 'MAE':
+                        ax[i, j].text(0.4, 0.05, 'MAE = {:.2f}'.format(error), fontsize=6)
+                    elif error_metric == 'RMSE':
+                        ax[i, j].text(0.4, 0.05, 'RMSE = {:.2f}'.format(error), fontsize=6)
                     ax[i, j].plot([0, 1], [0, 1], linestyle='--', color='tab:gray')
                     corr_list[i * n + j] = round(corr[0, 1], 3)
-                    mae_list[i * n + j] = round(mae, 3)
+                    error_list[i * n + j] = round(error, 3)
         fig.supxlabel('Predicted cell fraction of {} in {} (n={})'.format('Cancer Cells', cancer_type, n_sample))
         fig.supylabel('CPE')
-        plt.tight_layout()
-        plt.savefig(os.path.join(result_dir, '{}_{}.png'.format(result_file_name_prefix, cancer_type)), dpi=200)
-    return {'corr': corr_list, 'mae': mae_list}
+        # plt.tight_layout()
+        plt.savefig(os.path.join(result_dir, '{}_{}.png'.format(result_file_name_prefix, cancer_type)), dpi=300)
+    return {'corr': corr_list, 'error': error_list}
 
 
 def compare_cd8t_with_cd8a(cancer_type, algo2merged_fp, tpm_fp, gene_list, inx2plot, cancer_type2max_frac=None,
@@ -1194,14 +1215,14 @@ def compare_mean_exp_with_cell_frac_across_algo(cancer_type: str, algo2merged_fp
     """
     check_dir(result_dir)
     mean_exp = pd.read_csv(signature_score_fp, index_col=0)
-    if outliers_fp is not None:
+    if outliers_fp is not None and os.path.exists(outliers_fp):
         outliers = pd.read_csv(outliers_fp, index_col=0)
         mean_exp = mean_exp.loc[~mean_exp.index.isin(outliers.index), :].copy()
     # mean_exp = mean_exp.loc[mean_exp['cancer_type'] == cancer_type, [f'{cell_type}_marker_mean']].copy()
 
     corr_list = [None] * len(inx2plot)
     max_cell_frac = 0
-    fig, ax = plt.subplots(2, 3, sharex='col', sharey='row', figsize=(15, 10))
+    fig, ax = plt.subplots(2, 3, sharex='col', sharey='row', figsize=(3.5, 2.5), constrained_layout=True)
     n_sample = 0
     for i in range(2):
         for j in range(3):
@@ -1209,37 +1230,49 @@ def compare_mean_exp_with_cell_frac_across_algo(cancer_type: str, algo2merged_fp
             if plot_target:
                 algo, ref = plot_target.split('-')
                 merged_result = pd.read_csv(algo2merged_fp[algo], index_col=0)
-                merged_result = merged_result.loc[(merged_result['reference_dataset'] == ref) &
-                                                  (merged_result['cancer_type'] == cancer_type)].copy()
-                merged_result.set_index('sample_id', inplace=True)
-                if algo == 'EPIC':
-                    merged_result['Cancer Cells'] = merged_result.loc[:, ['Cancer Cells', 'otherCells']].sum(axis=1)
-                df = merged_result.merge(mean_exp, left_index=True, right_index=True)
-                n_sample = df.shape[0]
-                # print(df.shape, algo)
-                col_name1 = f'{cell_type}_marker_mean'  # mean of marker gene expression values
-                col_name2 = cell_type  # predicted cell fraction
-                corr = np.corrcoef(df[col_name1], df[col_name2])
-                if df[cell_type].max() > max_cell_frac:
-                    max_cell_frac = df[cell_type].max()
+                if cell_type in merged_result.columns:
+                    merged_result = merged_result.loc[(merged_result['reference_dataset'] == ref) &
+                                                      (merged_result['cancer_type'] == cancer_type)].copy()
+                    merged_result.set_index('sample_id', inplace=True)
+                    if algo == 'EPIC' and 'otherCells' in merged_result.columns:
+                        merged_result['Cancer Cells'] = merged_result.loc[:, ['Cancer Cells', 'otherCells']].sum(axis=1)
+                    df = merged_result.merge(mean_exp, left_index=True, right_index=True)
+                    n_sample = df.shape[0]
+                    # print(df.shape, algo)
+                    col_name1 = f'{cell_type}_marker_mean'  # mean of marker gene expression values
+                    col_name2 = cell_type  # predicted cell fraction
+                    corr = np.corrcoef(df[col_name1], df[col_name2])
+                    if df[cell_type].max() > max_cell_frac:
+                        max_cell_frac = df[cell_type].max()
 
-                if cancer_type2max_frac is not None:
-                    ax[i, j].set_ylim([-0.01, cancer_type2max_frac[cancer_type] + 0.02])
-                else:
-                    _max_exp = 0.25
-                    ax[i, j].set_ylim([-0.01, _max_exp + 0.02])
-                    df.loc[df[cell_type] > _max_exp, cell_type] = _max_exp  # set max fraction to 0.25
-                # mae = median_absolute_error(y_true=df[col_name1], y_pred=df[col_name2])
-                ax[i, j].scatter(df[col_name1], df[col_name2])
-                # x_left, x_right = ax[i, j].get_xlim()
-                y_bottom, y_top = ax[i, j].get_ylim()
-                ax[i, j].set_xlabel('{} with {}'.format(algo, ref))
-                ax[i, j].text(1, y_top * 0.9, 'corr = {:.3f}'.format(corr[0, 1]))
-                corr_list[i * 3 + j] = round(corr[0, 1], 3)
+                    if cancer_type2max_frac is not None:
+                        ax[i, j].set_ylim([-0.01, cancer_type2max_frac[cancer_type] + 0.02])
+                    else:
+                        if cell_type in ['CD8 T', 'CD4 T', 'B Cells']:
+                            _max_exp = 0.25
+                        else:
+                            _max_exp = 0.6
+                        ax[i, j].set_ylim([-0.01, _max_exp + 0.02])
+                        df.loc[df[cell_type] > _max_exp, cell_type] = _max_exp  # set max fraction to 0.25
+                    # mae = median_absolute_error(y_true=df[col_name1], y_pred=df[col_name2])
+                    ax[i, j].scatter(df[col_name1], df[col_name2], s=1, alpha=0.8)
+                    # x_left, x_right = ax[i, j].get_xlim()
+                    y_bottom, y_top = ax[i, j].get_ylim()
+                    if 'CIBERSORT' in algo:
+                        algo = 'C.SORT'
+                    elif 'Scaden' in algo:
+                        algo = 'Scaden'
+                    elif 'EPIC' in algo:
+                        algo = 'EPIC'
+                    if 'simu_bulk' in ref:
+                        ref = 'simu_2ds'
+                    ax[i, j].set_xlabel('{} - {}'.format(algo, ref.replace('_ref', '')), fontsize=8)
+                    ax[i, j].text(1, y_top * 0.8, 'corr = {:.2f}'.format(corr[0, 1]), fontsize=6)
+                    corr_list[i * 3 + j] = round(corr[0, 1], 3)
     fig.supylabel('Predicted cell fraction of {}'.format(f'{cell_type}'))
     fig.supxlabel('mean expression of marker genes in {} (n={})'.format(cancer_type, n_sample))
-    plt.tight_layout()
-    plt.savefig(os.path.join(result_dir, f'{result_file_name_prefix}_in_{cancer_type}.png'), dpi=200)
+    # plt.tight_layout()
+    plt.savefig(os.path.join(result_dir, f'{result_file_name_prefix}_in_{cancer_type}.png'), dpi=300)
     print('  Max cell fraction: {}'.format(max_cell_frac))
     return {'corr': corr_list}
 

@@ -51,7 +51,7 @@ def print_df(df):
     print(df.head(2))
 
 
-def set_fig_style():
+def set_fig_style(font_family=None, font_size=None):
     fig, ax = plt.subplots()
     sns.set_style("white")
     try:
@@ -64,6 +64,11 @@ def set_fig_style():
     mpl.rcParams['figure.facecolor'] = 'white'
     mpl.rcParams['pdf.fonttype'] = 42
     mpl.rcParams['ps.fonttype'] = 42
+    plt.rcParams['svg.fonttype'] = 'none'
+    if font_family:
+        mpl.rcParams['font.family'] = font_family
+    if font_size:
+        mpl.rcParams['font.size'] = font_size
     # print('figure.dpi will be set to', mpl.rcParams['figure.dpi'])
     plt.close('all')
 

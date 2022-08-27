@@ -123,7 +123,7 @@ def tcga_evaluation(marker_gene_file_path, total_result_dir, pred_cell_frac_tcga
     cell_types_clustering = [i for i in cell_types if i != 'Cancer Cells']
     compare_exp_and_cell_fraction(merged_file_path=merged_signature_score_and_cell_frac_file_path,
                                   clustering_ct=cell_types_clustering, font_scale=1.5,
-                                  cell_types=cell_types, outlier_file_path=None,
+                                  cell_types=cell_types, outlier_file_path=outlier_file_path,
                                   result_dir=result_dir_new, update_figures=update_figures,
                                   signature_score_method=signature_score_method)
 
@@ -184,7 +184,7 @@ def run_step3(evaluation_dataset2path, log_file_path, result_dir, model_dir, all
 
 def run_step4(tcga_data_dir, cancer_types, log_file_path, model_dir, marker_gene_file_path, result_dir,
               pred_cell_frac_tcga_dir, cancer_purity_file_path, all_cell_types, model_names, signature_score_method,
-              update_figures=False):
+              update_figures=False, outlier_file_path=None):
     # TCGA
     print_msg("Step 4: Predict cell fraction of TCGA...", log_file_path=log_file_path)
     # model_name = 'DeSide'
@@ -217,7 +217,7 @@ def run_step4(tcga_data_dir, cancer_types, log_file_path, model_dir, marker_gene
                         cell_types=all_cell_types, tcga_data_dir=tcga_data_dir,
                         pre_trained_model_dir=model_dir, model_name=model_name,
                         signature_score_method=signature_score_method, cancer_types=cancer_types,
-                        update_figures=update_figures)
+                        update_figures=update_figures, outlier_file_path=outlier_file_path)
 
         # calculate the distribution of predicted cell proportions in TCGA
         # model_name = 'DeSide'
