@@ -2,7 +2,6 @@ import os
 import pandas as pd
 import numpy as np
 from typing import Union
-# from scipy import stats
 import statsmodels.api as sm
 from sklearn.metrics import median_absolute_error
 from ..utility import (print_df, cal_relative_error, calculate_rmse, check_dir, get_corr, read_xy, read_df,
@@ -44,10 +43,11 @@ class ScatterPlot(object):
     def plot(self, show_columns: Union[list, dict], result_file_dir: str = None,
              x_label: str = None, y_label: str = None, show_corr: bool = True, show_rmse: bool = False,
              show_diag: bool = True, show_mae: bool = False, pred_by: str = None,
-             fig_size=(8, 8), group_by: str = None, show_reg_line: bool = False, s=6, order=1):
+             fig_size=(8, 8), group_by: str = None, show_reg_line: bool = False, s=6, order=1,
+             legend_loc: str = 'best'):
         """
         :param show_columns: a list of column names in both x and y, could be multiple common columns
-            or a dict {'x': '', 'y': ’‘}, only one column allowed
+            or a dict {'x': '', 'y': ''}, only one column allowed
         :param result_file_dir:
         :param x_label:
         :param y_label:
@@ -60,6 +60,7 @@ class ScatterPlot(object):
         :param group_by: one of the column name in self.group_info
         :param show_reg_line: fit regression model
         :param s:
+        :param legend_loc:
         :param order: 1 for linear regression; 2 for Polynomial Regressions, y = alpha + beta1*x + beta2*x^2
         """
         plt.figure(figsize=fig_size)
@@ -76,10 +77,10 @@ class ScatterPlot(object):
             all_y.append(self.y)
             if (self.group_info is not None) and (group_by in self.group_info.columns):
                 inx = self.group_info[group_by] == 1
-                plt.scatter(self.x[~inx], self.y[~inx], s=6, label='others')
-                plt.scatter(self.x[inx], self.y[inx], s=10, label=group_by, marker='x')
+                plt.scatter(self.x[~inx], self.y[~inx], s=1, label='others')
+                plt.scatter(self.x[inx], self.y[inx], s=5, label=group_by, marker='x')
             else:
-                plt.scatter(self.x, self.y, s=s, label=show_columns['x'])  # only 1 vs 1 column
+                plt.scatter(self.x, self.y, s=s, label=show_columns['x'], alpha=.4)  # only 1 vs 1 column
             if show_reg_line:
                 self.fit_reg_model(ax=ax, order=order)
         else:
@@ -108,19 +109,19 @@ class ScatterPlot(object):
         all_y = np.concatenate(all_y)
         if show_diag:
             _ = max(x_right, y_top)
-            plt.plot([0, _], [0, _], linestyle='--', color='tab:gray')
+            plt.plot([0, _], [0, _], linestyle='--', color='tab:gray', linewidth=1, alpha=0.8)
         if show_corr:  # show metrics in test set
             corr = get_corr(all_x, all_y)
-            plt.text(x_right * 0.70, y_top * 0.16, 'corr = {:.3f}'.format(corr))
+            plt.text(x_right * 0.60, y_top * 0.11, 'corr = {:.2f}'.format(corr))
         if show_mae:
             mae = median_absolute_error(y_true=all_x, y_pred=all_y)
-            plt.text(x_right * 0.70, y_top * 0.10, 'MAE = {:.3f}'.format(mae))
+            plt.text(x_right * 0.60, y_top * 0.05, 'MAE = {:.2f}'.format(mae))
         if show_rmse and (not show_mae):
             rmse = calculate_rmse(y_true=pd.DataFrame(all_x), y_pred=pd.DataFrame(all_y))
-            plt.text(x_right * 0.70, y_top * 0.10, 'RMSE = {:.3f}'.format(rmse))
+            plt.text(x_right * 0.60, y_top * 0.05, 'RMSE = {:.2f}'.format(rmse))
         if show_rmse and show_mae:
             rmse = calculate_rmse(y_true=pd.DataFrame(all_x), y_pred=pd.DataFrame(all_y))
-            plt.text(x_right * 0.70, y_top * 0.04, 'RMSE = {:.3f}'.format(rmse))
+            plt.text(x_right * 0.60, y_top * 0.04, 'RMSE = {:.2f}'.format(rmse))
         if x_label:
             plt.xlabel(x_label)
         else:
@@ -131,11 +132,15 @@ class ScatterPlot(object):
             plt.ylabel('Pred by {} (n={})'.format(pred_by, self.y.shape[0]))
         else:
             plt.ylabel('y_pred')
-        plt.legend()
+        handles, labels = plt.gca().get_legend_handles_labels()
+        if len(labels) > 1:
+            plt.legend(handles[1:], labels[1:], loc=legend_loc)
         plt.tight_layout()
         if result_file_dir:
             plt.savefig(os.path.join(result_file_dir,
-                                     'x_vs_y_{}.png'.format(self.postfix)), dpi=200)
+                                     'x_vs_y_{}.png'.format(self.postfix)), dpi=300)
+            plt.savefig(os.path.join(result_file_dir,
+                                     'x_vs_y_{}.svg'.format(self.postfix)), dpi=300)
         plt.close()
 
     def fit_reg_model(self, ax, alpha_ci=0.05, order=1):
@@ -177,22 +182,29 @@ class ScatterPlot(object):
         xy = self.x.copy()
         xy['y_pred'] = self.x[x_col]
         xy['y_true'] = self.y
-        sns.regplot(x='y_pred', y='y_true', data=xy, ax=ax, x_estimator=np.mean, order=order)
+        sns.regplot(x='y_pred', y='y_true', data=xy, ax=ax, order=order,
+                    x_estimator=np.mean,
+                    scatter_kws={"s": 5}, color='tab:grey', x_bins=50,
+                    line_kws={'color': 'tab:orange', 'lw': 1, 'alpha': 0})
         # p_value = res.pvalues[x_col]
         # r2 = res.rsquared
         # print(f'p_value: {p_value}', f'R^2: {r2}')
         if alpha > 0:
             if order == 2:
-                plt.plot(x_lin, y_reg_line, c='r', label=f'$y= {beta2: .2f}x^2 + {beta1: .2f}x + {alpha: .2f}$')
+                plt.plot(x_lin, y_reg_line, c='tab:orange',
+                         label=f'$y= {beta2: .2f}x^2 + {beta1: .2f}x + {alpha: .2f}$', linewidth=1)
             else:
-                plt.plot(x_lin, y_reg_line, c='r', label=f'$y={beta1: .2f}x + {alpha: .2f}$')
+                plt.plot(x_lin, y_reg_line, c='tab:orange',
+                         label=f'$y={beta1: .2f}x + {alpha: .2f}$', linewidth=1)
         else:
             if order == 2:
-                plt.plot(x_lin, y_reg_line, c='r', label=f'$y= {beta2: .2f}x^2 + {beta1: .2f}x - {abs(alpha): .2f}$')
+                plt.plot(x_lin, y_reg_line, c='tab:orange',
+                         label=f'$y= {beta2: .2f}x^2 + {beta1: .2f}x - {abs(alpha): .2f}$', linewidth=1)
             else:
-                plt.plot(x_lin, y_reg_line, c='r', label=f'$y={beta1: .2f}x - {abs(alpha): .2f}$')
-        plt.plot(x_lin, y_lower_bound, c='b', label=f'{100 - alpha_ci * 100}% CI')
-        plt.plot(x_lin, y_upper_bound, c='b')
+                plt.plot(x_lin, y_reg_line, c='tab:orange',
+                         label=f'$y={beta1: .2f}x - {abs(alpha): .2f}$', linewidth=1)
+        plt.plot(x_lin, y_lower_bound, c='tab:brown', label=f'{100 - alpha_ci * 100}% CI', linewidth=1)
+        plt.plot(x_lin, y_upper_bound, c='tab:brown', linewidth=1)
 
 
 def compare_y_y_pred_plot(y_true: Union[str, pd.DataFrame], y_pred: Union[str, pd.DataFrame],

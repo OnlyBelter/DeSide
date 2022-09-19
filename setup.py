@@ -3,11 +3,8 @@ import os
 import sys
 from setuptools import setup, find_packages
 
-install_requires = ["matplotlib", "pandas==1.3.0", "scikit-learn==1.1.2",
-                    "seaborn>=0.11.2", "requests",
-                    "tensorflow>=2.8.0; sys_platform != 'darwin' or platform_machine != 'arm64'",
-                    "tensorflow-macos>=2.8.0; sys_platform == 'darwin' and platform_machine == 'arm64'",
-                    "scipy", "numpy<1.22",
+install_requires = ["matplotlib", "pandas==1.2.5", "scikit-learn==0.24.0",
+                    "seaborn==0.11.1", "requests", "tensorflow>=2.8.0", "scipy", "numpy<1.22",
                     "anndata>=0.8.0", "scanpy==1.8.0", "joblib", "leidenalg", "jupyterlab",
                     "umap-learn==0.5.1", "bbknn==1.5.1", "openpyxl", "tensorboard",
                     "build", "sphinx==3.5.4", "myst-parser==0.13.6", "fsspec",
