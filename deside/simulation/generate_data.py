@@ -879,7 +879,8 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
             chunk_size = int(n_sample_each_cell_type / len(n_base_for_positive_samples))
             chunk_size = max(chunk_size, 100)  # bigger chunk_size for speeding up
             # DC has 543 cells, larger chunk_size can cause error if set 'replace=False' and 'n_base=1' while sampling
-            chunk_size = min(chunk_size, 500)
+            if 1 in n_base_for_positive_samples:
+                chunk_size = min(chunk_size, 300)
             chunk_counter = 0
             with pd.read_csv(self.generated_cell_fraction_fp, chunksize=chunk_size, index_col=0) as reader:
                 simu_method = 'ave'  # average single cell GEPs for both positive and negative sampling
