@@ -497,6 +497,8 @@ class BulkGEPGenerator(object):
                     sc_dataset = 'sct_dataset'
                     obs_df = self.sct_dataset_obs
                     gene_list_in_sc_ds = self.sct_dataset_df.columns.to_list()
+            if sc_dataset == 'merged_sc_dataset':
+                min_n_cell_frac = 300  # since some cell types only have a small number of cells
             # n_round = 0
             with tqdm(total=self.n_samples) as pbar:
                 if self.generated_bulk_gep_counter != 0:
