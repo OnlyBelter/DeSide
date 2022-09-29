@@ -487,9 +487,13 @@ class BulkGEPGenerator(object):
             # using merged single cell dataset directly
             obs_df = self.merged_sc_dataset_obs
             sc_dataset = 'merged_sc_dataset'
-            if self.merged_sc_dataset_df is None:
+            gene_list_in_sc_ds = []
+            if (self.merged_sc_fp is None) and (self.sct_dataset_file_path is None):
+                raise FileNotFoundError('Either "merged_sc_dataset_file_path" or '
+                                        '"sct_dataset_file_path" should be provided')
+            if (self.merged_sc_fp is not None) and (self.merged_sc_dataset_df is None):
                 self.merged_sc_dataset_df = ReadH5AD(self.merged_sc_fp).get_df(convert_to_tpm=True)
-            gene_list_in_sc_ds = self.merged_sc_dataset_df.columns.to_list()
+                gene_list_in_sc_ds = self.merged_sc_dataset_df.columns.to_list()
             if simu_method == 'mul':  # mul, using either merged_sc_dataset or sct_dataset
                 self.total_cell_number = 1  # only 1 sample for each cell type
                 if (self.sct_dataset_file_path is not None) and (self.sct_dataset_df is None):
