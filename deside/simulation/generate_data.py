@@ -12,7 +12,7 @@ from joblib import dump, load
 from sklearn.utils import shuffle
 from ..utility import (create_h5ad_dataset, check_dir, cal_corr_gene_exp_with_cell_frac,
                        ExpObj, QueryNeighbors, log2_transform, print_msg, get_cell_num,
-                       sorted_cell_types, do_pca_analysis)
+                       sorted_cell_types, do_pca_analysis, non_log2cpm)
 from ..utility.read_file import ReadH5AD, read_single_cell_type_dataset, ReadExp
 from ..single_cell import get_sample_id
 from ..plot import plot_pca
@@ -246,92 +246,93 @@ def map_cell_id2exp(sc_exp, selected_cell_id):
     return pd.DataFrame(log2cpm, index=simulated_exp_df.index, columns=sc_exp.var.index).round(2)
 
 
-def simulate_bulk_expression(cell_frac: pd.DataFrame, sc_exp_file_path: str,
-                             n_threads: int = 2, result_dir=None,
-                             prefix='simu_bulk_exp', step_size: int = 201, total_cell_number: int = 500):
-    """
-    Mix single cell expression profile to simulated bulk expression profile according to `cell_frac`. at large scale
-
-    :param cell_frac: dataFrame, generated cell fraction for each cell type, samples by cell types
-
-    :param sc_exp_file_path: string, .h5ad file, single cell n5000 dataset, log2(CPM + 1)
-        the file path of single cell expression profiles classified by cell types
-
-    :param n_threads: how many thread to use
-
-    :param result_dir:
-
-    :param prefix: only for naming output files
-
-    :param step_size: separate to multiple steps when memory is not enough
-
-    :param total_cell_number: N, the total number of cells in single cell dataset
-                              averagedd to simulate a single bulk RNA-seq sample
-
-    :return: simulated bulk expression profiles, sample by gene, log2(CPM + 1), .h5ad file
-    """
-
-    # cell_type2sample_name
-    # single cell dataset, .h5ad file, samples by genes, log2(CPM + 1)
-    cell_num = get_cell_num(cell_type_frac=cell_frac, total_num=total_cell_number)
-    sc_exp = sc.read_h5ad(sc_exp_file_path)
-    obs_df = sc_exp.obs
-    # adata_df = pd.DataFrame(sc_exp.X.A, index=sc_exp.obs.index, columns=sc_exp.var.index)
-    # adata_df = np.power(2, adata_df) - 1  # convert to non-log values
-    print('   Start to select cells randomly based on cell types for generating each bulk expression profile...')
-    selected_cell_id = []
-    # step = 201
-    n_parts = cell_frac.shape[0] // step_size
-    for inx in tqdm(range(n_parts+1)):
-        if inx == n_parts:
-            current_part = cell_num.iloc[inx * step_size:, :]
-            if current_part.shape[0] == 0:
-                break
-        else:
-            # continue
-            current_part = cell_num.iloc[inx * step_size: (inx + 1) * step_size, :]
-        current_part_flatten = []
-        for cell_type in current_part.columns:
-            _part = pd.DataFrame(index=current_part.index)
-            _part['cell_type'] = cell_type
-            _part['n_cell'] = current_part[cell_type]
-            current_part_flatten.append(_part)
-        current_part_flatten = pd.concat(current_part_flatten)
-        # contains all cell types for each single simulated bulk expression
-        paras = [(obs_df, 1, row['cell_type'], row['n_cell'], 'cell_type')
-                 for i, row in current_part_flatten.iterrows()]
-        # https://pythonspeed.com/articles/python-multiprocessing/
-        with multiprocessing.get_context('spawn').Pool(n_threads) as p:
-            results = p.starmap(get_sample_id, paras)
-        # print(results)
-        results_str = [';'.join(i) for i in results]
-        current_part_flatten['selected_cell_id'] = results_str
-        current_part_flatten.sort_index(inplace=True)
-        if result_dir is not None:
-            current_exp = map_cell_id2exp(sc_exp=sc_exp, selected_cell_id=current_part_flatten)
-            cell_id_fp = os.path.join(result_dir, prefix + '_selected_cell_id.csv')
-            exp_fp = os.path.join(result_dir, prefix + '_log2cpm1p.csv')
-            if not os.path.exists(cell_id_fp):
-                current_part_flatten.to_csv(cell_id_fp)
-            else:
-                current_part_flatten.to_csv(cell_id_fp, header=False, mode='a')
-            if not os.path.exists(exp_fp):
-                current_exp.to_csv(exp_fp)
-            else:
-                current_exp.to_csv(exp_fp, header=False, mode='a')
-            gc.collect()
-        else:
-            selected_cell_id.append(current_part_flatten)
-
-    if selected_cell_id:
-        selected_cell_df = pd.concat(selected_cell_id)
-        return selected_cell_df
+# def simulate_bulk_expression(cell_frac: pd.DataFrame, sc_exp_file_path: str,
+#                              n_threads: int = 2, result_dir=None,
+#                              prefix='simu_bulk_exp', step_size: int = 201, total_cell_number: int = 500):
+#     """
+#     Mix single cell expression profile to simulated bulk expression profile according to `cell_frac`. at large scale
+#
+#     :param cell_frac: dataFrame, generated cell fraction for each cell type, samples by cell types
+#
+#     :param sc_exp_file_path: string, .h5ad file, single cell n5000 dataset, log2(CPM + 1)
+#         the file path of single cell expression profiles classified by cell types
+#
+#     :param n_threads: how many thread to use
+#
+#     :param result_dir:
+#
+#     :param prefix: only for naming output files
+#
+#     :param step_size: separate to multiple steps when memory is not enough
+#
+#     :param total_cell_number: N, the total number of cells in single cell dataset
+#                               averagedd to simulate a single bulk RNA-seq sample
+#
+#     :return: simulated bulk expression profiles, sample by gene, log2(CPM + 1), .h5ad file
+#     """
+#
+#     # cell_type2sample_name
+#     # single cell dataset, .h5ad file, samples by genes, log2(CPM + 1)
+#     cell_num = get_cell_num(cell_type_frac=cell_frac, total_num=total_cell_number)
+#     sc_exp = sc.read_h5ad(sc_exp_file_path)
+#     obs_df = sc_exp.obs
+#     # adata_df = pd.DataFrame(sc_exp.X.A, index=sc_exp.obs.index, columns=sc_exp.var.index)
+#     # adata_df = np.power(2, adata_df) - 1  # convert to non-log values
+#     print('   Start to select cells randomly based on cell types for generating each bulk expression profile...')
+#     selected_cell_id = []
+#     # step = 201
+#     n_parts = cell_frac.shape[0] // step_size
+#     for inx in tqdm(range(n_parts+1)):
+#         if inx == n_parts:
+#             current_part = cell_num.iloc[inx * step_size:, :]
+#             if current_part.shape[0] == 0:
+#                 break
+#         else:
+#             # continue
+#             current_part = cell_num.iloc[inx * step_size: (inx + 1) * step_size, :]
+#         current_part_flatten = []
+#         for cell_type in current_part.columns:
+#             _part = pd.DataFrame(index=current_part.index)
+#             _part['cell_type'] = cell_type
+#             _part['n_cell'] = current_part[cell_type]
+#             current_part_flatten.append(_part)
+#         current_part_flatten = pd.concat(current_part_flatten)
+#         # contains all cell types for each single simulated bulk expression
+#         paras = [(obs_df, 1, row['cell_type'], row['n_cell'], 'cell_type')
+#                  for i, row in current_part_flatten.iterrows()]
+#         # https://pythonspeed.com/articles/python-multiprocessing/
+#         with multiprocessing.get_context('spawn').Pool(n_threads) as p:
+#             results = p.starmap(get_sample_id, paras)
+#         # print(results)
+#         results_str = [';'.join(i) for i in results]
+#         current_part_flatten['selected_cell_id'] = results_str
+#         current_part_flatten.sort_index(inplace=True)
+#         if result_dir is not None:
+#             current_exp = map_cell_id2exp(sc_exp=sc_exp, selected_cell_id=current_part_flatten)
+#             cell_id_fp = os.path.join(result_dir, prefix + '_selected_cell_id.csv')
+#             exp_fp = os.path.join(result_dir, prefix + '_log2cpm1p.csv')
+#             if not os.path.exists(cell_id_fp):
+#                 current_part_flatten.to_csv(cell_id_fp)
+#             else:
+#                 current_part_flatten.to_csv(cell_id_fp, header=False, mode='a')
+#             if not os.path.exists(exp_fp):
+#                 current_exp.to_csv(exp_fp)
+#             else:
+#                 current_exp.to_csv(exp_fp, header=False, mode='a')
+#             gc.collect()
+#         else:
+#             selected_cell_id.append(current_part_flatten)
+#
+#     if selected_cell_id:
+#         selected_cell_df = pd.concat(selected_cell_id)
+#         return selected_cell_df
 
 
 class BulkGEPGenerator(object):
     def __init__(self, simu_bulk_dir, merged_sc_dataset_file_path, sct_dataset_file_path,
                  cell_types: list, sc_dataset_ids: list, bulk_dataset_name: str = None,
-                 check_basic_info: bool = True, zero_ratio_threshold: float = 0.97):
+                 check_basic_info: bool = True, zero_ratio_threshold: float = 0.97,
+                 sc_dataset_gep_type: str = 'log_space'):
         """
         :param simu_bulk_dir: the directory to save simulated bulk cell GEPs
         :param merged_sc_dataset_file_path: the file path of pre-merged single cell datasets
@@ -379,6 +380,9 @@ class BulkGEPGenerator(object):
         self.sct_dataset_file_path = sct_dataset_file_path
         self.sct_dataset_obs = None
         self.median_gep_ref = None  # median GEP of reference dataset
+        # the average GEP of each cell type, saved in file merged_7_sc_datasets_cpm_1_10th.h5ad
+        self.ave_gep_cell_type = None
+        self.sc_dataset_gep_type = sc_dataset_gep_type
         if check_basic_info and not os.path.exists(self.generated_bulk_gep_fp):
             self.check_basic_info()
 
@@ -492,7 +496,10 @@ class BulkGEPGenerator(object):
                 raise FileNotFoundError('Either "merged_sc_dataset_file_path" or '
                                         '"sct_dataset_file_path" should be provided')
             if (self.merged_sc_fp is not None) and (self.merged_sc_dataset_df is None):
-                self.merged_sc_dataset_df = ReadH5AD(self.merged_sc_fp).get_df(convert_to_tpm=True)
+                if self.sc_dataset_gep_type == 'log_space':
+                    self.merged_sc_dataset_df = ReadH5AD(self.merged_sc_fp).get_df(convert_to_tpm=True)
+                else:  # non log space
+                    self.merged_sc_dataset_df = ReadH5AD(self.merged_sc_fp).get_df()
                 gene_list_in_sc_ds = self.merged_sc_dataset_df.columns.to_list()
             if simu_method == 'mul':  # mul, using either merged_sc_dataset or sct_dataset
                 self.total_cell_number = 1  # only 1 sample for each cell type
@@ -647,7 +654,8 @@ class BulkGEPGenerator(object):
         self.generated_sc_dataset_obs = generated_sc_dataset.obs.copy()
         self.generated_sc_dataset_df = generated_sc_dataset_obj.get_df(convert_to_tpm=True)
 
-    def get_info_in_merged_single_cell_dataset(self, check_zero_ratio: bool = True, zero_ratio_threshold: float = 0.95):
+    def get_info_in_merged_single_cell_dataset(self, check_zero_ratio: bool = True,
+                                               zero_ratio_threshold: float = 0.95):
         if self.merged_sc_dataset is None:
             self.read_merged_single_cell_dataset()
         self.cell_type_in_sc = list(self.merged_sc_dataset.obs['cell_type'].unique())
@@ -662,9 +670,16 @@ class BulkGEPGenerator(object):
         # add sample_id for pan_cancer_07 dataset to use groupby later
         self.merged_sc_dataset_obs.loc[self.merged_sc_dataset_obs['dataset_id'] == 'pan_cancer_07',
                                        'sample_id'] = 'pan_cancer'
+        # The average expression of each cell type across all samples in merged scRNA-seq dataset, cell type x gene
+        self.ave_gep_cell_type = pd.DataFrame(data=self.merged_sc_dataset.varm['ave_gep_cell_type_cpm_1_10th'],
+                                              index=self.merged_sc_dataset.var_names,  # gene names
+                                              columns=self.merged_sc_dataset.uns['col_names_of_ave_gep']).T
         self.merged_sc_dataset = None
         if check_zero_ratio:
-            self.merged_sc_dataset_df = ReadH5AD(self.merged_sc_fp).get_df(convert_to_tpm=True)
+            if self.sc_dataset_gep_type == 'log_space':
+                self.merged_sc_dataset_df = ReadH5AD(self.merged_sc_fp).get_df(convert_to_tpm=True)
+            else:
+                self.merged_sc_dataset_df = ReadH5AD(self.merged_sc_fp).get_df()
             zero_ratio = np.sum(self.merged_sc_dataset_df < 1, axis=1) / self.merged_sc_dataset_df.shape[1]
             high_zero_ratio_cells = zero_ratio[zero_ratio > zero_ratio_threshold].index.to_list()
             # remove high zero ratio cells
@@ -684,6 +699,10 @@ class BulkGEPGenerator(object):
 
         :param obs_df: a dataFrame of sample info for sampling
 
+        :param total_cell_number: N, total cell number to sample for each simulated bulk sample
+
+        :param sep_by_patient: whether to separate samples by patient or not during sampling
+
         :return: sampled cell_ids
         """
         if total_cell_number is not None:
@@ -693,60 +712,69 @@ class BulkGEPGenerator(object):
         cell_num = get_cell_num(cell_type_frac=cell_frac, total_num=self.total_cell_number)
         # print('   Start to select cells randomly based on cell types for generating each bulk expression profile...')
         # all cell types of each cell only need to select one SCT from self.obs_df
-        all_cell_num_is_one = np.all(cell_num == 1)
+        # all_cell_num_is_one = np.all(cell_num == 1)
         cell_num_flatten = []
-        n_samples = cell_frac.shape[0]
+        # n_samples = cell_frac.shape[0]
         for cell_type in cell_num.columns:
             _part = pd.DataFrame(index=cell_num.index)
             _part['cell_type'] = cell_type
             _part['n_cell'] = cell_num[cell_type]
-            if all_cell_num_is_one:
-                _selected_cell_ids = self.obs_df.loc[self.obs_df['cell_type'] == cell_type,
-                                                     :].sample(n=n_samples).index.to_list()
-                _part['selected_cell_id'] = _selected_cell_ids
+            # if all_cell_num_is_one:
+            #     _selected_cell_ids = self.obs_df.loc[self.obs_df['cell_type'] == cell_type,
+            #                                          :].sample(n=n_samples).index.to_list()
+            #     _part['selected_cell_id'] = _selected_cell_ids
             cell_num_flatten.append(_part)
         sampled_cell_ids = pd.concat(cell_num_flatten)
         # contains all cell types for each single simulated bulk expression profile
-        if not all_cell_num_is_one:
-            paras = [(self.obs_df, 1, row['cell_type'], row['n_cell'], 'cell_type', sep_by_patient)
-                     for i, row in sampled_cell_ids.iterrows()]
-            n_threads = min(multiprocessing.cpu_count()-2, n_threads)
-            # https://pythonspeed.com/articles/python-multiprocessing/
-            with multiprocessing.get_context('spawn').Pool(n_threads) as p:
-                results = p.starmap(get_sample_id, paras)
-            # print(results)
-            results_str = [';'.join(i) for i in results]
-            sampled_cell_ids['selected_cell_id'] = results_str
+        # if not all_cell_num_is_one:
+        paras = [(self.obs_df, 1, row['cell_type'], row['n_cell'], 'cell_type', sep_by_patient)
+                 for i, row in sampled_cell_ids.iterrows()]
+        n_threads = min(multiprocessing.cpu_count()-2, n_threads)
+        # https://pythonspeed.com/articles/python-multiprocessing/
+        with multiprocessing.get_context('spawn').Pool(n_threads) as p:
+            results = p.starmap(get_sample_id, paras)
+        # print(results)
+        results_str = [';'.join(i) for i in results]
+        sampled_cell_ids['selected_cell_id'] = results_str
         sampled_cell_ids.index.name = 'sample_id'
         sampled_cell_ids.sort_values(by=['sample_id', 'cell_type'], inplace=True)
 
         return sampled_cell_ids
 
     def _map_cell_id2exp(self, selected_cell_id, sc_dataset: str = 'merged_sc_dataset',
-                         simu_method: str = 'ave', cell_frac: pd.DataFrame = None) -> pd.DataFrame:
+                         simu_method: str = 'ave', cell_frac: pd.DataFrame = None,
+                         add_ave_gep: bool = False) -> pd.DataFrame:
         """
         mapping sampled cell_ids to the corresponding GEPs
         :param selected_cell_id: a dataFrame which contains cell_type, n_cell, selected_cell_id
         :param sc_dataset: merged_sc_dataset, generated_sc_dataset or sct_dataset
         :param simu_method: ave (average all selected single cell GEPs), mul (multiple GEP by cell fractions)
+        :param add_ave_gep: only valid for SCT dataset,
+            whether to add the average GEP of a specific cell type to fix the sparsity of scRNA-seq data
         :return: a DataFrame, TPM, samples by genes
         """
         simulated_exp = {}
         if sc_dataset == 'sct_dataset':
             sc_ds_df = self.sct_dataset_df
         elif sc_dataset == 'merged_sc_dataset':
-            sc_ds_df = self.merged_sc_dataset_df
+            if self.ave_gep_cell_type is not None and add_ave_gep:
+                sc_ds_df = pd.concat([self.merged_sc_dataset_df, self.ave_gep_cell_type], axis=0)
+            else:
+                sc_ds_df = self.merged_sc_dataset_df
         else:  # generated single cell dataset
             sc_ds_df = self.generated_sc_dataset_df
         for sample_id, group in selected_cell_id.groupby(by=selected_cell_id.index):
             cell_ids = []
             all_n_cell_is_one = np.all(group['n_cell'] == 1)
             if not all_n_cell_is_one:
+                group = group.loc[group['n_cell'] > 0, :]
                 for i, row in group.iterrows():
-                    if row['n_cell'] > 0:
-                        cell_ids += row['selected_cell_id'].split(';')
+                    cell_ids += row['selected_cell_id'].split(';')
+                if group.shape[0] == 1 and add_ave_gep:  # only one cell type for SCT generation
+                    cell_ids += group['cell_type'].to_list()
             else:
                 # one single cell for each cell type if simu_method is "mul"
+                assert simu_method == 'mul', 'simu_method should be "mul" if all_n_cell_is_one'
                 cell_ids = group['selected_cell_id'].to_list()
             current_merged = sc_ds_df.loc[cell_ids, :].copy()
             # using merged single cell dataset directly
@@ -762,7 +790,7 @@ class BulkGEPGenerator(object):
 
         simulated_exp_df = pd.DataFrame.from_dict(data=simulated_exp, orient='index')
 
-        return simulated_exp_df.round(2)
+        return simulated_exp_df.round(3)
 
     def _save_simulated_bulk_gep(self, gep: pd.DataFrame, cell_id: pd.DataFrame, cell_fraction: pd.DataFrame = None):
 
@@ -858,19 +886,24 @@ class BulkGEPGenerator(object):
 
 class SingleCellTypeGEPGenerator(BulkGEPGenerator):
     def __init__(self, merged_sc_dataset_file_path, cell_types, sc_dataset_ids,
-                 simu_bulk_dir, bulk_dataset_name, zero_ratio_threshold: float = 0.97):
+                 simu_bulk_dir, bulk_dataset_name, zero_ratio_threshold: float = 0.97,
+                 sc_dataset_gep_type: str = 'log_space'):
         super().__init__(merged_sc_dataset_file_path=merged_sc_dataset_file_path, simu_bulk_dir=simu_bulk_dir,
                          cell_types=cell_types, sc_dataset_ids=sc_dataset_ids, bulk_dataset_name=bulk_dataset_name,
-                         zero_ratio_threshold=zero_ratio_threshold, sct_dataset_file_path=None)
+                         zero_ratio_threshold=zero_ratio_threshold, sct_dataset_file_path=None,
+                         sc_dataset_gep_type=sc_dataset_gep_type)
 
     def generate_samples(self, n_sample_each_cell_type: int = 10000,
-                         n_base_for_positive_samples: tuple = (3, 5, 7, 10, 15),
-                         sample_type: str = 'positive', sep_by_patient=False):
+                         n_base_for_positive_samples: int = 1,
+                         sample_type: str = 'positive', sep_by_patient=False,
+                         add_ave_gep=True):
         """
         :param n_sample_each_cell_type:
         :param n_base_for_positive_samples: the number of single cells to average
-        :param sample_type:
+        :param sample_type: positive means only 1 cell type is used, negative means more than 1 cell types are used
         :param sep_by_patient: only sampling from one patient in original dataset if True
+        :param add_ave_gep: if add the average gep of each cell type to avoid sparsity of scRNA-seq data
+            when generating SCT dataset
         """
         if not os.path.exists(self.generated_bulk_gep_fp):
             self.n_samples = n_sample_each_cell_type * len(self.cell_type_used)
@@ -882,26 +915,23 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
                 generated_cell_frac.to_csv(self.generated_cell_fraction_fp, float_format='%g')
             else:
                 print(f'   Previous result exists: {self.generated_cell_fraction_fp}')
-            chunk_size = int(n_sample_each_cell_type / len(n_base_for_positive_samples))
-            chunk_size = max(chunk_size, 100)  # bigger chunk_size for speeding up
             # DC has 543 cells, larger chunk_size can cause error if set 'replace=False' and 'n_base=1' while sampling
-            if 1 in n_base_for_positive_samples:
-                chunk_size = min(chunk_size, 300)
+            chunk_size = 300
             chunk_counter = 0
             with pd.read_csv(self.generated_cell_fraction_fp, chunksize=chunk_size, index_col=0) as reader:
                 simu_method = 'ave'  # average single cell GEPs for both positive and negative sampling
                 for rows in tqdm(reader):
-                    if sample_type == 'positive':
-                        n_base = n_base_for_positive_samples[chunk_counter % len(n_base_for_positive_samples)]
-                    else:
-                        n_base = 0
-                        # simu_method = 'mul'
-                    selected_cell_ids = self._sc_sampling(cell_frac=rows, total_cell_number=n_base,
+                    if sample_type == 'positive' and n_base_for_positive_samples > 1:
+                        total_cell_number = n_base_for_positive_samples
+                    else:  # negative sampling (multiple cell types are used) or positive sampling with n_base=1
+                        total_cell_number = 0  # assign 1 for the cell types with non-zero cell fractions
+                    selected_cell_ids = self._sc_sampling(cell_frac=rows, total_cell_number=total_cell_number,
                                                           obs_df=self.merged_sc_dataset_obs,
                                                           sep_by_patient=sep_by_patient)
                     simulated_gep = self._map_cell_id2exp(selected_cell_id=selected_cell_ids, simu_method=simu_method,
-                                                          cell_frac=rows)
-
+                                                          cell_frac=rows, sc_dataset='merged_sc_dataset',
+                                                          add_ave_gep=add_ave_gep)
+                    simulated_gep = non_log2cpm(simulated_gep, sum_exp=1e6)  # convert to TPM
                     simulated_gep = log2_transform(simulated_gep)
                     self.generated_bulk_gep_counter += simulated_gep.shape[0]
                     # generated_cell_frac = generated_cell_frac.loc[simulated_gep.index, :].copy()

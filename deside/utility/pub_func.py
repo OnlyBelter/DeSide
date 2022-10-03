@@ -521,15 +521,17 @@ def non_log2log_cpm(input_file_path: Union[str, pd.DataFrame], result_file_path:
         return bulk_exp.round(3)
 
 
-def non_log2cpm(exp_df) -> pd.DataFrame:
+def non_log2cpm(exp_df, sum_exp=1e6) -> pd.DataFrame:
     """
     Normalize gene expression to CPM / TPM for non-log space
 
     :param exp_df: gene expression profile in non-log space, sample by gene
 
+    :param sum_exp: sum of gene expression for each sample, default is 1e6
+
     :return: counts per million (CPM) or transcript per million (TPM)
     """
-    return exp_df / np.vstack(exp_df.sum(axis=1)) * 1e6
+    return exp_df / np.vstack(exp_df.sum(axis=1)) * sum_exp
 
 
 def get_corr(df_col1, df_col2) -> float:
