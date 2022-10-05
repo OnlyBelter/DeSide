@@ -381,7 +381,7 @@ class BulkGEPGenerator(object):
         self.sct_dataset_obs = None
         self.median_gep_ref = None  # median GEP of reference dataset
         # the average GEP of each cell type, saved in file merged_7_sc_datasets_cpm_1_10th.h5ad
-        self.ave_gep_cell_type = None
+        self.ave_gep_tcga = None
         self.sc_dataset_gep_type = sc_dataset_gep_type
         if check_basic_info and not os.path.exists(self.generated_bulk_gep_fp):
             self.check_basic_info()
@@ -671,9 +671,9 @@ class BulkGEPGenerator(object):
         self.merged_sc_dataset_obs.loc[self.merged_sc_dataset_obs['dataset_id'] == 'pan_cancer_07',
                                        'sample_id'] = 'pan_cancer'
         # The average expression of each cell type across all samples in merged scRNA-seq dataset, cell type x gene
-        self.ave_gep_cell_type = pd.DataFrame(data=self.merged_sc_dataset.varm['ave_gep_cell_type_cpm_1_10th'],
-                                              index=self.merged_sc_dataset.var_names,  # gene names
-                                              columns=self.merged_sc_dataset.uns['col_names_of_ave_gep']).T
+        self.ave_gep_tcga = pd.DataFrame(data=self.merged_sc_dataset.varm['ave_gep_tcga_tpm'],
+                                         index=self.merged_sc_dataset.var_names,  # gene names
+                                         columns=['mGEP']).T
         self.merged_sc_dataset = None
         if check_zero_ratio:
             if self.sc_dataset_gep_type == 'log_space':
@@ -742,25 +742,19 @@ class BulkGEPGenerator(object):
         return sampled_cell_ids
 
     def _map_cell_id2exp(self, selected_cell_id, sc_dataset: str = 'merged_sc_dataset',
-                         simu_method: str = 'ave', cell_frac: pd.DataFrame = None,
-                         add_ave_gep: bool = False) -> pd.DataFrame:
+                         simu_method: str = 'ave', cell_frac: pd.DataFrame = None) -> pd.DataFrame:
         """
         mapping sampled cell_ids to the corresponding GEPs
         :param selected_cell_id: a dataFrame which contains cell_type, n_cell, selected_cell_id
         :param sc_dataset: merged_sc_dataset, generated_sc_dataset or sct_dataset
         :param simu_method: ave (average all selected single cell GEPs), mul (multiple GEP by cell fractions)
-        :param add_ave_gep: only valid for SCT dataset,
-            whether to add the average GEP of a specific cell type to fix the sparsity of scRNA-seq data
         :return: a DataFrame, TPM, samples by genes
         """
         simulated_exp = {}
         if sc_dataset == 'sct_dataset':
             sc_ds_df = self.sct_dataset_df
         elif sc_dataset == 'merged_sc_dataset':
-            if self.ave_gep_cell_type is not None and add_ave_gep:
-                sc_ds_df = pd.concat([self.merged_sc_dataset_df, self.ave_gep_cell_type], axis=0)
-            else:
-                sc_ds_df = self.merged_sc_dataset_df
+            sc_ds_df = self.merged_sc_dataset_df
         else:  # generated single cell dataset
             sc_ds_df = self.generated_sc_dataset_df
         for sample_id, group in selected_cell_id.groupby(by=selected_cell_id.index):
@@ -770,8 +764,8 @@ class BulkGEPGenerator(object):
                 group = group.loc[group['n_cell'] > 0, :]
                 for i, row in group.iterrows():
                     cell_ids += row['selected_cell_id'].split(';')
-                if group.shape[0] == 1 and add_ave_gep:  # only one cell type for SCT generation
-                    cell_ids += group['cell_type'].to_list()
+                # if group.shape[0] == 1 and add_ave_gep:  # only one cell type for SCT generation
+                #     cell_ids += ['mGEP']  # add the average GEP of all samples in the TCGA dataset as a background
             else:
                 # one single cell for each cell type if simu_method is "mul"
                 assert simu_method == 'mul', 'simu_method should be "mul" if all_n_cell_is_one'
@@ -779,7 +773,14 @@ class BulkGEPGenerator(object):
             current_merged = sc_ds_df.loc[cell_ids, :].copy()
             # using merged single cell dataset directly
             if simu_method == 'ave':
-                simulated_exp[sample_id] = current_merged.mean(axis=0)  # single simulated bulk expression profile
+                simulated_exp[sample_id] = current_merged.mean(axis=0)  # one simulated bulk expression profile
+            elif simu_method == 'scale_by_mGEP':
+                # scale by the average GEP of all samples in the TCGA dataset
+                # this is used only for SCT generation
+                simulated_exp[sample_id] = current_merged.mean(axis=0).to_frame().T  # one simulated bulk GEP
+                scaling_factor = self.ave_gep_tcga.loc['mGEP', simulated_exp[sample_id].loc[0] >= 1].sum()
+                simulated_exp[sample_id] = non_log2cpm(simulated_exp[sample_id], sum_exp=scaling_factor)
+                simulated_exp[sample_id] = simulated_exp[sample_id] + self.ave_gep_tcga
             else:  # matrix multiplication
                 # sort by cell types to make sure the correction of matrix multiplication
                 _cell_types = group['cell_type'].to_list()
@@ -896,14 +897,14 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
     def generate_samples(self, n_sample_each_cell_type: int = 10000,
                          n_base_for_positive_samples: int = 1,
                          sample_type: str = 'positive', sep_by_patient=False,
-                         add_ave_gep=True):
+                         simu_method='ave'):
         """
         :param n_sample_each_cell_type:
         :param n_base_for_positive_samples: the number of single cells to average
         :param sample_type: positive means only 1 cell type is used, negative means more than 1 cell types are used
         :param sep_by_patient: only sampling from one patient in original dataset if True
-        :param add_ave_gep: if add the average gep of each cell type to avoid sparsity of scRNA-seq data
-            when generating SCT dataset
+        :param simu_method: 'ave': averaging all GEPs,
+            or 'scale_by_mGEP': scaling by the mean GEP of all samples in the TCGA dataset
         """
         if not os.path.exists(self.generated_bulk_gep_fp):
             self.n_samples = n_sample_each_cell_type * len(self.cell_type_used)
@@ -916,10 +917,13 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
             else:
                 print(f'   Previous result exists: {self.generated_cell_fraction_fp}')
             # DC has 543 cells, larger chunk_size can cause error if set 'replace=False' and 'n_base=1' while sampling
-            chunk_size = 300
+            if n_base_for_positive_samples == 1:
+                chunk_size = 300
+            else:
+                chunk_size = 1000
             chunk_counter = 0
             with pd.read_csv(self.generated_cell_fraction_fp, chunksize=chunk_size, index_col=0) as reader:
-                simu_method = 'ave'  # average single cell GEPs for both positive and negative sampling
+                simu_method = simu_method  # average single cell GEPs for both positive and negative sampling
                 for rows in tqdm(reader):
                     if sample_type == 'positive' and n_base_for_positive_samples > 1:
                         total_cell_number = n_base_for_positive_samples
@@ -929,8 +933,7 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
                                                           obs_df=self.merged_sc_dataset_obs,
                                                           sep_by_patient=sep_by_patient)
                     simulated_gep = self._map_cell_id2exp(selected_cell_id=selected_cell_ids, simu_method=simu_method,
-                                                          cell_frac=rows, sc_dataset='merged_sc_dataset',
-                                                          add_ave_gep=add_ave_gep)
+                                                          cell_frac=rows, sc_dataset='merged_sc_dataset')
                     simulated_gep = non_log2cpm(simulated_gep, sum_exp=1e6)  # convert to TPM
                     simulated_gep = log2_transform(simulated_gep)
                     self.generated_bulk_gep_counter += simulated_gep.shape[0]
