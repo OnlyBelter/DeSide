@@ -379,7 +379,7 @@ class BulkGEPGenerator(object):
         self.zero_ratio_threshold = zero_ratio_threshold
         self.sct_dataset_file_path = sct_dataset_file_path
         self.sct_dataset_obs = None
-        self.median_gep_ref = None  # median GEP of reference dataset
+        self.m_gep_ref = None  # median / mean GEP of reference dataset
         # the average GEP of each cell type, saved in file merged_7_sc_datasets_cpm_1_10th.h5ad
         self.ave_gep_tcga = None
         self.sc_dataset_gep_type = sc_dataset_gep_type
@@ -558,17 +558,22 @@ class BulkGEPGenerator(object):
                                 quantile=self.filtering_quantile)  # quantile of distance
                             print(f'   > Larger filtering_quantile will be used to get more neighbors.')
                             print(f'   > Quantile distance of {self.filtering_quantile * 100}% is: {self.q_dis_nn_ref}')
-                    elif filtering and filtering_method == 'median_gep':
-                        if self.median_gep_ref is None:
+                    elif filtering and (filtering_method == 'median_gep' or filtering_method == 'mean_gep'):
+                        if self.m_gep_ref is None:
                             exp_obj_ref = ExpObj(exp_file=reference_file, exp_type=ref_exp_type)
                             exp_obj_ref.align_with_gene_list(gene_list=gene_list_in_sc_ds, fill_not_exist=True)
                             exp_ref_df = exp_obj_ref.get_exp()
-                            self.median_gep_ref = exp_ref_df.median(axis=0).values.reshape(1, -1)  # TPM
-                            l1_distance_with_center_ref = np.linalg.norm(exp_ref_df - self.median_gep_ref,
+                            if filtering_method == 'median_gep':
+                                self.m_gep_ref = exp_ref_df.median(axis=0).values.reshape(1, -1)  # TPM
+                            elif filtering_method == 'mean_gep':
+                                self.m_gep_ref = exp_ref_df.mean(axis=0).values.reshape(1, -1)
+                            else:
+                                raise ValueError(f'filtering_method {filtering_method} is invalid')
+                            l1_distance_with_center_ref = np.linalg.norm(exp_ref_df - self.m_gep_ref,
                                                                          ord=1, axis=1)
                             self.q_dis_nn_ref = np.quantile(l1_distance_with_center_ref, self.filtering_quantile)
                         assert np.all(exp_ref_df.columns == simulated_gep.columns)
-                        l1_dis_ref_simu_gep = np.linalg.norm(simulated_gep.values - self.median_gep_ref, ord=1, axis=1)
+                        l1_dis_ref_simu_gep = np.linalg.norm(simulated_gep.values - self.m_gep_ref, ord=1, axis=1)
                         simulated_gep = simulated_gep.loc[l1_dis_ref_simu_gep <= self.q_dis_nn_ref, :].copy()
 
                     if simulated_gep is not None:
@@ -780,7 +785,8 @@ class BulkGEPGenerator(object):
                 simulated_exp[sample_id] = current_merged.mean(axis=0).to_frame().T  # one simulated bulk GEP
                 scaling_factor = self.ave_gep_tcga.loc['mGEP', simulated_exp[sample_id].loc[0] >= 1].sum()
                 simulated_exp[sample_id] = non_log2cpm(simulated_exp[sample_id], sum_exp=scaling_factor)
-                simulated_exp[sample_id] = simulated_exp[sample_id] + self.ave_gep_tcga
+                mask = (simulated_exp[sample_id].loc[0] < 1).values.astype(int)  # replace the values < 1 with mGEP
+                simulated_exp[sample_id] = pd.concat([simulated_exp[sample_id], self.ave_gep_tcga * mask]).sum()
             else:  # matrix multiplication
                 # sort by cell types to make sure the correction of matrix multiplication
                 _cell_types = group['cell_type'].to_list()
