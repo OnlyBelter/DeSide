@@ -763,8 +763,9 @@ class BulkGEPGenerator(object):
         if gep_type == 'SCT':  # each sample id only contains single cell type
             selected_cell_id = selected_cell_id.loc[selected_cell_id['n_cell'] > 1, :].copy()
             cell_type2exp = {}
-            long_tail_noise = np.logspace(0, 7, 8, base=2)
-            long_tail_noise = np.append(long_tail_noise, 0)
+            n_non_zero = 100
+            long_tail_noise = np.logspace(0, 7, 100, base=2)
+            long_tail_noise = np.append(long_tail_noise, np.zeros(n_non_zero))
             for cell_type, group in selected_cell_id.groupby('cell_type'):
                 simulated_exp = {}
                 for sample_id, row in group.iterrows():
