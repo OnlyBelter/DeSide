@@ -763,6 +763,8 @@ class BulkGEPGenerator(object):
         if gep_type == 'SCT':  # each sample id only contains single cell type
             selected_cell_id = selected_cell_id.loc[selected_cell_id['n_cell'] > 1, :].copy()
             cell_type2exp = {}
+            long_tail_noise = np.logspace(0, 7, 8, base=2)
+            long_tail_noise = np.append(long_tail_noise, 0)
             for cell_type, group in selected_cell_id.groupby('cell_type'):
                 simulated_exp = {}
                 for sample_id, row in group.iterrows():
@@ -773,8 +775,7 @@ class BulkGEPGenerator(object):
                 if simu_method == 'random_replacement':
                     for gene in cell_type2exp[cell_type].columns:
                         current_gene_exp = cell_type2exp[cell_type][gene].copy()
-                        random_selected_exp = np.random.choice(self.unique_exp_value_in_s0[cell_type][gene],
-                                                               size=n_samples, replace=True)
+                        random_selected_exp = np.random.choice(long_tail_noise, size=n_samples, replace=True)
                         # replace the values < 1 with random selected values
                         mask = (current_gene_exp < 1).values.astype(int)
                         cell_type2exp[cell_type][gene] = current_gene_exp.values + random_selected_exp * mask
