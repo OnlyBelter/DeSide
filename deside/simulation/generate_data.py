@@ -763,13 +763,10 @@ class BulkGEPGenerator(object):
         simulated_exp = {}
         if gep_type == 'SCT':  # each sample id only contains single cell type
             selected_cell_id = selected_cell_id.loc[selected_cell_id['n_cell'] > 1, :].copy()
-            # cell_type2exp = {}
             n_non_zero = 50
             long_tail_noise_non_zero = np.logspace(0, 7, n_non_zero, base=2)
-            # long_tail_noise = np.append(long_tail_noise_non_zero, np.zeros(n_non_zero))
             n_genes = sc_ds_df.shape[1]
             for cell_type, group in selected_cell_id.groupby('cell_type'):
-                # simulated_exp = {}
                 for sample_id, row in group.iterrows():
                     cell_ids = row['selected_cell_id'].split(';')
                     # simulated_exp[sample_id] = sc_ds_df.loc[cell_ids, :].mean(axis=0)  # average
@@ -782,21 +779,9 @@ class BulkGEPGenerator(object):
                         mask = (current_gene_exp < 1).values.astype(int)
                         simulated_exp[sample_id] = pd.Series(current_gene_exp.values + random_selected_exp * mask,
                                                              index=current_gene_exp.index)
-            #     cell_type2exp[cell_type] = pd.DataFrame.from_dict(data=simulated_exp, orient='index')
-            #     n_samples = group.shape[0]
-            #     if simu_method == 'random_replacement':
-            #         for gene in cell_type2exp[cell_type].columns:
-            #             current_gene_exp = cell_type2exp[cell_type][gene].copy()
-            #             random_selected_exp = np.random.choice(long_tail_noise, size=n_samples, replace=True)
-            #             # replace the values < 1 with random selected values
-            #             mask = (current_gene_exp < 1).values.astype(int)
-            #             cell_type2exp[cell_type][gene] = current_gene_exp.values + random_selected_exp * mask
-            # simulated_exp_df = pd.concat(list(cell_type2exp.values()), axis=0)
         else:
-            # simulated_exp = {}
             assert simu_method == 'mul', 'Only support matrix multiplication for MCT'
             for sample_id, group in selected_cell_id.groupby(by=selected_cell_id.index):
-                cell_ids = []
                 all_n_cell_is_one = np.all(group['n_cell'] == 1)
                 assert all_n_cell_is_one, 'n_cell should be 1 for all cell types'
                 cell_ids = group['selected_cell_id'].to_list()
