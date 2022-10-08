@@ -764,7 +764,7 @@ class BulkGEPGenerator(object):
         if gep_type == 'SCT':  # each sample id only contains single cell type
             selected_cell_id = selected_cell_id.loc[selected_cell_id['n_cell'] > 1, :].copy()
             n_non_zero = 50
-            long_tail_noise_non_zero = np.linspace(1, 30, n_non_zero)
+            long_tail_noise_non_zero = np.linspace(1, 10, n_non_zero)
             n_genes = sc_ds_df.shape[1]
             for cell_type, group in selected_cell_id.groupby('cell_type'):
                 for sample_id, row in group.iterrows():
