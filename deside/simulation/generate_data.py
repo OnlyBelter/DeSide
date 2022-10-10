@@ -763,8 +763,7 @@ class BulkGEPGenerator(object):
         simulated_exp = {}
         if gep_type == 'SCT':  # each sample id only contains single cell type
             selected_cell_id = selected_cell_id.loc[selected_cell_id['n_cell'] > 1, :].copy()
-            n_non_zero = 50
-            long_tail_noise_non_zero = np.random.random(n_non_zero) * 2
+            n_non_zero = 1000
             n_genes = sc_ds_df.shape[1]
             for cell_type, group in selected_cell_id.groupby('cell_type'):
                 for sample_id, row in group.iterrows():
@@ -772,6 +771,7 @@ class BulkGEPGenerator(object):
                     # simulated_exp[sample_id] = sc_ds_df.loc[cell_ids, :].mean(axis=0)  # average
                     current_gene_exp = sc_ds_df.loc[cell_ids, :].mean(axis=0)  # average
                     if simu_method == 'random_replacement':
+                        long_tail_noise_non_zero = np.random.random(n_non_zero) * 2
                         n_zero = np.random.randint(n_non_zero/10, n_non_zero)
                         long_tail_noise = np.append(long_tail_noise_non_zero, np.zeros(n_zero))
                         random_selected_exp = np.random.choice(long_tail_noise, size=n_genes, replace=True)
