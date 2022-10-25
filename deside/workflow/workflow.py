@@ -99,9 +99,9 @@ def tcga_evaluation(marker_gene_file_path, total_result_dir, pred_cell_frac_tcga
         #     _cell_types = cell_types + ['1-others']
         # else:
         #     _cell_types = cell_types
-        _cell_types = cell_types
+        _cell_type_name_mapping = dict(zip(cell_types, cell_types))
         read_and_merge_result(raw_result_dir=pred_cell_frac_dir_current_model,
-                              cell_type=_cell_types,
+                              cell_type_name_mapping=_cell_type_name_mapping,
                               algo=model_name, result_file_path=all_pred_cell_frac_file_path)
     else:
         print(f'   Using the previous result of merged cell fractions from: {all_pred_cell_frac_file_path}.')
