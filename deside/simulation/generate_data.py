@@ -710,8 +710,8 @@ class BulkGEPGenerator(object):
         """
         if total_cell_number is not None:
             self.total_cell_number = total_cell_number
-        if self.obs_df is None:
-            self.obs_df = obs_df
+        # if self.obs_df is None:
+        #     self.obs_df = obs_df
         cell_num = get_cell_num(cell_type_frac=cell_frac, total_num=self.total_cell_number)
         # print('   Start to select cells randomly based on cell types for generating each bulk expression profile...')
         # all cell types of each cell only need to select one SCT from self.obs_df
@@ -730,7 +730,7 @@ class BulkGEPGenerator(object):
         sampled_cell_ids = pd.concat(cell_num_flatten)
         # contains all cell types for each single simulated bulk expression profile
         # if not all_cell_num_is_one:
-        paras = [(self.obs_df, 1, row['cell_type'], row['n_cell'], 'cell_type', sep_by_patient)
+        paras = [(obs_df, 1, row['cell_type'], row['n_cell'], 'cell_type', sep_by_patient)
                  for i, row in sampled_cell_ids.iterrows()]
         n_threads = min(multiprocessing.cpu_count()-2, n_threads)
         # https://pythonspeed.com/articles/python-multiprocessing/
@@ -903,7 +903,7 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
     def generate_samples(self, n_sample_each_cell_type: int = 10000,
                          n_base_for_positive_samples: int = 1,
                          sample_type: str = 'positive', sep_by_patient=False,
-                         simu_method='ave'):
+                         simu_method='ave', cell_type2subgroup_id: dict = None):
         """
         :param n_sample_each_cell_type:
         :param n_base_for_positive_samples: the number of single cells to average
@@ -913,6 +913,7 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
             or 'scale_by_mGEP': scaling by the mean GEP of all samples in the TCGA dataset
             or 'random_replacement': replacing the gene expression value (<1) by another value within the same cell type
              selected randomly
+        :param cell_type2subgroup_id: a dict, key is cell type, value is a list of subgroup ids
         """
         if not os.path.exists(self.generated_bulk_gep_fp):
             self.n_samples = n_sample_each_cell_type * len(self.cell_type_used)
@@ -925,10 +926,11 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
             else:
                 print(f'   Previous result exists: {self.generated_cell_fraction_fp}')
             # DC has 543 cells, larger chunk_size can cause error if set 'replace=False' and 'n_base=1' while sampling
-            if n_base_for_positive_samples == 1:
-                chunk_size = 300
-            else:
-                chunk_size = 1000
+            chunk_size = int(n_sample_each_cell_type / 25)
+            # if n_base_for_positive_samples == 1:
+            #     chunk_size = 300
+            # else:
+            #     chunk_size = 1000
             chunk_counter = 0
             with pd.read_csv(self.generated_cell_fraction_fp, chunksize=chunk_size, index_col=0) as reader:
                 simu_method = simu_method  # average single cell GEPs for both positive and negative sampling
@@ -937,8 +939,20 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
                         total_cell_number = n_base_for_positive_samples
                     else:  # negative sampling (multiple cell types are used) or positive sampling with n_base=1
                         total_cell_number = 0  # assign 1 for the cell types with non-zero cell fractions
+                    if sample_type == 'positive' and cell_type2subgroup_id is not None:
+                        # change subgroup for each chunk based on cell_type2subgroup_id
+                        all_cell_types = rows.columns[np.argmax(rows.values, axis=1)].unique()
+                        if len(all_cell_types) > 1:
+                            raise ValueError(f'   More than one cell types are selected: {all_cell_types}')
+                        cell_type = all_cell_types[0]
+                        current_subgroups = cell_type2subgroup_id[cell_type]
+                        selected_subgroup = current_subgroups[chunk_counter % 25 % len(current_subgroups)]
+                        current_obs_df = self.merged_sc_dataset_obs.loc[
+                                         self.merged_sc_dataset_obs['subgroup_id'].isin(selected_subgroup), :].copy()
+                    else:
+                        current_obs_df = self.merged_sc_dataset_obs.copy()
                     selected_cell_ids = self._sc_sampling(cell_frac=rows, total_cell_number=total_cell_number,
-                                                          obs_df=self.merged_sc_dataset_obs,
+                                                          obs_df=current_obs_df,
                                                           sep_by_patient=sep_by_patient)
                     simulated_gep = self._map_cell_id2exp(selected_cell_id=selected_cell_ids, simu_method=simu_method,
                                                           cell_frac=rows, sc_dataset='merged_sc_dataset', gep_type='SCT')

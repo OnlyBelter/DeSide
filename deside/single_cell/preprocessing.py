@@ -183,118 +183,118 @@ def get_sample_id(obs_df, n, cell_type, n_base, class_by='leiden', sep_by_patien
     return tuple(selected_samples.keys())  # return a tuple of tuples  (('s1', 's2'), ('s3', 's5'))
 
 
-def generate_sc(adata, n, cell_type, n_base=3, log_base=2, group_by='leiden',
-                return_cell_id=False, filtering: bool = False, marker_genes=None,
-                cell_type_scope: list = None):
-    """
-    Generate single cell expression data by averaging `n_base` cells from a specific `cell_type`
-
-    :param adata: AnnData object which contains multiple merged single cell datasets, GEPs stored by log2(CPM + 1),
-        CPM means counts per million, similar to TPM.
-
-    :param n: the number of cells to be generated
-
-    :param cell_type: sampling only within this cell types or sub cell types
-
-    :param n_base: the number of single cells to average
-
-    :param log_base: if None, don't do log transform
-
-    :param group_by: `leiden` (sub cell type) or `cell_type`, the column name of cell type in .h5ad file
-
-    :param return_cell_id: if return selected sample id directly without GEP
-
-    :param filtering: whether filter CD8 T and CD4 T based on the expression of corresponding marker genes
-
-    :param marker_genes: marker genes for each cell type, only for filtering
-
-    :param cell_type_scope: filter generated bulk cell expression profile only among these cell types
-
-    :return: a tuple of selected sample ids or an AnnData object with log2(CPM + 1) GEP
-    """
-    exp_threshold_low = 50
-    exp_threshold_up = 100
-    if marker_genes is None:
-        marker_genes = default_core_marker_genes
-    round_counter = 0
-    # only keep current cell type
-    adata = adata[adata.obs[group_by] == cell_type, :].copy()
-    adata_df = pd.DataFrame(adata.X.A, index=adata.obs.index, columns=adata.var.index)
-    adata_df = log_exp2cpm(adata_df)  # convert to CPM
-    g_sample2exp = {}
-    g_sample2id = {}
-    while len(g_sample2exp) < n:
-        # get sample_id for 100 samples each time
-        _selected_samples = get_sample_id(obs_df=adata.obs, n=100, n_base=n_base,
-                                          cell_type=cell_type, class_by=group_by)
-        for i, _s in enumerate(_selected_samples):
-            keep_this_exp = True
-            unique_inx = i + round_counter * 100
-            # expression profile of one generated single cell expression
-            exp_sc = adata_df.loc[_s, :].mean(axis=0)
-            # cell_type_abbr = ''
-            if cell_type in subcell_type2abbr:
-                cell_type_abbr = subcell_type2abbr[cell_type]
-            elif cell_type in cell_type2abbr:
-                cell_type_abbr = cell_type2abbr[cell_type]
-            else:
-                raise KeyError('Unknown cell type')
-            gen_id = 'gen_' + cell_type_abbr + '_' + str(unique_inx)
-            if group_by == 'leiden':
-                par_ct_name = cell_type_mapping[cell_type]  # the name of parent cell type
-            else:
-                par_ct_name = cell_type
-            if filtering:
-                exp_sc_df = exp_sc.to_frame(name=gen_id).T
-                t_marker_mean_cpm = cal_exp_by_gene_list(exp_sc_df, gene_list=marker_genes['T Cells'], min_exp_value=1)
-                if par_ct_name not in ['CD4 T', 'CD8 T']:
-                    if t_marker_mean_cpm >= exp_threshold_low:
-                        keep_this_exp = False
-                else:
-                    if t_marker_mean_cpm < exp_threshold_up:
-                        keep_this_exp = False
-                if not keep_this_exp:
-                    continue
-
-                # filter by the expression value of marker genes
-                marker_mean = {}
-                if cell_type_scope is None:
-                    cell_type_scope = list(cell_type2abbr.keys())
-                for _cell_type in cell_type_scope:
-                    if _cell_type in marker_genes.keys():  # non-cancer cell
-                        marker_mean[_cell_type] = cal_exp_by_gene_list(exp_sc_df, gene_list=marker_genes[_cell_type])
-                        if _cell_type == par_ct_name:
-                            # the mean expression of marker genes for current cell type should >= exp_threshold_up
-                            if marker_mean[_cell_type] < exp_threshold_up:
-                                keep_this_exp = False
-                        else:  # the mean expression of marker genes for other cell types should < exp_threshold_low
-                            if marker_mean[_cell_type] >= exp_threshold_low:
-                                keep_this_exp = False
-                        if not keep_this_exp:
-                            break
-
-            if keep_this_exp:
-                g_sample2exp[gen_id] = exp_sc
-                g_sample2id[gen_id] = _s
-        round_counter += 1
-    # selected_samples = get_sample_id(obs_df=adata.obs, n=n, n_base=n_base, cell_type=cell_type, class_by=group_by)
-    if return_cell_id:
-        return tuple(list(g_sample2id.values())[:n])
-
-    generated_samples = pd.DataFrame.from_dict(g_sample2exp, orient='index', columns=adata_df.columns)
-    if len(g_sample2exp) > n:
-        generated_samples = generated_samples.iloc[range(n), :].copy()
-    adata = an.AnnData(generated_samples)
-    if adata.shape[0] > 1:
-        adata.X = csr_matrix(adata.X)
-    adata.obs['dataset_id'] = 'generated'
-    adata.obs[group_by] = cell_type
-    g_sample2id = {i: ','.join(j) for i, j in g_sample2id.items()}
-    adata.obs['original_sample_ids'] = adata.obs.index.map(g_sample2id)
-    if group_by == 'leiden':
-        adata.obs['cell_type'] = cell_type_mapping.get(cell_type)
-    sc.pp.log1p(adata, base=log_base)
-    return adata
+# def generate_sc(adata, n, cell_type, n_base=3, log_base=2, group_by='leiden',
+#                 return_cell_id=False, filtering: bool = False, marker_genes=None,
+#                 cell_type_scope: list = None):
+#     """
+#     Generate single cell expression data by averaging `n_base` cells from a specific `cell_type`
+#
+#     :param adata: AnnData object which contains multiple merged single cell datasets, GEPs stored by log2(CPM + 1),
+#         CPM means counts per million, similar to TPM.
+#
+#     :param n: the number of cells to be generated
+#
+#     :param cell_type: sampling only within this cell types or sub cell types
+#
+#     :param n_base: the number of single cells to average
+#
+#     :param log_base: if None, don't do log transform
+#
+#     :param group_by: `leiden` (sub cell type) or `cell_type`, the column name of cell type in .h5ad file
+#
+#     :param return_cell_id: if return selected sample id directly without GEP
+#
+#     :param filtering: whether filter CD8 T and CD4 T based on the expression of corresponding marker genes
+#
+#     :param marker_genes: marker genes for each cell type, only for filtering
+#
+#     :param cell_type_scope: filter generated bulk cell expression profile only among these cell types
+#
+#     :return: a tuple of selected sample ids or an AnnData object with log2(CPM + 1) GEP
+#     """
+#     exp_threshold_low = 50
+#     exp_threshold_up = 100
+#     if marker_genes is None:
+#         marker_genes = default_core_marker_genes
+#     round_counter = 0
+#     # only keep current cell type
+#     adata = adata[adata.obs[group_by] == cell_type, :].copy()
+#     adata_df = pd.DataFrame(adata.X.A, index=adata.obs.index, columns=adata.var.index)
+#     adata_df = log_exp2cpm(adata_df)  # convert to CPM
+#     g_sample2exp = {}
+#     g_sample2id = {}
+#     while len(g_sample2exp) < n:
+#         # get sample_id for 100 samples each time
+#         _selected_samples = get_sample_id(obs_df=adata.obs, n=100, n_base=n_base,
+#                                           cell_type=cell_type, class_by=group_by)
+#         for i, _s in enumerate(_selected_samples):
+#             keep_this_exp = True
+#             unique_inx = i + round_counter * 100
+#             # expression profile of one generated single cell expression
+#             exp_sc = adata_df.loc[_s, :].mean(axis=0)
+#             # cell_type_abbr = ''
+#             if cell_type in subcell_type2abbr:
+#                 cell_type_abbr = subcell_type2abbr[cell_type]
+#             elif cell_type in cell_type2abbr:
+#                 cell_type_abbr = cell_type2abbr[cell_type]
+#             else:
+#                 raise KeyError('Unknown cell type')
+#             gen_id = 'gen_' + cell_type_abbr + '_' + str(unique_inx)
+#             if group_by == 'leiden':
+#                 par_ct_name = cell_type_mapping[cell_type]  # the name of parent cell type
+#             else:
+#                 par_ct_name = cell_type
+#             if filtering:
+#                 exp_sc_df = exp_sc.to_frame(name=gen_id).T
+#                 t_marker_mean_cpm = cal_exp_by_gene_list(exp_sc_df, gene_list=marker_genes['T Cells'], min_exp_value=1)
+#                 if par_ct_name not in ['CD4 T', 'CD8 T']:
+#                     if t_marker_mean_cpm >= exp_threshold_low:
+#                         keep_this_exp = False
+#                 else:
+#                     if t_marker_mean_cpm < exp_threshold_up:
+#                         keep_this_exp = False
+#                 if not keep_this_exp:
+#                     continue
+#
+#                 # filter by the expression value of marker genes
+#                 marker_mean = {}
+#                 if cell_type_scope is None:
+#                     cell_type_scope = list(cell_type2abbr.keys())
+#                 for _cell_type in cell_type_scope:
+#                     if _cell_type in marker_genes.keys():  # non-cancer cell
+#                         marker_mean[_cell_type] = cal_exp_by_gene_list(exp_sc_df, gene_list=marker_genes[_cell_type])
+#                         if _cell_type == par_ct_name:
+#                             # the mean expression of marker genes for current cell type should >= exp_threshold_up
+#                             if marker_mean[_cell_type] < exp_threshold_up:
+#                                 keep_this_exp = False
+#                         else:  # the mean expression of marker genes for other cell types should < exp_threshold_low
+#                             if marker_mean[_cell_type] >= exp_threshold_low:
+#                                 keep_this_exp = False
+#                         if not keep_this_exp:
+#                             break
+#
+#             if keep_this_exp:
+#                 g_sample2exp[gen_id] = exp_sc
+#                 g_sample2id[gen_id] = _s
+#         round_counter += 1
+#     # selected_samples = get_sample_id(obs_df=adata.obs, n=n, n_base=n_base, cell_type=cell_type, class_by=group_by)
+#     if return_cell_id:
+#         return tuple(list(g_sample2id.values())[:n])
+#
+#     generated_samples = pd.DataFrame.from_dict(g_sample2exp, orient='index', columns=adata_df.columns)
+#     if len(g_sample2exp) > n:
+#         generated_samples = generated_samples.iloc[range(n), :].copy()
+#     adata = an.AnnData(generated_samples)
+#     if adata.shape[0] > 1:
+#         adata.X = csr_matrix(adata.X)
+#     adata.obs['dataset_id'] = 'generated'
+#     adata.obs[group_by] = cell_type
+#     g_sample2id = {i: ','.join(j) for i, j in g_sample2id.items()}
+#     adata.obs['original_sample_ids'] = adata.obs.index.map(g_sample2id)
+#     if group_by == 'leiden':
+#         adata.obs['cell_type'] = cell_type_mapping.get(cell_type)
+#     sc.pp.log1p(adata, base=log_base)
+#     return adata
 
 
 def merge_adata(adata_list: list, keep_index=True):
@@ -321,86 +321,86 @@ def merge_adata(adata_list: list, keep_index=True):
     return merged
 
 
-def generate_sc_dataset2(merged_ds, n_samples: int = 5000, cell_types: list = None,
-                         result_file_path=None, group_by='leiden', n_base=3, filtering: bool = False,
-                         cd4_high_in_cd8: str = None):
-    """
-    Simple version of `generate_sc_dataset`,
-    generate single cell dataset by averaging the GEP of `n_base` (3 or 5) cells
-    from the same cell type (or sub cell type, leiden) from merged scRNA-seq dataset
-
-    :param merged_ds: all or parts of file 6_dataset_merged_after_batch_correction_filtered.h5ad
-
-    :param n_samples: number of samples for each cell type (or sub cell type)
-
-    :param cell_types:
-
-    :param result_file_path:
-
-    :param group_by: group by `cell_type` or `leiden` (sub cell type) when generating single cell dataset
-
-    :param n_base: the number of single cells to average
-
-    :param filtering: whether filter CD8 T and CD4 T based on the expression of corresponding marker genes
-
-    :param cd4_high_in_cd8: how to deal with the CD8 T cells that CD4 markers are highly expressed
-        (remove, CD4, CD8)
-
-    :return: a file of an AnnData object with log2(CPM + 1) GEP
-    """
-    if not os.path.exists(result_file_path):
-        cell_type2sc = {}
-        cells_cd4_high_in_cd8 = merged_ds.obs.loc[(merged_ds.obs['cell_type'] == 'CD8 T') &
-                                                  (merged_ds.obs['m_cd4/m_cd8 group'] == 'middle'), :].index.to_list()
-        if cd4_high_in_cd8 == 'remove':
-            merged_ds = merged_ds[~merged_ds.obs.index.isin(cells_cd4_high_in_cd8), :].copy()
-            print('   The CD8 T cells with highly expressed CD4 T markers will be removed...')
-        elif cd4_high_in_cd8 == 'CD4':
-            merged_ds.obs['leiden'].cat.add_categories(['CD4-high (1)', 'CD4-high (2)'], inplace=True)
-            merged_ds.obs.loc[merged_ds.obs.index.isin(cells_cd4_high_in_cd8), 'leiden'] = \
-                merged_ds.obs.loc[merged_ds.obs.index.isin(cells_cd4_high_in_cd8),
-                                  'leiden'].replace({'CD8 T (1)': 'CD4-high (1)', 'CD8 T (2)': 'CD4-high (2)'})
-            merged_ds.obs.loc[merged_ds.obs.index.isin(cells_cd4_high_in_cd8), ['cell_type']] = \
-                merged_ds.obs.loc[merged_ds.obs.index.isin(cells_cd4_high_in_cd8), 'cell_type'].replace('CD8 T', 'CD4 T')
-        print(merged_ds)
-        print(merged_ds.obs.loc[:, 'leiden'].value_counts())
-        # print(merged_ds.obs.loc[merged_ds.obs['cell_type'] == 'CD4 T', 'leiden'].value_counts())
-        for ct in cell_types:
-            print('   >>> deal with cell type {}'.format(ct))
-            if group_by == 'leiden':
-                sub_cell_types = sorted(list(merged_ds.obs.loc[merged_ds.obs['cell_type'] == ct, 'leiden'].unique()))
-                # print(sub_cell_types)
-                for sct in sub_cell_types:
-                    print('       deal with sub cell type {}'.format(sct))
-                    current_adata = merged_ds[merged_ds.obs['leiden'] == sct, :].copy()
-                    generated = generate_sc(current_adata, n=n_samples, cell_type=sct, group_by=group_by,
-                                            n_base=n_base, filtering=filtering, cell_type_scope=cell_types)
-                    cell_type2sc[sct] = generated
-            elif group_by == 'cell_type':
-                current_adata = merged_ds[merged_ds.obs['cell_type'] == ct, :].copy()
-                generated = generate_sc(current_adata, n=n_samples, cell_type=ct, group_by=group_by,
-                                        n_base=n_base, filtering=filtering, cell_type_scope=cell_types)
-                cell_type2sc[ct] = generated
-            else:
-                raise ValueError('Unrecognized parameter group_by {}, group_by should be "leiden" for sub cell type '
-                                 'or "cell_type" for cell type'.format(group_by))
-        all_adata = list(cell_type2sc.values())
-        all_generated_data = merge_adata(all_adata)
-        print(all_generated_data.obs['cell_type'].value_counts())
-
-        # clustering
-        print('   >>> clustering generated single cell dataset...')
-        if 'leiden' in all_generated_data.obs.columns:
-            all_generated_data.obs['sub_cell_type'] = all_generated_data.obs['leiden'].copy()
-        # sc_file_dir = os.path.dirname(sc_file_path)
-        sc.tl.pca(all_generated_data, svd_solver='arpack', n_comps=100, use_highly_variable=False, zero_center=False)
-        # sc.pl.pca_variance_ratio(sc_dataset, n_pcs=30)
-        sc.pp.neighbors(all_generated_data, n_neighbors=10, n_pcs=40)
-        sc.tl.umap(all_generated_data)
-        sc.tl.leiden(all_generated_data)
-        all_generated_data.write(result_file_path)
-    else:
-        print(f'   Previous result has existed: {result_file_path}')
+# def generate_sc_dataset2(merged_ds, n_samples: int = 5000, cell_types: list = None,
+#                          result_file_path=None, group_by='leiden', n_base=3, filtering: bool = False,
+#                          cd4_high_in_cd8: str = None):
+#     """
+#     Simple version of `generate_sc_dataset`,
+#     generate single cell dataset by averaging the GEP of `n_base` (3 or 5) cells
+#     from the same cell type (or sub cell type, leiden) from merged scRNA-seq dataset
+#
+#     :param merged_ds: all or parts of file 6_dataset_merged_after_batch_correction_filtered.h5ad
+#
+#     :param n_samples: number of samples for each cell type (or sub cell type)
+#
+#     :param cell_types:
+#
+#     :param result_file_path:
+#
+#     :param group_by: group by `cell_type` or `leiden` (sub cell type) when generating single cell dataset
+#
+#     :param n_base: the number of single cells to average
+#
+#     :param filtering: whether filter CD8 T and CD4 T based on the expression of corresponding marker genes
+#
+#     :param cd4_high_in_cd8: how to deal with the CD8 T cells that CD4 markers are highly expressed
+#         (remove, CD4, CD8)
+#
+#     :return: a file of an AnnData object with log2(CPM + 1) GEP
+#     """
+#     if not os.path.exists(result_file_path):
+#         cell_type2sc = {}
+#         cells_cd4_high_in_cd8 = merged_ds.obs.loc[(merged_ds.obs['cell_type'] == 'CD8 T') &
+#                                                   (merged_ds.obs['m_cd4/m_cd8 group'] == 'middle'), :].index.to_list()
+#         if cd4_high_in_cd8 == 'remove':
+#             merged_ds = merged_ds[~merged_ds.obs.index.isin(cells_cd4_high_in_cd8), :].copy()
+#             print('   The CD8 T cells with highly expressed CD4 T markers will be removed...')
+#         elif cd4_high_in_cd8 == 'CD4':
+#             merged_ds.obs['leiden'].cat.add_categories(['CD4-high (1)', 'CD4-high (2)'], inplace=True)
+#             merged_ds.obs.loc[merged_ds.obs.index.isin(cells_cd4_high_in_cd8), 'leiden'] = \
+#                 merged_ds.obs.loc[merged_ds.obs.index.isin(cells_cd4_high_in_cd8),
+#                                   'leiden'].replace({'CD8 T (1)': 'CD4-high (1)', 'CD8 T (2)': 'CD4-high (2)'})
+#             merged_ds.obs.loc[merged_ds.obs.index.isin(cells_cd4_high_in_cd8), ['cell_type']] = \
+#                 merged_ds.obs.loc[merged_ds.obs.index.isin(cells_cd4_high_in_cd8), 'cell_type'].replace('CD8 T', 'CD4 T')
+#         print(merged_ds)
+#         print(merged_ds.obs.loc[:, 'leiden'].value_counts())
+#         # print(merged_ds.obs.loc[merged_ds.obs['cell_type'] == 'CD4 T', 'leiden'].value_counts())
+#         for ct in cell_types:
+#             print('   >>> deal with cell type {}'.format(ct))
+#             if group_by == 'leiden':
+#                 sub_cell_types = sorted(list(merged_ds.obs.loc[merged_ds.obs['cell_type'] == ct, 'leiden'].unique()))
+#                 # print(sub_cell_types)
+#                 for sct in sub_cell_types:
+#                     print('       deal with sub cell type {}'.format(sct))
+#                     current_adata = merged_ds[merged_ds.obs['leiden'] == sct, :].copy()
+#                     generated = generate_sc(current_adata, n=n_samples, cell_type=sct, group_by=group_by,
+#                                             n_base=n_base, filtering=filtering, cell_type_scope=cell_types)
+#                     cell_type2sc[sct] = generated
+#             elif group_by == 'cell_type':
+#                 current_adata = merged_ds[merged_ds.obs['cell_type'] == ct, :].copy()
+#                 generated = generate_sc(current_adata, n=n_samples, cell_type=ct, group_by=group_by,
+#                                         n_base=n_base, filtering=filtering, cell_type_scope=cell_types)
+#                 cell_type2sc[ct] = generated
+#             else:
+#                 raise ValueError('Unrecognized parameter group_by {}, group_by should be "leiden" for sub cell type '
+#                                  'or "cell_type" for cell type'.format(group_by))
+#         all_adata = list(cell_type2sc.values())
+#         all_generated_data = merge_adata(all_adata)
+#         print(all_generated_data.obs['cell_type'].value_counts())
+#
+#         # clustering
+#         print('   >>> clustering generated single cell dataset...')
+#         if 'leiden' in all_generated_data.obs.columns:
+#             all_generated_data.obs['sub_cell_type'] = all_generated_data.obs['leiden'].copy()
+#         # sc_file_dir = os.path.dirname(sc_file_path)
+#         sc.tl.pca(all_generated_data, svd_solver='arpack', n_comps=100, use_highly_variable=False, zero_center=False)
+#         # sc.pl.pca_variance_ratio(sc_dataset, n_pcs=30)
+#         sc.pp.neighbors(all_generated_data, n_neighbors=10, n_pcs=40)
+#         sc.tl.umap(all_generated_data)
+#         sc.tl.leiden(all_generated_data)
+#         all_generated_data.write(result_file_path)
+#     else:
+#         print(f'   Previous result has existed: {result_file_path}')
 
 
 def filter_cells_by_marker_gene(single_cell_dataset, cell_types: list = None, cell_type2markers: dict = None,
