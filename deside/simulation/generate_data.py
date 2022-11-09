@@ -926,7 +926,7 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
             else:
                 print(f'   Previous result exists: {self.generated_cell_fraction_fp}')
             # DC has 543 cells, larger chunk_size can cause error if set 'replace=False' and 'n_base=1' while sampling
-            chunk_size = int(n_sample_each_cell_type / 25)
+            chunk_size = int(n_sample_each_cell_type / 10)
             # if n_base_for_positive_samples == 1:
             #     chunk_size = 300
             # else:
@@ -946,9 +946,9 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
                             raise ValueError(f'   More than one cell types are selected: {all_cell_types}')
                         cell_type = all_cell_types[0]
                         current_subgroups = cell_type2subgroup_id[cell_type]
-                        selected_subgroup = current_subgroups[chunk_counter % 25 % len(current_subgroups)]
+                        selected_subgroup = current_subgroups[chunk_counter % 10 % len(current_subgroups)]
                         current_obs_df = self.merged_sc_dataset_obs.loc[
-                                         self.merged_sc_dataset_obs['subgroup_id'].isin(selected_subgroup), :].copy()
+                                         self.merged_sc_dataset_obs['leiden'].isin(selected_subgroup), :].copy()
                     else:
                         current_obs_df = self.merged_sc_dataset_obs.copy()
                     selected_cell_ids = self._sc_sampling(cell_frac=rows, total_cell_number=total_cell_number,
