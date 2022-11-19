@@ -903,7 +903,7 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
     def generate_samples(self, n_sample_each_cell_type: int = 10000,
                          n_base_for_positive_samples: int = 1,
                          sample_type: str = 'positive', sep_by_patient=False,
-                         simu_method='ave', cell_type2subgroup_id: dict = None):
+                         simu_method='ave', cell_type2subgroup_id: dict = None, subgroup_by: list = None):
         """
         :param n_sample_each_cell_type:
         :param n_base_for_positive_samples: the number of single cells to average
@@ -914,8 +914,11 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
             or 'random_replacement': replacing the gene expression value (<1) by another value within the same cell type
              selected randomly
         :param cell_type2subgroup_id: a dict, key is cell type, value is a list of subgroup ids
+        :parma subgroup_by: a list of column names in the merged single cell dataset, used to group samples
         """
         if not os.path.exists(self.generated_bulk_gep_fp):
+            if subgroup_by is None:
+                subgroup_by = ['dataset_id', 'leiden']
             self.n_samples = n_sample_each_cell_type * len(self.cell_type_used)
             if not os.path.exists(self.generated_cell_fraction_fp):
                 print(f'   Generate cell proportions for single cell type (SCT) samples in {self.bulk_dataset_name}')
@@ -926,7 +929,14 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
             else:
                 print(f'   Previous result exists: {self.generated_cell_fraction_fp}')
             # DC has 543 cells, larger chunk_size can cause error if set 'replace=False' and 'n_base=1' while sampling
-            chunk_size = int(n_sample_each_cell_type / 10)
+            chunk_size_factor = max([len(v) for k, v in cell_type2subgroup_id.items()])
+            if chunk_size_factor <= 10:
+                chunk_size_factor = 10
+            elif 10 < chunk_size_factor <= 20:
+                chunk_size_factor = 20
+            elif 20 < chunk_size_factor <= 50:
+                chunk_size_factor = 50
+            chunk_size = int(n_sample_each_cell_type / chunk_size_factor)
             # if n_base_for_positive_samples == 1:
             #     chunk_size = 300
             # else:
@@ -946,9 +956,18 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
                             raise ValueError(f'   More than one cell types are selected: {all_cell_types}')
                         cell_type = all_cell_types[0]
                         current_subgroups = cell_type2subgroup_id[cell_type]
-                        selected_subgroup = current_subgroups[chunk_counter % 10 % len(current_subgroups)]
-                        current_obs_df = self.merged_sc_dataset_obs.loc[
-                                         self.merged_sc_dataset_obs['leiden'].isin(selected_subgroup), :].copy()
+                        selected_subgroup = current_subgroups[chunk_counter % chunk_size_factor % len(current_subgroups)]
+                        if len(subgroup_by) == 1 and subgroup_by[0] in self.merged_sc_dataset_obs.columns:
+                            current_obs_df = self.merged_sc_dataset_obs.loc[
+                                             self.merged_sc_dataset_obs[subgroup_by[0]].isin(selected_subgroup),
+                                             :].copy()
+                        elif len(subgroup_by) == 2 and set(subgroup_by).issubset(self.merged_sc_dataset_obs.columns):
+                            current_obs_df = self.merged_sc_dataset_obs.loc[
+                                             (self.merged_sc_dataset_obs[subgroup_by[0]].isin([selected_subgroup[0]])) &
+                                             (self.merged_sc_dataset_obs[subgroup_by[1]].isin([selected_subgroup[1]])),
+                                             :].copy()
+                        else:
+                            raise ValueError(f'   subgroup_by {subgroup_by} is not valid')
                     else:
                         current_obs_df = self.merged_sc_dataset_obs.copy()
                     selected_cell_ids = self._sc_sampling(cell_frac=rows, total_cell_number=total_cell_number,
