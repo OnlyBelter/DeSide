@@ -797,8 +797,8 @@ class BulkGEPGenerator(object):
                         long_tail_noise = np.random.random(size=n_genes)
                         # replace the values < 1 with random selected values
                         mask = (current_gene_exp < 1).values.astype(int)
-                        simulated_exp[sample_id] = pd.Series(current_gene_exp.values + long_tail_noise * mask,
-                                                             index=current_gene_exp.index)
+                        current_gene_exp = current_gene_exp + long_tail_noise * mask
+                    simulated_exp[sample_id] = pd.Series(current_gene_exp.values, index=current_gene_exp.index)
         else:
             assert simu_method == 'mul', 'Only support matrix multiplication for MCT'
             for sample_id, group in selected_cell_id.groupby(by=selected_cell_id.index):
