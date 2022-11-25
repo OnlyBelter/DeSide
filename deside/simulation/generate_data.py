@@ -3,6 +3,7 @@ import gc
 import json
 import numpy as np
 import pandas as pd
+from scipy import stats
 import scanpy as sc
 from typing import Union
 from tqdm import tqdm
@@ -454,7 +455,8 @@ class BulkGEPGenerator(object):
                      total_cell_number: int = 100, n_threads: int = 10, filtering: bool = True,
                      reference_file: Union[str, pd.DataFrame] = None, ref_exp_type: str = None,
                      filtering_quantile: float = 0.999, log_file_path: str = None, n_top: int = None,
-                     simu_method='mul', filtering_method='marker_ratio'):
+                     simu_method='mul', filtering_method='marker_ratio', add_noise: bool = False,
+                     noise_params: tuple = ()):
         """
         :param n_samples: the number of GEPs to generate
         :param total_cell_number: N, the total number of cells sampled from merged single cell dataset
@@ -473,6 +475,9 @@ class BulkGEPGenerator(object):
             ave (average all selected single cell GEPs), mul (multiple GEP by cell fractions)
         :param filtering_method: marker_ratio (l2 distance with marker gene ratio) or
             median_gep (l1 distance with median expression value for each gene)
+        :param add_noise: whether add noise to generated bulk GEPs
+        :param noise_params: parameters for noise generation, (f, max_sum),
+            ref: Hao, Yuning, et al. PLoS Computational Biology, 2019
         """
         n_total_cpus = multiprocessing.cpu_count()
         n_threads = min(n_total_cpus - 1, n_threads)
@@ -524,7 +529,8 @@ class BulkGEPGenerator(object):
                     simulated_gep = self._map_cell_id2exp(selected_cell_id=selected_cell_ids,
                                                           simu_method=simu_method,
                                                           sc_dataset=sc_dataset,
-                                                          cell_frac=generated_cell_frac)
+                                                          cell_frac=generated_cell_frac,
+                                                          add_noise=add_noise, noise_params=noise_params)
                     if filtering:
                         if reference_file is None or ref_exp_type is None:
                             raise ValueError('Both "reference_file" and "ref_exp_type" should not be None '
@@ -744,8 +750,22 @@ class BulkGEPGenerator(object):
 
         return sampled_cell_ids
 
+    @staticmethod
+    def sample_noise(miu=0, s=566.1, f=0.25, n_samples=10000) -> np.ndarray:
+        """
+        generate noise for each gene in one bulk GEP,
+            Modified by Hao, Yuning, et al. PLoS Computational Biology, 2019
+        miu: mean of normal distribution
+        s: the mean std of all samples in TCGA with TPM values, LGG and GBM were excluded
+        """
+        sigma = f * np.log2(s)
+        norm_dis = stats.norm(miu, sigma)
+        x = norm_dis.rvs(size=n_samples)
+        return np.power(2, x)
+
     def _map_cell_id2exp(self, selected_cell_id, sc_dataset: str = 'merged_sc_dataset',
-                         simu_method: str = 'ave', cell_frac: pd.DataFrame = None, gep_type='MCT') -> pd.DataFrame:
+                         simu_method: str = 'ave', cell_frac: pd.DataFrame = None,
+                         gep_type='MCT', add_noise: bool = False, noise_params: tuple = ()) -> pd.DataFrame:
         """
         mapping sampled cell_ids to the corresponding GEPs
         :param selected_cell_id: a dataFrame which contains cell_type, n_cell, selected_cell_id
@@ -794,9 +814,14 @@ class BulkGEPGenerator(object):
                 # current_cell_frac = current_cell_frac.loc[group['cell_type'].to_list(), :]
                 simulated_exp[sample_id] = pd.Series((current_merged.values.T @ current_cell_frac.values).reshape(-1),
                                                      index=current_merged.columns)
+                if add_noise:
+                    noise = self.sample_noise(n_samples=len(simulated_exp[sample_id]), f=noise_params[0])
+                    if noise.sum() > noise_params[1]:
+                        noise = noise / np.sum(noise) * noise_params[1]
+                    simulated_exp[sample_id] = simulated_exp[sample_id] + noise
 
         simulated_exp_df = pd.DataFrame.from_dict(data=simulated_exp, orient='index')
-
+        simulated_exp_df = non_log2cpm(simulated_exp_df, sum_exp=1e6)  # convert to TPM
         return simulated_exp_df.round(3)
 
     def _save_simulated_bulk_gep(self, gep: pd.DataFrame, cell_id: pd.DataFrame, cell_fraction: pd.DataFrame = None):
@@ -975,7 +1000,6 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
                                                           sep_by_patient=sep_by_patient)
                     simulated_gep = self._map_cell_id2exp(selected_cell_id=selected_cell_ids, simu_method=simu_method,
                                                           cell_frac=rows, sc_dataset='merged_sc_dataset', gep_type='SCT')
-                    simulated_gep = non_log2cpm(simulated_gep, sum_exp=1e6)  # convert to TPM
                     simulated_gep = log2_transform(simulated_gep)
                     self.generated_bulk_gep_counter += simulated_gep.shape[0]
                     # generated_cell_frac = generated_cell_frac.loc[simulated_gep.index, :].copy()
