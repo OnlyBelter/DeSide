@@ -333,7 +333,7 @@ class BulkGEPGenerator(object):
     def __init__(self, simu_bulk_dir, merged_sc_dataset_file_path, sct_dataset_file_path,
                  cell_types: list, sc_dataset_ids: list, bulk_dataset_name: str = None,
                  check_basic_info: bool = True, zero_ratio_threshold: float = 0.97,
-                 sc_dataset_gep_type: str = 'log_space'):
+                 sc_dataset_gep_type: str = 'log_space', tcga2cancer_type_file_path: str = None):
         """
         :param simu_bulk_dir: the directory to save simulated bulk cell GEPs
         :param merged_sc_dataset_file_path: the file path of pre-merged single cell datasets
@@ -384,6 +384,7 @@ class BulkGEPGenerator(object):
         # unique expression values in scRNA-seq dataset saved in merged_7_sc_dataset_log2cpm1p.h5ad
         self.unique_exp_value_in_s0 = None  # {'cell_type1': {'gene1': np.array([]), ...}, 'cell_type2': {}, ...}
         self.sc_dataset_gep_type = sc_dataset_gep_type
+        self.tcga2cancer_type_file_path = tcga2cancer_type_file_path
         if check_basic_info and not os.path.exists(self.generated_bulk_gep_fp):
             self.check_basic_info()
 
@@ -456,7 +457,7 @@ class BulkGEPGenerator(object):
                      reference_file: Union[str, pd.DataFrame] = None, ref_exp_type: str = None,
                      filtering_quantile: float = 0.999, log_file_path: str = None, n_top: int = None,
                      simu_method='mul', filtering_method='marker_ratio', add_noise: bool = False,
-                     noise_params: tuple = ()):
+                     noise_params: tuple = (), filtering_ref_types: list = None):
         """
         :param n_samples: the number of GEPs to generate
         :param total_cell_number: N, the total number of cells sampled from merged single cell dataset
@@ -478,6 +479,7 @@ class BulkGEPGenerator(object):
         :param add_noise: whether add noise to generated bulk GEPs
         :param noise_params: parameters for noise generation, (f, max_sum),
             ref: Hao, Yuning, et al. PLoS Computational Biology, 2019
+        :param filtering_ref_types: the cancer types used for filtering
         """
         n_total_cpus = multiprocessing.cpu_count()
         n_threads = min(n_total_cpus - 1, n_threads)
@@ -516,6 +518,10 @@ class BulkGEPGenerator(object):
             if sc_dataset == 'merged_sc_dataset':
                 min_n_cell_frac = 300  # since some cell types only have a small number of cells
             # n_round = 0
+            sample_id_for_filtering = []
+            if filtering and filtering_ref_types is not None:
+                s2c = pd.read_csv(self.tcga2cancer_type_file_path, index_col=0)  # sample id to cancer type in TCGA
+                sample_id_for_filtering = s2c.loc[s2c['cancer_type'].isin(filtering_ref_types), :].index.to_list()
             with tqdm(total=self.n_samples) as pbar:
                 if self.generated_bulk_gep_counter != 0:
                     pbar.update(self.generated_bulk_gep_counter)
@@ -569,6 +575,10 @@ class BulkGEPGenerator(object):
                             exp_obj_ref = ExpObj(exp_file=reference_file, exp_type=ref_exp_type)
                             exp_obj_ref.align_with_gene_list(gene_list=gene_list_in_sc_ds, fill_not_exist=True)
                             exp_ref_df = exp_obj_ref.get_exp()
+                            exp_ref_df = exp_ref_df.loc[exp_ref_df.index.isin(sample_id_for_filtering), :]
+                            _str = ', '.join(filtering_ref_types)
+                            print(f'   > {exp_ref_df.shape[0]} samples in {_str} are used '
+                                  f'for {filtering_method} filtering.')
                             if filtering_method == 'median_gep':
                                 self.m_gep_ref = exp_ref_df.median(axis=0).values.reshape(1, -1)  # TPM
                             elif filtering_method == 'mean_gep':
