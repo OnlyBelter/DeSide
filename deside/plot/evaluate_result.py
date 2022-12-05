@@ -1109,13 +1109,13 @@ def plot_pca(data: pd.DataFrame, result_fp=None, color_code=None, s=5, figsize=(
     plot PCA result of simulated bulk cell dataset
     :param data: PCA table, samples by PCs
     :param result_fp:
-    :param color_code: an np.array to mark the label of each sample
+    :param color_code: a "np.array" to mark the label of each sample
     :param color_code2label:
     :param explained_variance_ratio: pca_model.explained_variance_ratio_
-    :param label_name: label name for x axis
+    :param label_name: label name for x-axis
     :param show_legend:
     :param show_xy_labels:
-    :param anno: annotation for x axis, which layer was used to generate the data
+    :param anno: annotation for x-axis, which layer was used to generate the data
     :param show_core_zone_of_tcga: whether to show the core zone of TCGA data
     :return:
     """
@@ -1200,10 +1200,10 @@ def plot_pca(data: pd.DataFrame, result_fp=None, color_code=None, s=5, figsize=(
         if result_fp is not None:
             if '.png' in result_fp:
                 plt.savefig(result_fp.replace('.png', f'_{label_name}{pc1}_{label_name}{pc2}.png'),
-                            bbox_inches='tight', dpi=200)
+                            bbox_inches='tight', dpi=300)
             if '.pdf' in result_fp:
                 plt.savefig(result_fp.replace('.pdf', f'_{label_name}{pc1}_{label_name}{pc2}.pdf'),
-                            bbox_inches='tight', dpi=200)
+                            bbox_inches='tight', dpi=300)
 
 
 def compare_mean_exp_with_cell_frac_across_algo(cancer_type: str, algo2merged_fp: dict, signature_score_fp: str,

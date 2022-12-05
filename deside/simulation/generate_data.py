@@ -522,6 +522,9 @@ class BulkGEPGenerator(object):
             if filtering and filtering_ref_types is not None:
                 s2c = pd.read_csv(self.tcga2cancer_type_file_path, index_col=0)  # sample id to cancer type in TCGA
                 sample_id_for_filtering = s2c.loc[s2c['cancer_type'].isin(filtering_ref_types), :].index.to_list()
+                _str = ', '.join(filtering_ref_types)
+                print(f'   > {len(sample_id_for_filtering)} samples in {_str} are used '
+                      f'for {filtering_method} filtering.')
             with tqdm(total=self.n_samples) as pbar:
                 if self.generated_bulk_gep_counter != 0:
                     pbar.update(self.generated_bulk_gep_counter)
@@ -576,9 +579,7 @@ class BulkGEPGenerator(object):
                             exp_obj_ref.align_with_gene_list(gene_list=gene_list_in_sc_ds, fill_not_exist=True)
                             exp_ref_df = exp_obj_ref.get_exp()
                             exp_ref_df = exp_ref_df.loc[exp_ref_df.index.isin(sample_id_for_filtering), :]
-                            _str = ', '.join(filtering_ref_types)
-                            print(f'   > {exp_ref_df.shape[0]} samples in {_str} are used '
-                                  f'for {filtering_method} filtering.')
+
                             if filtering_method == 'median_gep':
                                 self.m_gep_ref = exp_ref_df.median(axis=0).values.reshape(1, -1)  # TPM
                             elif filtering_method == 'mean_gep':
