@@ -361,8 +361,10 @@ class BulkGEPGenerator(object):
         self.n_round = 0
         self.generated_cell_frac = None
         self.total_cell_number = None  # N, average to form a bulk GEP
-        self.q_dis_nn_ref: float = 0  # the quantile of distance for each pair in reference dataset, such as TCGA
-        self.filtering_quantile = 0  # the quantile used to determine q_dis_nn_ref for sample filtering
+        self.q_dis_nn_ref_upper: float = 0  # the quantile of distance for each pair in reference dataset, such as TCGA
+        self.q_dis_nn_ref_lower: float = 0  # the quantile of distance for each pair in reference dataset, such as TCGA
+        self.filtering_quantile_upper = 0  # the upper quantile used to determine q_dis_nn_ref for sample filtering
+        self.filtering_quantile_lower = None  # the lower quantile used to determine q_dis_nn_ref for sample filtering
         self.marker_ratio_ref = None  # the marker gene ratios of reference dataset
         prefix = f'simu_bulk_exp_{self.bulk_dataset_name}'
         self.generated_cell_fraction_fp = os.path.join(self.simu_bulk_dir,
@@ -455,9 +457,9 @@ class BulkGEPGenerator(object):
     def generate_gep(self, n_samples, sampling_range: dict = None, sampling_method: str = 'segment',
                      total_cell_number: int = 100, n_threads: int = 10, filtering: bool = True,
                      reference_file: Union[str, pd.DataFrame] = None, ref_exp_type: str = None,
-                     filtering_quantile: float = 0.999, log_file_path: str = None, n_top: int = None,
+                     filtering_quantile: tuple = (None, 0.95), log_file_path: str = None, n_top: int = None,
                      simu_method='mul', filtering_method='marker_ratio', add_noise: bool = False,
-                     noise_params: tuple = (), filtering_ref_types: list = None):
+                     noise_params: tuple = (), filtering_ref_types: list = None, show_filtering_info: bool = False):
         """
         :param n_samples: the number of GEPs to generate
         :param total_cell_number: N, the total number of cells sampled from merged single cell dataset
@@ -480,12 +482,13 @@ class BulkGEPGenerator(object):
         :param noise_params: parameters for noise generation, (f, max_sum),
             ref: Hao, Yuning, et al. PLoS Computational Biology, 2019
         :param filtering_ref_types: the cancer types used for filtering
+        :param show_filtering_info: whether show filtering information
         """
         n_total_cpus = multiprocessing.cpu_count()
         n_threads = min(n_total_cpus - 1, n_threads)
         self.n_samples = n_samples
         self.total_cell_number = total_cell_number
-        self.filtering_quantile = filtering_quantile
+        self.filtering_quantile_lower, self.filtering_quantile_upper = filtering_quantile
         # print(f'   > filtering quantile is {self.filtering_quantile * 100}%')
         # simulating bulk cell GEP by mixing GEPs of different cell types
         if filtering:
@@ -563,16 +566,16 @@ class BulkGEPGenerator(object):
                         simulated_gep = self.filter_gep_by_reference(simulated_gep=simulated_gep,
                                                                      n_top=n_top)
                         if (simulated_gep is None) or (simulated_gep.shape[0] < 50):
-                            if self.filtering_quantile < 0.999:
+                            if self.filtering_quantile_upper < 0.999:
                                 # larger filtering_quantile to get more neighbors
-                                self.filtering_quantile += 0.001
+                                self.filtering_quantile_upper += 0.001
                             else:
-                                self.filtering_quantile += 0.0001
+                                self.filtering_quantile_upper += 0.0001
                             qn1 = QueryNeighbors(df_file=self.marker_ratio_ref)
-                            self.q_dis_nn_ref = qn1.get_quantile_of_nn_distance(
-                                quantile=self.filtering_quantile)  # quantile of distance
+                            self.q_dis_nn_ref_upper = qn1.get_quantile_of_nn_distance(
+                                quantile=self.filtering_quantile_upper)  # quantile of distance
                             print(f'   > Larger filtering_quantile will be used to get more neighbors.')
-                            print(f'   > Quantile distance of {self.filtering_quantile * 100}% is: {self.q_dis_nn_ref}')
+                            print(f'   > Quantile distance of {self.filtering_quantile_upper * 100}% is: {self.q_dis_nn_ref_upper}')
                     elif filtering and (filtering_method == 'median_gep' or filtering_method == 'mean_gep'):
                         if self.m_gep_ref is None:
                             exp_obj_ref = ExpObj(exp_file=reference_file, exp_type=ref_exp_type)
@@ -588,10 +591,22 @@ class BulkGEPGenerator(object):
                                 raise ValueError(f'filtering_method {filtering_method} is invalid')
                             l1_distance_with_center_ref = np.linalg.norm(exp_ref_df - self.m_gep_ref,
                                                                          ord=1, axis=1)
-                            self.q_dis_nn_ref = np.quantile(l1_distance_with_center_ref, self.filtering_quantile)
+                            self.q_dis_nn_ref_upper = np.quantile(l1_distance_with_center_ref,
+                                                                  self.filtering_quantile_upper)
                         assert np.all(exp_ref_df.columns == simulated_gep.columns)
                         l1_dis_ref_simu_gep = np.linalg.norm(simulated_gep.values - self.m_gep_ref, ord=1, axis=1)
-                        simulated_gep = simulated_gep.loc[l1_dis_ref_simu_gep <= self.q_dis_nn_ref, :].copy()
+                        if self.filtering_quantile_lower is not None:
+                            self.q_dis_nn_ref_lower = np.quantile(l1_distance_with_center_ref,
+                                                                  self.filtering_quantile_lower)
+                            if show_filtering_info:
+                                print(f'   > Quantile distance of {self.filtering_quantile_lower * 100}% is: '
+                                      f'{self.q_dis_nn_ref_lower}, {len(np.sum(l1_dis_ref_simu_gep < self.q_dis_nn_ref_lower))} were removed')
+                                print(f'   > Quantile distance of {self.filtering_quantile_upper * 100}% is: '
+                                      f'{self.q_dis_nn_ref_upper}, {len(np.sum(l1_dis_ref_simu_gep > self.q_dis_nn_ref_upper))} were removed')
+                            simulated_gep = simulated_gep.loc[(l1_dis_ref_simu_gep <= self.q_dis_nn_ref_upper) &
+                                                              (l1_dis_ref_simu_gep >= self.q_dis_nn_ref_lower), :]
+                        else:
+                            simulated_gep = simulated_gep.loc[l1_dis_ref_simu_gep <= self.q_dis_nn_ref_upper, :].copy()
 
                     if simulated_gep is not None:
                         if (self.generated_bulk_gep_counter + simulated_gep.shape[0]) > self.n_samples:
@@ -608,8 +623,13 @@ class BulkGEPGenerator(object):
             msg = f'   > Got {self.generated_bulk_gep_counter} samples from {self.n_round * min_n_cell_frac}'
             if sampling_method in ['segment', 'seg_random']:
                 q_dis = 'radius' if filtering_method == 'marker_ratio' else 'l1 distance'
-                msg = f'   > Got {self.generated_bulk_gep_counter} samples from {self.n_round * min_n_cell_frac} ' \
-                      f'within {q_dis} {self.q_dis_nn_ref} by quantile {self.filtering_quantile * 100}%'
+                if self.q_dis_nn_ref_lower is not None:
+                    msg = f'   > Got {self.generated_bulk_gep_counter} samples from {self.n_round * min_n_cell_frac} ' \
+                          f'within {q_dis} between {self.q_dis_nn_ref_lower} and {self.q_dis_nn_ref_upper} ' \
+                          f'by quantile {self.filtering_quantile_lower * 100}%-{self.filtering_quantile_upper * 100}%'
+                else:
+                    msg = f'   > Got {self.generated_bulk_gep_counter} samples from {self.n_round * min_n_cell_frac} ' \
+                          f'within {q_dis} {self.q_dis_nn_ref_upper} by quantile {self.filtering_quantile_upper * 100}%'
             print(msg)
             data_info = f'Simulated {self.generated_bulk_gep_counter} bulk cell gene expression profiles ' \
                         f'by {sampling_method}, log2(TPM + 1)'
@@ -639,18 +659,18 @@ class BulkGEPGenerator(object):
 
         # the distance of nearest neighbor for each sample
         # quantile = 0.999
-        if self.q_dis_nn_ref == 0:
+        if self.q_dis_nn_ref_upper == 0:
             qn1 = QueryNeighbors(df_file=self.marker_ratio_ref)
             # quantile of distance
-            self.q_dis_nn_ref = qn1.get_quantile_of_nn_distance(quantile=self.filtering_quantile)
-            print(f'   > Quantile distance of {self.filtering_quantile * 100}% is: {self.q_dis_nn_ref}')
+            self.q_dis_nn_ref_upper = qn1.get_quantile_of_nn_distance(quantile=self.filtering_quantile_upper)
+            print(f'   > Quantile distance of {self.filtering_quantile_upper * 100}% is: {self.q_dis_nn_ref_upper}')
         # nn_dis = qn1.get_nn()
 
         qn2 = QueryNeighbors(df_file=marker_ratio_simu_gep)
         current_ref_nc = sorted(self.ref_neighbor_counter.items(), key=lambda x: x[1])
         _keep_ref = [i for i, j in current_ref_nc if j < self.n_neighbors_each_ref]
         ref_neighbors_within_radius = qn2.get_neighbors_by_radius(
-            radius=self.q_dis_nn_ref, n_top=n_top, share_neighbors=False,
+            radius=self.q_dis_nn_ref_upper, n_top=n_top, share_neighbors=False,
             q_df_file=self.marker_ratio_ref.loc[_keep_ref, :].copy(),
             )
         ref2n_neighbors = ref_neighbors_within_radius.groupby(ref_neighbors_within_radius.index).count()
