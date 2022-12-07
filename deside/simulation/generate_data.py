@@ -600,9 +600,9 @@ class BulkGEPGenerator(object):
                                                                   self.filtering_quantile_lower)
                             if show_filtering_info:
                                 print(f'   > Quantile distance of {self.filtering_quantile_lower * 100}% is: '
-                                      f'{self.q_dis_nn_ref_lower}, {len(np.sum(l1_dis_ref_simu_gep < self.q_dis_nn_ref_lower))} were removed')
+                                      f'{self.q_dis_nn_ref_lower}, {np.sum(l1_dis_ref_simu_gep < self.q_dis_nn_ref_lower)} were removed')
                                 print(f'   > Quantile distance of {self.filtering_quantile_upper * 100}% is: '
-                                      f'{self.q_dis_nn_ref_upper}, {len(np.sum(l1_dis_ref_simu_gep > self.q_dis_nn_ref_upper))} were removed')
+                                      f'{self.q_dis_nn_ref_upper}, {np.sum(l1_dis_ref_simu_gep > self.q_dis_nn_ref_upper)} were removed')
                             simulated_gep = simulated_gep.loc[(l1_dis_ref_simu_gep <= self.q_dis_nn_ref_upper) &
                                                               (l1_dis_ref_simu_gep >= self.q_dis_nn_ref_lower), :]
                         else:
