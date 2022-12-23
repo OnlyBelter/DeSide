@@ -38,7 +38,7 @@ class DeSide(object):
         """
         :param input_shape: the number of features (genes)
         :param output_shape: the dimension of output (number of cell types to predict cell fraction)
-        :param hyper_params: per-determined hyper-parameters for DeSide model
+        :param hyper_params: pre-determined hyper-parameters for DeSide model
         """
         self.hyper_params = hyper_params
         hidden_units = hyper_params['architecture'][0]
@@ -86,7 +86,7 @@ class DeSide(object):
                     remove_cancer_cell=False, fine_tune=False):
         """
         :param training_set_file_path: the file path of training set, .h5ad file, log2cpm1p format, samples by genes
-        :param hyper_params: per-determined hyper-parameters for DeSide model
+        :param hyper_params: pre-determined hyper-parameters for DeSide model
         :param cell_types: specific a list of cell types instead of using all cell types in training set
         :param scaling_by_sample: whether to scale the expression values of each sample to [0, 1] by 'min_max'
         :param callback: whether to use callback function when training model

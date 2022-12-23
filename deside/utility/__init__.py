@@ -26,6 +26,7 @@ from .pub_func import sorted_cell_types, get_inx2cell_type
 from .pub_func import do_pca_analysis, do_umap_analysis
 from .pub_func import set_fig_style
 from .evaluation import get_core_zone_of_pca
+from .pub_func import get_ccc
 
 
 subcell_type2abbr = {'B Cells (1)': 'B1', 'B Cells (2)': 'B2', 'B Cells (3)': 'B3', 'B Cells (4)': 'B4',

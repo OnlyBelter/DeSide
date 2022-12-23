@@ -53,13 +53,14 @@ def _read_result(file_path, cell_type_name_mapping, cell_types, algo=None):
 
 
 def read_and_merge_result(raw_result_dir: str, cell_type_name_mapping: dict, algo: str,
-                          result_file_path=None) -> pd.DataFrame:
+                          result_file_path=None, tcga_sample2cancer_type_file_path=None) -> pd.DataFrame:
     """
     read and merge predicted cell fractions of each algorithm
     :param raw_result_dir:
     :param cell_type_name_mapping: mapping from cell type names of current algo to cell type names in DeSide
     :param algo: EPIC, CIBERSORT, MuSiC, DeSide and Scaden
     :param result_file_path:
+    :param tcga_sample2cancer_type_file_path: the file path of sample id to cancer type mapping file in TCGA
     :return:
     """
     cell_types = [i for i in sorted_cell_types if i in list(cell_type_name_mapping.values())]
@@ -85,7 +86,7 @@ def read_and_merge_result(raw_result_dir: str, cell_type_name_mapping: dict, alg
                         ds = '46sig'
                     else:  # EPIC_self_ref
                         ds = 'self'
-                elif algo == 'Scaden':
+                elif algo == 'Scaden_ascites':
                     cancer_type = file_name.split('_')[-1].replace('.txt', '')
                     ds = 'Ascites'
                 elif algo == 'Scaden_simu_bulk':
@@ -98,6 +99,9 @@ def read_and_merge_result(raw_result_dir: str, cell_type_name_mapping: dict, alg
                     if '/' in cancer_type:
                         cancer_type = cancer_type.split('/')[-1]
                     ds = 'simu_bulk_2ds'
+                elif algo == 'Kassandra_self':
+                    cancer_type = 'all'
+                    ds = 'self'
                 if '.txt' in ds:
                     ds = ds.replace('.txt', '')
                 cancer_type = cancer_type.replace('HNSCC', 'HNSC')
@@ -120,11 +124,20 @@ def read_and_merge_result(raw_result_dir: str, cell_type_name_mapping: dict, alg
             ref_dataset = 'Mixed_ref'
         current_result = _read_result(file_path, cell_type_name_mapping=cell_type_name_mapping,
                                       cell_types=cell_types, algo=algo)
+        if algo == 'Kassandra_self':
+            current_result = current_result / 100
         for row in current_result.iterrows():
             sample_id = row[0]
             sample2cell_frac[counter] = [sample_id, cancer_type, ref_dataset] + list(row[1].values)
             counter += 1
     merged_result = pd.DataFrame.from_dict(sample2cell_frac, orient='index', columns=columns)
+    if algo == 'Kassandra_self':
+        tcga_sample2cancer_type = pd.read_csv(tcga_sample2cancer_type_file_path, index_col=0)
+        tcga_sample2cancer_type.index = tcga_sample2cancer_type.index.map(lambda x: x.replace('.', '-'))
+        tcga_sample2cancer_type = tcga_sample2cancer_type.to_dict()['cancer_type']
+        merged_result.drop(columns=['cancer_type'], inplace=True)
+        merged_result['cancer_type'] = merged_result['sample_id'].map(lambda x: tcga_sample2cancer_type[x])
+        merged_result = merged_result.loc[:, columns].copy()
     if result_file_path:
         if os.path.exists(result_file_path):
             merged_result.to_csv(result_file_path, mode='a', header=False, float_format='%.3f')

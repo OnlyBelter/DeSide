@@ -886,5 +886,12 @@ def do_umap_analysis(exp_df, n_components=5, n_neighbors=15, min_dist=0.1, umap_
     return umap_model
 
 
+def get_ccc(x, y):
+    # Concordance Correlation Coefficient(CCC), https://en.wikipedia.org/wiki/Concordance_correlation_coefficient
+    vx, cov_xy, cov_xy, vy = np.cov(x, y, bias=True).flatten()
+    mx, my = x.mean(), y.mean()
+    return 2*cov_xy / (vx + vy + (mx-my)**2)
+
+
 if __name__ == '__main__':
     pass
