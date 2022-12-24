@@ -20,19 +20,22 @@ from ..plot import plot_pca
 
 
 def segment_generation_fraction(n_samples: int = None, max_value: int = 10000,
-                                cell_types: list = None, sample_prefix: str = None) -> pd.DataFrame:
+                                cell_types: list = None, sample_prefix: str = None,
+                                cell_prop_prior: dict = None) -> pd.DataFrame:
     """
     Generate cell fraction by fixing a specific percentage (gradient) range (i.e. from 1% to 100%)
         for each specific cell type, and n samples for each gradient of each cell type
 
     :param n_samples: the number of samples need to generate in total
 
-    :param max_value: the total percentage up to this value, 100 means 100%
+    :param max_value: cell proportion will be sampled from U(0, max_value), and then scaled to [0, 1]
 
     :param cell_types: None or a list of cell types. Using all valid cell types if None. All valid cell types can be
         found by `list(deside.utility.cell_type2abbr.keys())`.
 
     :param sample_prefix: only for naming
+
+    :param cell_prop_prior: the prior range of cell proportion for each cell type, {'cell_type': (0, 0.1), '': (0, 0.2), ...}
 
     :return: generated cell fraction, sample by cell type
     """
@@ -40,12 +43,12 @@ def segment_generation_fraction(n_samples: int = None, max_value: int = 10000,
         sample_prefix = 'seg'
 
     n_cell_type = len(cell_types)
-    all_samples = []
+    # all_samples = []
     all_samples_tmp = []
     while len(all_samples_tmp) < n_samples:
         frag_for_one_sample = []
         current_max_value = max_value  # 100%
-        current_sample_valid = False
+        current_sample_valid = True
         for j in range(n_cell_type - 1):
             if current_max_value > 1:  # > 1 left
                 _frag = np.random.randint(current_max_value)
@@ -59,29 +62,34 @@ def segment_generation_fraction(n_samples: int = None, max_value: int = 10000,
         frag_for_one_sample.append(current_max_value)  # for last fragment (0 or > 0)
         assert np.sum(frag_for_one_sample) == max_value
         np.random.shuffle(frag_for_one_sample)
-        if max_value == 0:
-            all_samples_tmp.append(dict(zip(cell_types, frag_for_one_sample)))
-        else:
-            if max_value > n_cell_type:  # the most common situation
-                # cell fraction equals to 0 for at least 4 cell types or none, avoid too much 0 for any cell types
-                if (np.sum(np.array(frag_for_one_sample) == 0) >= 4) or \
-                        (np.sum(np.array(frag_for_one_sample) == 0) <= 1):
-                    current_sample_valid = True
-            else:   # 0 < max_value <= len(cell_types), don't check, more zeros will be included
-                current_sample_valid = True
-            if current_sample_valid:
-                frag_for_one_sample = np.array(frag_for_one_sample) / max_value  # normalize to decimal
-                all_samples_tmp.append(dict(zip(cell_types, frag_for_one_sample)))
+        # if max_value == 0:
+        #     all_samples_tmp.append(dict(zip(cell_types, frag_for_one_sample)))
+        # else:
+        #     if max_value > n_cell_type:  # the most common situation
+        #         # cell fraction equals to 0 for at least 4 cell types or none, avoid too much 0 for any cell types
+        #         if (np.sum(np.array(frag_for_one_sample) == 0) >= 4) or \
+        #                 (np.sum(np.array(frag_for_one_sample) == 0) <= 1):
+        #             current_sample_valid = True
+        #     else:   # 0 < max_value <= len(cell_types), don't check, more zeros will be included
+        #         current_sample_valid = True
+        #     if current_sample_valid:
+        frag_for_one_sample = np.array(frag_for_one_sample) / max_value  # normalize to sum to 1
+        cell_type2frag = dict(zip(cell_types, frag_for_one_sample))
+        if cell_prop_prior is not None:
+            for cell_type, frag in cell_type2frag.items():
+                # check if the cell fraction is in the prior range
+                if (frag < cell_prop_prior[cell_type][0]) or (frag > cell_prop_prior[cell_type][1]):
+                    current_sample_valid = False
+                    break
+        if current_sample_valid:
+            all_samples_tmp.append(cell_type2frag)
         # frag_for_one_sample = np.array(frag_for_one_sample) / max_value  # normalize to decimal
         # all_samples_tmp.append(dict(zip(cell_types, frag_for_one_sample)))
 
-    if all_samples_tmp:
-        index = [sample_prefix + '_' + str(i + 1) for i in range(len(all_samples_tmp))]
-        current_df = pd.DataFrame(all_samples_tmp, index=index)
-        # current_df = pd.concat(current_all_samples_df)
-        current_df = current_df.loc[:, cell_types]
-        all_samples.append(current_df)
-    return pd.concat(all_samples).round(4)
+    index = [sample_prefix + '_' + str(i + 1) for i in range(len(all_samples_tmp))]
+    all_samples_df = pd.DataFrame(all_samples_tmp, index=index)
+    all_samples_df = all_samples_df.loc[:, cell_types]
+    return all_samples_df.round(4)
 
 
 def seg_random_generation_fraction(n_samples: int = None, cell_types: list = None,
@@ -392,15 +400,23 @@ class BulkGEPGenerator(object):
 
     def _generate_cell_fraction(self, sampling_method: str, n_cell_frac: int, sampling_range: dict = None,
                                 sample_prefix: str = None, ref_distribution: dict = None,
-                                random_n_cell_type: list = None):
+                                random_n_cell_type: list = None, cell_prop_prior: dict = None):
         """
-
+        generate cell proportions for each simulated bulk GEP
+        :param sampling_method: 'segment' or 'random'
+        :param n_cell_frac: the number of GEPs to generate
+        :param sampling_range: the range of sampling, such as {'cell_type1': [0.1, 0.9], 'cell_type2': [0.1, 0.9], ...}
+        :param sample_prefix: the prefix of sample name, such as 'sample1', 'sample2', ...
+        :param ref_distribution: the reference distribution of cell fractions, such as {'cell_type1': [0.1, 0.2, 0.3], ...}
+        :param random_n_cell_type: the number of cell types to randomly select from reference distribution
+        :param cell_prop_prior: the prior of cell proportions, such as {'cell_type1': 0.1, 'cell_type2': 0.2, ...}
         """
         if sampling_method == 'segment':
             gen_cell_fracs = segment_generation_fraction(n_samples=n_cell_frac,
                                                          max_value=10000,
                                                          sample_prefix=sample_prefix,
-                                                         cell_types=self.cell_type_used)
+                                                         cell_types=self.cell_type_used,
+                                                         cell_prop_prior=cell_prop_prior)
 
         elif sampling_method == 'seg_random':
             gen_cell_fracs = seg_random_generation_fraction(n_samples=n_cell_frac,
@@ -458,8 +474,9 @@ class BulkGEPGenerator(object):
                      total_cell_number: int = 100, n_threads: int = 10, filtering: bool = True,
                      reference_file: Union[str, pd.DataFrame] = None, ref_exp_type: str = None,
                      filtering_quantile: tuple = (None, 0.95), log_file_path: str = None, n_top: int = None,
-                     simu_method='mul', filtering_method='marker_ratio', add_noise: bool = False,
-                     noise_params: tuple = (), filtering_ref_types: list = None, show_filtering_info: bool = False):
+                     simu_method='mul', filtering_method='media_gep', add_noise: bool = False,
+                     noise_params: tuple = (), filtering_ref_types: list = None,
+                     show_filtering_info: bool = False, cell_prop_prior: dict = None):
         """
         :param n_samples: the number of GEPs to generate
         :param total_cell_number: N, the total number of cells sampled from merged single cell dataset
@@ -483,6 +500,7 @@ class BulkGEPGenerator(object):
             ref: Hao, Yuning, et al. PLoS Computational Biology, 2019
         :param filtering_ref_types: the cancer types used for filtering
         :param show_filtering_info: whether show filtering information
+        :param cell_prop_prior: a prior range of cell proportions for each cell type in solid tumors
         """
         n_total_cpus = multiprocessing.cpu_count()
         n_threads = min(n_total_cpus - 1, n_threads)
@@ -534,7 +552,8 @@ class BulkGEPGenerator(object):
                 while self.generated_bulk_gep_counter < self.n_samples:
                     generated_cell_frac = self._generate_cell_fraction(
                         sampling_method=sampling_method, n_cell_frac=min_n_cell_frac,
-                        sampling_range=sampling_range, sample_prefix=f's_{sampling_method}_{self.n_round}')
+                        sampling_range=sampling_range, sample_prefix=f's_{sampling_method}_{self.n_round}',
+                        cell_prop_prior=cell_prop_prior)
                     # setting step_size equals to n_cell_frac, so n_parts equals to 1
                     selected_cell_ids = self._sc_sampling(cell_frac=generated_cell_frac,
                                                           n_threads=n_threads, obs_df=obs_df)
