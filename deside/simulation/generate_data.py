@@ -603,8 +603,6 @@ class BulkGEPGenerator(object):
                             if high_corr_gene_list is not None:
                                 assert np.all([i in gene_list_in_sc_ds for i in high_corr_gene_list])
                                 gene_list_in_sc_ds = high_corr_gene_list
-                                simulated_gep = simulated_gep.loc[:, gene_list_in_sc_ds]
-                                simulated_gep = non_log2cpm(simulated_gep)
                             exp_obj_ref = ExpObj(exp_file=reference_file, exp_type=ref_exp_type)
                             exp_obj_ref.align_with_gene_list(gene_list=gene_list_in_sc_ds, fill_not_exist=True)
                             exp_ref_df = exp_obj_ref.get_exp()
@@ -620,6 +618,8 @@ class BulkGEPGenerator(object):
                                                                          ord=1, axis=1)
                             self.q_dis_nn_ref_upper = np.quantile(l1_distance_with_center_ref,
                                                                   self.filtering_quantile_upper)
+                        simulated_gep = simulated_gep.loc[:, gene_list_in_sc_ds]
+                        simulated_gep = non_log2cpm(simulated_gep)
                         assert np.all(exp_ref_df.columns == simulated_gep.columns)
                         l1_dis_ref_simu_gep = np.linalg.norm(simulated_gep.values - self.m_gep_ref, ord=1, axis=1)
                         if self.filtering_quantile_lower is not None:
