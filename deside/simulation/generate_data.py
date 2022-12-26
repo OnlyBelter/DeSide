@@ -1215,7 +1215,7 @@ def get_quantile(exp_df, quantile_range, col_name: list = None):
     return quantile_df
 
 
-def get_gene_list_for_filtering(bulk_exp_file, tcga_file, result_file_path, q_col_name,
+def get_gene_list_for_filtering(bulk_exp_file, tcga_file, result_file_path, q_col_name: list = None,
                                 filtering_type: str = 'quantile_range',
                                 corr_result_fp: str = None, quantile_range: list = None):
     """
@@ -1230,6 +1230,7 @@ def get_gene_list_for_filtering(bulk_exp_file, tcga_file, result_file_path, q_co
         is less than quantile_range[0] or greater than quantile_range[2] of the quantile expression value
         of corresponding gene in TCGA dataset will be removed
     :param result_file_path:
+    :param q_col_name:
     :return:
     """
 
@@ -1267,6 +1268,8 @@ def get_gene_list_for_filtering(bulk_exp_file, tcga_file, result_file_path, q_co
             if len(gene_list) > 0:  # if there is high correlation gene, then filter by high correlation gene
                 gene_list = [gene for gene in gene_list if gene in gene_list_qr]
                 print(f'{len(gene_list)} genes are selected by both high correlation and quantile range')
+            else:
+                gene_list = gene_list_qr
         if filtering_type == 'all_genes':
             gene_list = bulk_exp.columns.to_list()
             print(f'All {len(gene_list)} genes will be used')
@@ -1275,7 +1278,7 @@ def get_gene_list_for_filtering(bulk_exp_file, tcga_file, result_file_path, q_co
         gene_list_df['gene_name'] = gene_list
         gene_list_df.to_csv(result_file_path, index=False)
     else:
-        print(f'Loading gene list from file: {result_file_path}')
+        print(f'Loading the gene list from file: {result_file_path}')
         gene_list_df = pd.read_csv(result_file_path)
         gene_list = gene_list_df['gene_name'].to_list()
     return gene_list
