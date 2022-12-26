@@ -473,11 +473,12 @@ class BulkGEPGenerator(object):
     def generate_gep(self, n_samples, sampling_range: dict = None, sampling_method: str = 'segment',
                      total_cell_number: int = 100, n_threads: int = 10, filtering: bool = True,
                      reference_file: Union[str, pd.DataFrame] = None, ref_exp_type: str = None,
-                     filtering_quantile: tuple = (None, 0.95), log_file_path: str = None, n_top: int = None,
+                     gep_filtering_quantile: tuple = (None, 0.95), log_file_path: str = None, n_top: int = None,
                      simu_method='mul', filtering_method='media_gep', add_noise: bool = False,
                      noise_params: tuple = (), filtering_ref_types: list = None,
                      show_filtering_info: bool = False, cell_prop_prior: dict = None,
-                     high_corr_gene_list: list = None):
+                     high_corr_gene_list: list = None, filtering_by_gene_range: bool = False,
+                     min_percentage_within_gene_range: float = 0.95, gene_quantile_range: list = None):
         """
         :param n_samples: the number of GEPs to generate
         :param total_cell_number: N, the total number of cells sampled from merged single cell dataset
@@ -488,7 +489,7 @@ class BulkGEPGenerator(object):
         :param filtering: whether filtering generated GEPs
         :param reference_file: the file path of reference dataset for filtering
         :param ref_exp_type: the type of expression values in reference dataset, TPM / log_space
-        :param filtering_quantile: quantile of nearest distance of each pair in reference,
+        :param gep_filtering_quantile: quantile of nearest distance of each pair in reference,
             smaller quantile gives smaller radius and fewer simulated GEPs will be kept
         :param log_file_path:
         :param n_top: if too many neighbors were founded for one single sample, only keep n_top neighbors
@@ -504,12 +505,16 @@ class BulkGEPGenerator(object):
         :param cell_prop_prior: a prior range of cell proportions for each cell type in solid tumors
         :param high_corr_gene_list: a list of genes that the expression values have high correlation with
             the cell proportions for at least one cell type
+        :param filtering_by_gene_range: whether filtering GEPs by gene expression range,
+            the percentage of genes within a specific quantile range in TCGA
+        :param min_percentage_within_gene_range: the minimal percentage of genes within a specific quantile range in TCGA
+        :param gene_quantile_range: the quantile range of gene expression values in TCGA for gene based filtering
         """
         n_total_cpus = multiprocessing.cpu_count()
         n_threads = min(n_total_cpus - 1, n_threads)
         self.n_samples = n_samples
         self.total_cell_number = total_cell_number
-        self.filtering_quantile_lower, self.filtering_quantile_upper = filtering_quantile
+        self.filtering_quantile_lower, self.filtering_quantile_upper = gep_filtering_quantile
         # print(f'   > filtering quantile is {self.filtering_quantile * 100}%')
         # simulating bulk cell GEP by mixing GEPs of different cell types
         if filtering:
@@ -635,6 +640,30 @@ class BulkGEPGenerator(object):
                                                               (l1_dis_ref_simu_gep >= self.q_dis_nn_ref_lower), :]
                         else:
                             simulated_gep = simulated_gep.loc[l1_dis_ref_simu_gep <= self.q_dis_nn_ref_upper, :].copy()
+
+                        if filtering_by_gene_range:
+                            if simulated_gep is not None:
+                                valid_gep_list = []
+                                if gene_quantile_range is None:
+                                    quantile_range = [0.005, 0.5, 0.995]
+                                else:
+                                    quantile_range = gene_quantile_range
+                                q_col_name = ['q_' + str(int(q * 1000) / 10) for q in quantile_range]
+                                tcga_gene_info = get_quantile(exp_ref_df, quantile_range=quantile_range,
+                                                              col_name=q_col_name)
+                                for inx, row in simulated_gep.iterrows():
+                                    valid = True
+                                    current_gene_list = \
+                                        get_gene_list_filtered_by_quantile_range(bulk_exp=row, tcga_exp=exp_ref_df,
+                                                                                 tcga_gene_info=tcga_gene_info,
+                                                                                 quantile_range=quantile_range,
+                                                                                 q_col_name=q_col_name)
+                                    if len(current_gene_list) / exp_ref_df.shape[1] < min_percentage_within_gene_range:
+                                        valid = False
+                                    valid_gep_list.append(valid)
+                                if show_filtering_info:
+                                    print(f'   > {np.sum(valid_gep_list)} were kept after filtering by gene range.')
+                                simulated_gep = simulated_gep.loc[valid_gep_list, :].copy()
 
                     if simulated_gep is not None:
                         if (self.generated_bulk_gep_counter + simulated_gep.shape[0]) > self.n_samples:
@@ -1269,13 +1298,9 @@ def get_gene_list_for_filtering(bulk_exp_file, tcga_file, result_file_path, q_co
             gene_list = corr_df.index.to_list()
             print(f'{len(gene_list)} genes are selected by high correlation')
         if 'quantile_range' in filtering_type:
-            if quantile_range is None:
-                quantile_range = [0.05, 0.95, 0.99]
-            tcga_gene_info = get_quantile(tcga, quantile_range=quantile_range, col_name=q_col_name)
-            bulk_gene_info = get_quantile(bulk_exp, quantile_range=quantile_range, col_name=q_col_name)
-            gene_inx = (bulk_gene_info[q_col_name[1]] >= tcga_gene_info[q_col_name[0]]) & \
-                       (bulk_gene_info[q_col_name[1]] <= tcga_gene_info[q_col_name[2]])
-            gene_list_qr = bulk_exp.loc[:, gene_inx].columns.to_list()
+            gene_list_qr = get_gene_list_filtered_by_quantile_range(bulk_exp=bulk_exp, tcga_exp=tcga,
+                                                                    quantile_range=quantile_range,
+                                                                    q_col_name=q_col_name)
             print(f'{len(gene_list_qr)} genes are selected by quantile range')
             if len(gene_list) > 0:  # if there is high correlation gene, then filter by high correlation gene
                 gene_list = [gene for gene in gene_list if gene in gene_list_qr]
@@ -1294,6 +1319,32 @@ def get_gene_list_for_filtering(bulk_exp_file, tcga_file, result_file_path, q_co
         gene_list_df = pd.read_csv(result_file_path)
         gene_list = gene_list_df['gene_name'].to_list()
     return gene_list
+
+
+def get_gene_list_filtered_by_quantile_range(bulk_exp, tcga_exp, quantile_range: list = None,
+                                             q_col_name: list = None, tcga_gene_info=None):
+    """
+    Get gene list filtered by quantile range
+    :param bulk_exp: bulk expression, TPM
+    :param tcga_exp: TCGA expression data, TPM
+    :param quantile_range: lower boundary, median, upper boundary, such as [0.025, 0.5, 0.975]
+    :param q_col_name: column names for quantile range
+    :param tcga_gene_info: gene quantile values in TCGA
+    """
+    if quantile_range is None:
+        quantile_range = [0.025, 0.5, 0.975]
+        q_col_name = ['q_' + str(int(q * 1000) / 10) for q in quantile_range]
+    if tcga_gene_info is None:
+        tcga_gene_info = get_quantile(tcga_exp, quantile_range=quantile_range, col_name=q_col_name)
+    if type(bulk_exp) is pd.DataFrame and bulk_exp.shape[0] > 1:
+        bulk_gene_info = get_quantile(bulk_exp, quantile_range=quantile_range, col_name=q_col_name)
+        gene_inx = (bulk_gene_info[q_col_name[1]] >= tcga_gene_info[q_col_name[0]]) & \
+                   (bulk_gene_info[q_col_name[1]] <= tcga_gene_info[q_col_name[2]])
+        gene_list_qr = bulk_exp.loc[:, gene_inx].columns.to_list()
+    else:  # if bulk_exp is a series
+        gene_inx = (bulk_exp >= tcga_gene_info[q_col_name[0]]) & (bulk_exp <= tcga_gene_info[q_col_name[2]])
+        gene_list_qr = bulk_exp.loc[gene_inx].index.to_list()
+    return gene_list_qr
 
 
 def cal_loading_by_pca(pca, gene_list, loading_matrix_file_path=None):
