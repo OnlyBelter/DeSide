@@ -149,7 +149,7 @@ class ReadExp(object):
             self.to_tpm()
             self.to_log2cpm1p()
         else:
-            self.file_type = 'TPM'
+            self.file_type = 'non_log'
             self.to_tpm()
 
 
