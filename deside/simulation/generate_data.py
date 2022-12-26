@@ -476,7 +476,8 @@ class BulkGEPGenerator(object):
                      filtering_quantile: tuple = (None, 0.95), log_file_path: str = None, n_top: int = None,
                      simu_method='mul', filtering_method='media_gep', add_noise: bool = False,
                      noise_params: tuple = (), filtering_ref_types: list = None,
-                     show_filtering_info: bool = False, cell_prop_prior: dict = None):
+                     show_filtering_info: bool = False, cell_prop_prior: dict = None,
+                     high_corr_gene_list: list = None):
         """
         :param n_samples: the number of GEPs to generate
         :param total_cell_number: N, the total number of cells sampled from merged single cell dataset
@@ -501,6 +502,8 @@ class BulkGEPGenerator(object):
         :param filtering_ref_types: the cancer types used for filtering
         :param show_filtering_info: whether show filtering information
         :param cell_prop_prior: a prior range of cell proportions for each cell type in solid tumors
+        :param high_corr_gene_list: a list of genes that the expression values have high correlation with
+            the cell proportions for at least one cell type
         """
         n_total_cpus = multiprocessing.cpu_count()
         n_threads = min(n_total_cpus - 1, n_threads)
@@ -597,6 +600,11 @@ class BulkGEPGenerator(object):
                             print(f'   > Quantile distance of {self.filtering_quantile_upper * 100}% is: {self.q_dis_nn_ref_upper}')
                     elif filtering and (filtering_method == 'median_gep' or filtering_method == 'mean_gep'):
                         if self.m_gep_ref is None:
+                            if high_corr_gene_list is not None:
+                                assert np.all([i in gene_list_in_sc_ds for i in high_corr_gene_list])
+                                gene_list_in_sc_ds = high_corr_gene_list
+                                simulated_gep = simulated_gep.loc[:, gene_list_in_sc_ds]
+                                simulated_gep = non_log2cpm(simulated_gep)
                             exp_obj_ref = ExpObj(exp_file=reference_file, exp_type=ref_exp_type)
                             exp_obj_ref.align_with_gene_list(gene_list=gene_list_in_sc_ds, fill_not_exist=True)
                             exp_ref_df = exp_obj_ref.get_exp()
@@ -821,7 +829,7 @@ class BulkGEPGenerator(object):
         :param selected_cell_id: a dataFrame which contains cell_type, n_cell, selected_cell_id
         :param sc_dataset: merged_sc_dataset, generated_sc_dataset or sct_dataset
         :param simu_method: ave (average all selected single cell GEPs), mul (multiple GEP by cell fractions)
-        :param gep_type: MCT means multiple cell types, SCT means single cell type
+        :param gep_type: MCT means multiple cell types (bulk GEP), SCT means single cell type
         :return: a DataFrame, TPM, samples by genes
         """
         if sc_dataset == 'sct_dataset':
@@ -850,7 +858,7 @@ class BulkGEPGenerator(object):
                         current_gene_exp = current_gene_exp + long_tail_noise * mask
                     simulated_exp[sample_id] = pd.Series(current_gene_exp.values, index=current_gene_exp.index)
         else:
-            assert simu_method == 'mul', 'Only support matrix multiplication for MCT'
+            assert simu_method == 'mul', 'Only support matrix multiplication for generating MCT'
             for sample_id, group in selected_cell_id.groupby(by=selected_cell_id.index):
                 all_n_cell_is_one = np.all(group['n_cell'] == 1)
                 assert all_n_cell_is_one, 'n_cell should be 1 for all cell types'
@@ -1217,6 +1225,7 @@ def get_quantile(exp_df, quantile_range, col_name: list = None):
 
 def get_gene_list_for_filtering(bulk_exp_file, tcga_file, result_file_path, q_col_name: list = None,
                                 filtering_type: str = 'quantile_range',
+                                corr_threshold: float = 0.3, n_gene_max: int = 1000,
                                 corr_result_fp: str = None, quantile_range: list = None):
     """
     Gene-level filtering based on the filtering type
@@ -1231,6 +1240,8 @@ def get_gene_list_for_filtering(bulk_exp_file, tcga_file, result_file_path, q_co
         of corresponding gene in TCGA dataset will be removed
     :param result_file_path:
     :param q_col_name:
+    :param corr_threshold: correlation threshold for gene filtering
+    :param n_gene_max: maximum number of genes for each cell type during gene filtering
     :return:
     """
 
@@ -1251,8 +1262,8 @@ def get_gene_list_for_filtering(bulk_exp_file, tcga_file, result_file_path, q_co
             gene_exp = h5_obj.get_df(convert_to_tpm=True)
             cell_frac = h5_obj.get_cell_fraction()
             corr_df = cal_corr_gene_exp_with_cell_frac(gene_exp=gene_exp, cell_frac=cell_frac,
-                                                       result_file_path=corr_result_fp, filtered_by_corr=0.3,
-                                                       filter_by_num=1000)
+                                                       result_file_path=corr_result_fp, filtered_by_corr=corr_threshold,
+                                                       filter_by_num=n_gene_max)
             del gene_exp
             gene_list = corr_df.index.to_list()
             print(f'{len(gene_list)} genes are selected by high correlation')
