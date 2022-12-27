@@ -548,6 +548,8 @@ class BulkGEPGenerator(object):
                 min_n_cell_frac = 300  # since some cell types only have a small number of cells
             # n_round = 0
             sample_id_for_filtering = []
+            tcga_gene_info = []
+            exp_ref_df = None
             if filtering and filtering_ref_types is not None:
                 s2c = pd.read_csv(self.tcga2cancer_type_file_path, index_col=0)  # sample id to cancer type in TCGA
                 sample_id_for_filtering = s2c.loc[s2c['cancer_type'].isin(filtering_ref_types), :].index.to_list()
@@ -574,6 +576,17 @@ class BulkGEPGenerator(object):
                         if reference_file is None or ref_exp_type is None:
                             raise ValueError('Both "reference_file" and "ref_exp_type" should not be None '
                                              'when "filtering" is True')
+                        if high_corr_gene_list is not None:
+                            assert np.all([i in gene_list_in_sc_ds for i in high_corr_gene_list])
+                            gene_list_in_sc_ds = high_corr_gene_list
+                            print(f'   > {len(gene_list_in_sc_ds)} high corr genes are used for filtering.')
+                            simulated_gep = simulated_gep.loc[:, gene_list_in_sc_ds]
+                            simulated_gep = non_log2cpm(simulated_gep)
+                        if exp_ref_df is None:
+                            exp_obj_ref = ExpObj(exp_file=reference_file, exp_type=ref_exp_type)
+                            exp_obj_ref.align_with_gene_list(gene_list=gene_list_in_sc_ds, fill_not_exist=True)
+                            exp_ref_df = exp_obj_ref.get_exp()
+                            exp_ref_df = exp_ref_df.loc[exp_ref_df.index.isin(sample_id_for_filtering), :]
 
                     if filtering and filtering_method == 'marker_ratio':
                         # print('   Filtering simulated bulk cell GEPs by marker gene ratio of TCGA...')
@@ -603,17 +616,33 @@ class BulkGEPGenerator(object):
                                 quantile=self.filtering_quantile_upper)  # quantile of distance
                             print(f'   > Larger filtering_quantile will be used to get more neighbors.')
                             print(f'   > Quantile distance of {self.filtering_quantile_upper * 100}% is: {self.q_dis_nn_ref_upper}')
-                    elif filtering and (filtering_method == 'median_gep' or filtering_method == 'mean_gep'):
-                        if self.m_gep_ref is None:
-                            if high_corr_gene_list is not None:
-                                assert np.all([i in gene_list_in_sc_ds for i in high_corr_gene_list])
-                                gene_list_in_sc_ds = high_corr_gene_list
-                                print(f'   > {len(gene_list_in_sc_ds)} high corr genes are used for filtering.')
-                            exp_obj_ref = ExpObj(exp_file=reference_file, exp_type=ref_exp_type)
-                            exp_obj_ref.align_with_gene_list(gene_list=gene_list_in_sc_ds, fill_not_exist=True)
-                            exp_ref_df = exp_obj_ref.get_exp()
-                            exp_ref_df = exp_ref_df.loc[exp_ref_df.index.isin(sample_id_for_filtering), :]
+                    if filtering and filtering_by_gene_range:
+                        if not tcga_gene_info:
+                            if gene_quantile_range is None:
+                                quantile_range = [0.005, 0.5, 0.995]
+                            else:
+                                quantile_range = gene_quantile_range
+                            q_col_name = ['q_' + str(int(q * 1000) / 10) for q in quantile_range]
+                            tcga_gene_info = get_quantile(exp_ref_df, quantile_range=quantile_range,
+                                                          col_name=q_col_name)
+                        valid_gep_list = []
+                        for inx, row in simulated_gep.iterrows():
+                            valid = True
+                            current_gene_list = \
+                                get_gene_list_filtered_by_quantile_range(bulk_exp=row, tcga_exp=exp_ref_df,
+                                                                         tcga_gene_info=tcga_gene_info,
+                                                                         quantile_range=quantile_range,
+                                                                         q_col_name=q_col_name)
+                            if len(current_gene_list) / exp_ref_df.shape[1] < min_percentage_within_gene_range:
+                                valid = False
+                            valid_gep_list.append(valid)
+                        if show_filtering_info:
+                            print(f'   > {np.sum(valid_gep_list)} were kept after filtering by gene range.')
+                        simulated_gep = simulated_gep.loc[valid_gep_list, :].copy()
 
+                    if filtering and (filtering_method == 'median_gep' or
+                                      filtering_method == 'mean_gep') and (simulated_gep is not None):
+                        if self.m_gep_ref is None:
                             if filtering_method == 'median_gep':
                                 self.m_gep_ref = exp_ref_df.median(axis=0).values.reshape(1, -1)  # TPM
                             elif filtering_method == 'mean_gep':
@@ -624,9 +653,8 @@ class BulkGEPGenerator(object):
                                                                          ord=1, axis=1)
                             self.q_dis_nn_ref_upper = np.quantile(l1_distance_with_center_ref,
                                                                   self.filtering_quantile_upper)
-                        simulated_gep = simulated_gep.loc[:, gene_list_in_sc_ds]
-                        simulated_gep = non_log2cpm(simulated_gep)
                         assert np.all(exp_ref_df.columns == simulated_gep.columns)
+
                         l1_dis_ref_simu_gep = np.linalg.norm(simulated_gep.values - self.m_gep_ref, ord=1, axis=1)
                         if self.filtering_quantile_lower is not None:
                             self.q_dis_nn_ref_lower = np.quantile(l1_distance_with_center_ref,
@@ -640,30 +668,6 @@ class BulkGEPGenerator(object):
                                                               (l1_dis_ref_simu_gep >= self.q_dis_nn_ref_lower), :]
                         else:
                             simulated_gep = simulated_gep.loc[l1_dis_ref_simu_gep <= self.q_dis_nn_ref_upper, :].copy()
-
-                        if filtering_by_gene_range:
-                            if simulated_gep is not None:
-                                valid_gep_list = []
-                                if gene_quantile_range is None:
-                                    quantile_range = [0.005, 0.5, 0.995]
-                                else:
-                                    quantile_range = gene_quantile_range
-                                q_col_name = ['q_' + str(int(q * 1000) / 10) for q in quantile_range]
-                                tcga_gene_info = get_quantile(exp_ref_df, quantile_range=quantile_range,
-                                                              col_name=q_col_name)
-                                for inx, row in simulated_gep.iterrows():
-                                    valid = True
-                                    current_gene_list = \
-                                        get_gene_list_filtered_by_quantile_range(bulk_exp=row, tcga_exp=exp_ref_df,
-                                                                                 tcga_gene_info=tcga_gene_info,
-                                                                                 quantile_range=quantile_range,
-                                                                                 q_col_name=q_col_name)
-                                    if len(current_gene_list) / exp_ref_df.shape[1] < min_percentage_within_gene_range:
-                                        valid = False
-                                    valid_gep_list.append(valid)
-                                if show_filtering_info:
-                                    print(f'   > {np.sum(valid_gep_list)} were kept after filtering by gene range.')
-                                simulated_gep = simulated_gep.loc[valid_gep_list, :].copy()
 
                     if simulated_gep is not None:
                         if (self.generated_bulk_gep_counter + simulated_gep.shape[0]) > self.n_samples:
