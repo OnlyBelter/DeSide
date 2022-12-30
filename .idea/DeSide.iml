@@ -7,6 +7,7 @@
     <orderEntry type="jdk" jdkName="deside" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="DeSide_workflow" />
+    <orderEntry type="module" module-name="deside-utility" />
   </component>
   <component name="PyDocumentationSettings">
     <option name="format" value="PLAIN" />

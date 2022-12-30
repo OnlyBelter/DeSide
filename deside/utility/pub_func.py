@@ -228,14 +228,13 @@ def read_exp_from_hcluster(filtered_exp_file_path, reordered_ind2sample_name_fil
     return {"filtered_exp": filtered_exp, 'cell_type2sample_name': cell_type2sample_name}
 
 
-def read_cancer_purity(cancer_purity_file_path, sample_names):
+def read_cancer_purity(cancer_purity_file_path, sample_names: list):
     """
     Tumor purity estimates for TCGA samples
     Aran, D., Sirota, M. & Butte, A. Systematic pan-cancer analysis of tumour purity. Nat Commun 6, 8971 (2015).
     https://doi.org/10.1038/ncomms9971
     :param cancer_purity_file_path:
-    :param sample_names: list
-        sample names want to compare
+    :param sample_names: all sample names need to compare
     :return:
     """
     cancer_purity = pd.read_csv(cancer_purity_file_path, index_col=0)

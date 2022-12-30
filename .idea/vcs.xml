@@ -3,5 +3,6 @@
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../DeSide_workflow" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../deside-utility" vcs="Git" />
   </component>
 </project>

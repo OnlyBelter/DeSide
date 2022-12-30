@@ -548,7 +548,7 @@ class BulkGEPGenerator(object):
                 min_n_cell_frac = 300  # since some cell types only have a small number of cells
             # n_round = 0
             sample_id_for_filtering = []
-            tcga_gene_info = []
+            tcga_gene_info = None
             exp_ref_df = None
             if filtering and filtering_ref_types is not None:
                 s2c = pd.read_csv(self.tcga2cancer_type_file_path, index_col=0)  # sample id to cancer type in TCGA
@@ -617,7 +617,7 @@ class BulkGEPGenerator(object):
                             print(f'   > Larger filtering_quantile will be used to get more neighbors.')
                             print(f'   > Quantile distance of {self.filtering_quantile_upper * 100}% is: {self.q_dis_nn_ref_upper}')
                     if filtering and filtering_by_gene_range:
-                        if not tcga_gene_info:
+                        if tcga_gene_info is None:
                             if gene_quantile_range is None:
                                 quantile_range = [0.005, 0.5, 0.995]
                             else:
@@ -1242,7 +1242,7 @@ class BulkGEPGeneratorSCT(BulkGEPGenerator):
 
 
 # for gene-level filtering
-def get_quantile(exp_df, quantile_range, col_name: list = None):
+def get_quantile(exp_df, quantile_range, col_name: list = None) -> pd.DataFrame:
     """
     Get quantile
     :param exp_df:

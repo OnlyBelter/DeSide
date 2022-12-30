@@ -51,5 +51,4 @@ setup(
     install_requires=install_requires,
     tests_require=["nose==1.*", "PyYaml>=4.2b1"],
     extras_require={"full": ["py", "tqdm"]},
-    cmdclass={"test": None},
 )

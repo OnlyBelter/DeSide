@@ -4,6 +4,7 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/DeSide.iml" filepath="$PROJECT_DIR$/.idea/DeSide.iml" />
       <module fileurl="file://$PROJECT_DIR$/../DeSide_workflow/.idea/DeSide_workflow.iml" filepath="$PROJECT_DIR$/../DeSide_workflow/.idea/DeSide_workflow.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../deside-utility/.idea/deside-utility.iml" filepath="$PROJECT_DIR$/../deside-utility/.idea/deside-utility.iml" />
     </modules>
   </component>
 </project>
