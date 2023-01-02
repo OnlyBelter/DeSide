@@ -556,6 +556,8 @@ class BulkGEPGenerator(object):
                 _str = ', '.join(filtering_ref_types)
                 print(f'   > {len(sample_id_for_filtering)} samples in {_str} are used '
                       f'for {filtering_method} filtering.')
+            if not filtering:
+                cell_prop_prior = None
             with tqdm(total=self.n_samples) as pbar:
                 if self.generated_bulk_gep_counter != 0:
                     pbar.update(self.generated_bulk_gep_counter)
@@ -907,6 +909,7 @@ class BulkGEPGenerator(object):
                 simulated_exp[sample_id] = pd.Series((current_merged.values.T @ current_cell_frac.values).reshape(-1),
                                                      index=current_merged.columns)
                 if add_noise:
+                    assert len(noise_params) == 2, 'noise_params should be a tuple of (f, total_max)'
                     noise = self.sample_noise(n_samples=len(simulated_exp[sample_id]), f=noise_params[0])
                     if noise.sum() > noise_params[1]:
                         noise = noise / np.sum(noise) * noise_params[1]
