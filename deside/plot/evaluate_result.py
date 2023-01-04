@@ -112,13 +112,13 @@ class ScatterPlot(object):
             plt.plot([0, _], [0, _], linestyle='--', color='tab:gray', linewidth=1, alpha=0.8)
         if show_corr:  # show metrics in test set
             corr = get_corr(all_x, all_y)
-            plt.text(x_right * 0.60, y_top * 0.11, 'corr = {:.2f}'.format(corr))
+            plt.text(x_right * 0.60, y_top * 0.10, 'corr = {:.2f}'.format(corr))
         if show_mae:
             mae = median_absolute_error(y_true=all_x, y_pred=all_y)
-            plt.text(x_right * 0.60, y_top * 0.05, 'MAE = {:.2f}'.format(mae))
+            plt.text(x_right * 0.60, y_top * 0.07, 'MAE = {:.2f}'.format(mae))
         if show_rmse and (not show_mae):
             rmse = calculate_rmse(y_true=pd.DataFrame(all_x), y_pred=pd.DataFrame(all_y))
-            plt.text(x_right * 0.60, y_top * 0.05, 'RMSE = {:.2f}'.format(rmse))
+            plt.text(x_right * 0.60, y_top * 0.07, 'RMSE = {:.2f}'.format(rmse))
         if show_rmse and show_mae:
             rmse = calculate_rmse(y_true=pd.DataFrame(all_x), y_pred=pd.DataFrame(all_y))
             plt.text(x_right * 0.60, y_top * 0.04, 'RMSE = {:.2f}'.format(rmse))
@@ -139,8 +139,8 @@ class ScatterPlot(object):
         if result_file_dir:
             plt.savefig(os.path.join(result_file_dir,
                                      'x_vs_y_{}.png'.format(self.postfix)), dpi=300)
-            plt.savefig(os.path.join(result_file_dir,
-                                     'x_vs_y_{}.svg'.format(self.postfix)), dpi=300)
+            # plt.savefig(os.path.join(result_file_dir,
+            #                          'x_vs_y_{}.svg'.format(self.postfix)), dpi=300)
         plt.close()
 
     def fit_reg_model(self, ax, alpha_ci=0.05, order=1):
