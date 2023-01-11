@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 from typing import Union
 from tensorflow import keras
-
 from ..utility.read_file import ReadH5AD, ReadExp
 from ..utility import check_dir, print_msg
 from ..plot import plot_loss
@@ -157,7 +156,12 @@ class DeSide(object):
             if self.model is None:
                 raise FileNotFoundError('pre-trained model should be assigned to self.model')
             opt = keras.optimizers.Adam(learning_rate=learning_rate)
-            self.model.compile(optimizer=opt, loss=loss_function, metrics=[metrics])
+            _loss_function = loss_function
+            _metrics = [metrics]
+            if loss_function == 'mae+rmse':
+                _loss_function = loss_fn_mae_rmse
+                _metrics = ['mae', keras.metrics.RootMeanSquaredError()]
+            self.model.compile(optimizer=opt, loss=_loss_function, metrics=_metrics)
             print(self.model.summary())
 
             # training model
@@ -330,3 +334,9 @@ class DeSide(object):
         id2cell_type = {i: self.cell_types[i] for i in range(len(self.cell_types))}
         pred_id = pred_cell_frac.values.argmax(axis=1)
         return [id2cell_type[i] for i in pred_id]
+
+
+def loss_fn_mae_rmse(y_true, y_pred, alpha=0.8):
+    mae = keras.metrics.MeanAbsoluteError()
+    rmse = keras.metrics.RootMeanSquaredError()
+    return alpha * mae(y_true, y_pred) + (1 - alpha) * rmse(y_true, y_pred)
