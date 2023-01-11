@@ -4,6 +4,7 @@ import functools
 import numpy as np
 import pandas as pd
 from typing import Union
+import tensorflow as tf
 from tensorflow import keras
 from ..utility.read_file import ReadH5AD, ReadExp
 from ..utility import check_dir, print_msg
@@ -337,6 +338,6 @@ class DeSide(object):
 
 
 def loss_fn_mae_rmse(y_true, y_pred, alpha=0.8):
-    mae = keras.metrics.MeanAbsoluteError()
-    rmse = keras.metrics.RootMeanSquaredError()
-    return alpha * mae(y_true, y_pred) + (1 - alpha) * rmse(y_true, y_pred)
+    mae = keras.losses.MeanAbsoluteError()
+    mse = keras.losses.MeanSquaredError()
+    return alpha * mae(y_true, y_pred) + (1 - alpha) * tf.sqrt(mse(y_true, y_pred))
