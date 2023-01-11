@@ -271,7 +271,13 @@ class DeSide(object):
 
         # load pre-trained model
         if self.model is None:
-            self.model = keras.models.load_model(self.model_file_path)
+            try:
+                self.model = keras.models.load_model(self.model_file_path)
+            except ValueError:
+                self.model = keras.models.load_model(self.model_file_path,
+                                                     custom_objects={'loss_fn_mae_rmse': loss_fn_mae_rmse})
+            finally:
+                print(f'   Pre-trained model loaded from {self.model_file_path}.')
         # predict using loaded model
         pred_result = self.model.predict(x)
         pred_df = pd.DataFrame(pred_result, index=x.index, columns=self.cell_types)
