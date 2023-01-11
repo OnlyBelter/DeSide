@@ -307,7 +307,14 @@ class DeSide(object):
 
     def get_model(self):
         if (self.model is None) and (os.path.exists(self.model_file_path)):
-            self.model = keras.models.load_model(self.model_file_path)
+            try:
+                self.model = keras.models.load_model(self.model_file_path)
+            except ValueError:
+                self.model = keras.models.load_model(self.model_file_path,
+                                                     custom_objects={'loss_fn_mae_rmse': loss_fn_mae_rmse})
+            finally:
+                print(f'   Pre-trained model loaded from {self.model_file_path}.')
+
         return self.model
 
     def get_parameters(self) -> dict:
