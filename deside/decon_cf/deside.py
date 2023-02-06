@@ -23,7 +23,7 @@ class DeSide(object):
         self.cell_types = None
         self.gene_list = None
         self.model_name = model_name
-        self.min_cell_fraction = 0.001  # set to 0 if less than this value in predicted cell fractions
+        self.min_cell_fraction = 0.0001  # set to 0 if less than this value in predicted cell fractions
         self.model_file_path = os.path.join(self.model_dir, f'model_{model_name}.h5')
         self.cell_type_file_path = os.path.join(self.model_dir, 'celltypes.txt')
         self.gene_list_file_path = os.path.join(self.model_dir, 'genes.txt')
