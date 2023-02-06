@@ -253,7 +253,7 @@ class DeSide(object):
 
     def predict(self, input_file, exp_type, output_file_path: str = None,
                 transpose: bool = False, print_info: bool = True, add_cell_type: bool = False,
-                scaling_by_constant=False, scaling_by_sample=True):
+                scaling_by_constant=False, scaling_by_sample=True, one_minus_alpha: bool = False):
         """
         :param input_file: the file path of input file (.csv / .h5ad / pd.Dataframe), samples x genes
             simulated (or TCGA) bulk expression profiles, log2(TPM + 1) or TPM
@@ -264,7 +264,9 @@ class DeSide(object):
         :param add_cell_type: only True when predicting cell types using classification model
         :param scaling_by_constant: scaling log2(TPM + 1) by dividing 20
         :param scaling_by_sample: scaling by sample, same as Scaden
+        :param one_minus_alpha: use 1 - alpha for all cell types if True
         """
+        self.one_minus_alpha = one_minus_alpha
         if print_info:
             print('   Start to predict cell fractions by pre-trained model...')
         if self.cell_types is None:

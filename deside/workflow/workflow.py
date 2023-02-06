@@ -139,7 +139,7 @@ def tcga_evaluation(marker_gene_file_path, total_result_dir, pred_cell_frac_tcga
                                                  cell_type=cell_type, cell_type2max=cell_type2max)
 
 
-def run_step3(evaluation_dataset2path, log_file_path, result_dir, model_dir, all_cell_types):
+def run_step3(evaluation_dataset2path, log_file_path, result_dir, model_dir, all_cell_types, one_minus_alpha):
     # Step3, evaluation on test set
     print_msg('Step3: Predicting cell fractions of test set and evaluation...',
               log_file_path=log_file_path)
@@ -162,7 +162,8 @@ def run_step3(evaluation_dataset2path, log_file_path, result_dir, model_dir, all
             deside_model = DeSide(model_dir=model_dir)
             deside_model.predict(input_file=generated_bulk_gep_fp,
                                  output_file_path=predicted_cell_frac_file_path,
-                                 exp_type='log_space', scaling_by_sample=False, scaling_by_constant=True)
+                                 exp_type='log_space', scaling_by_sample=False,
+                                 scaling_by_constant=True, one_minus_alpha=one_minus_alpha)
         print('   > Comparing cell frac between y_true and y_pred...')
         for cell_type in generated_cell_frac.columns.to_list():
             s_plot = ScatterPlot(x=predicted_cell_frac_file_path,
@@ -182,8 +183,9 @@ def run_step3(evaluation_dataset2path, log_file_path, result_dir, model_dir, all
                               y_label=f'y_pred')
 
 
-def run_step4(tcga_data_dir, cancer_types, log_file_path, model_dir, marker_gene_file_path, result_dir,
-              pred_cell_frac_tcga_dir, cancer_purity_file_path, all_cell_types, model_names, signature_score_method,
+def run_step4(tcga_data_dir, cancer_types, log_file_path, model_dir, marker_gene_file_path,
+              result_dir, pred_cell_frac_tcga_dir, cancer_purity_file_path, all_cell_types,
+              model_names, signature_score_method, one_minus_alpha,
               update_figures=False, outlier_file_path=None):
     # TCGA
     print_msg("Step 4: Predict cell fraction of TCGA...", log_file_path=log_file_path)
@@ -201,9 +203,9 @@ def run_step4(tcga_data_dir, cancer_types, log_file_path, model_dir, marker_gene
             if not os.path.exists(y_pred_file_path):
                 print(f'Predicting cell fractions of {cancer_type} samples by model {model_name}...')
                 deside_model = DeSide(model_dir=model_dir)
-                deside_model.predict(input_file=current_bulk_tpm,
-                                     output_file_path=y_pred_file_path,
-                                     exp_type='TPM', scaling_by_constant=True, scaling_by_sample=False)
+                deside_model.predict(input_file=current_bulk_tpm, output_file_path=y_pred_file_path,
+                                     exp_type='TPM', scaling_by_constant=True,
+                                     scaling_by_sample=False, one_minus_alpha=one_minus_alpha)
             else:
                 print(f'   Previous result existed: {y_pred_file_path}')
             print(f'   Plot and compare predicted result...')
