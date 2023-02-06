@@ -23,12 +23,13 @@ class DeSide(object):
         self.cell_types = None
         self.gene_list = None
         self.model_name = model_name
-        self.min_cell_fraction = 0.01  # set to 0 if less than this value in predicted cell fractions
+        self.min_cell_fraction = 0.001  # set to 0 if less than this value in predicted cell fractions
         self.model_file_path = os.path.join(self.model_dir, f'model_{model_name}.h5')
         self.cell_type_file_path = os.path.join(self.model_dir, 'celltypes.txt')
         self.gene_list_file_path = os.path.join(self.model_dir, 'genes.txt')
         self.training_set_file_path = None
         self.hyper_params = None
+        self.one_minus_alpha = False
         if log_file_path is None:
             log_file_path = os.path.join(self.model_dir, 'log.txt')
         self.log_file_path = log_file_path
@@ -83,7 +84,7 @@ class DeSide(object):
     def train_model(self, training_set_file_path: Union[str, list], hyper_params: dict,
                     cell_types: list = None, scaling_by_sample: bool = True, callback: bool = True,
                     n_epoch: int = 10000, metrics: str = 'mse', n_patience: int = 100, scaling_by_constant=False,
-                    remove_cancer_cell=False, fine_tune=False):
+                    remove_cancer_cell=False, fine_tune=False, one_minus_alpha: bool = False):
         """
         :param training_set_file_path: the file path of training set, .h5ad file, log2cpm1p format, samples by genes
         :param hyper_params: pre-determined hyper-parameters for DeSide model
@@ -96,7 +97,9 @@ class DeSide(object):
         :param remove_cancer_cell: remove cancer cell from y if True, using "1-others"
         :param fine_tune: fine tune pre-trained model
         :param scaling_by_constant:
+        :param one_minus_alpha: use 1 - alpha for all cell types if True
         """
+        self.one_minus_alpha = one_minus_alpha
         if not os.path.exists(self.model_file_path):
             print_msg('Start to training model...', log_file_path=self.log_file_path)
             learning_rate = hyper_params['learning_rate']
@@ -119,6 +122,8 @@ class DeSide(object):
                 y_list.append(_y.copy())
             x = pd.concat(x_list, join='inner', axis=0)
             y = pd.concat(y_list)
+            if self.one_minus_alpha:
+                y = 1 - y
             del file_obj, _x, _y, x_list, y_list
 
             # scaling x
@@ -281,12 +286,14 @@ class DeSide(object):
         # predict using loaded model
         pred_result = self.model.predict(x)
         pred_df = pd.DataFrame(pred_result, index=x.index, columns=self.cell_types)
+        if self.one_minus_alpha:
+            pred_df = 1 - pred_df
+        pred_df[pred_df.values < self.min_cell_fraction] = 0
         # pred_df.to_csv(out_name, sep="\t")
         # rescaling to 1 if the sum of all cell types > 1
         for sample_id, row in pred_df.iterrows():
             if np.sum(row) > 1:
                 pred_df.loc[sample_id] = row / np.sum(row)
-        pred_df[pred_df.values < self.min_cell_fraction] = 0
 
         # Calculate 1-others
         if 'Cancer Cells' not in pred_df.columns:
