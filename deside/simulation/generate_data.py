@@ -1305,6 +1305,7 @@ def get_gene_list_for_filtering(bulk_exp_file, tcga_file, result_file_path, q_co
             gene_list = corr_df.index.to_list()
             print(f'{len(gene_list)} genes are selected by high correlation')
         if 'quantile_range' in filtering_type:
+            # both bulk_exp and tcga are in log-space
             gene_list_qr = get_gene_list_filtered_by_quantile_range(bulk_exp=bulk_exp, tcga_exp=tcga,
                                                                     quantile_range=quantile_range,
                                                                     q_col_name=q_col_name)

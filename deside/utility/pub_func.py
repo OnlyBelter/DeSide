@@ -847,12 +847,13 @@ def get_cell_num(cell_type_frac, total_num=500):
     return cell_num.round(0).astype(int)
 
 
-def do_pca_analysis(exp_df, n_components=5, pca_result_fp=None):
+def do_pca_analysis(exp_df, n_components=5, pca_result_fp=None, save_model: bool = False):
     """
     PCA analysis
     :param exp_df:
     :param n_components:
     :param pca_result_fp:
+    :param save_model:
     :return: fitted PCA model
     """
     if os.path.exists(pca_result_fp):
@@ -861,11 +862,13 @@ def do_pca_analysis(exp_df, n_components=5, pca_result_fp=None):
     else:
         pca = PCA(n_components=n_components)
         pca.fit(exp_df)
-        dump(pca, pca_result_fp)
+        if save_model:
+            dump(pca, pca_result_fp)
     return pca
 
 
-def do_umap_analysis(exp_df, n_components=5, n_neighbors=15, min_dist=0.1, umap_model_result_fp=None):
+def do_umap_analysis(exp_df, n_components=5, n_neighbors=15, min_dist=0.1,
+                     umap_model_result_fp=None, save_model: bool = False):
     """
     t-SNE analysis
     :param exp_df:
@@ -873,6 +876,7 @@ def do_umap_analysis(exp_df, n_components=5, n_neighbors=15, min_dist=0.1, umap_
     :param n_neighbors:
     :param min_dist:
     :param umap_model_result_fp:
+    :param save_model:
     :return:
     """
     if os.path.exists(umap_model_result_fp):
@@ -881,7 +885,8 @@ def do_umap_analysis(exp_df, n_components=5, n_neighbors=15, min_dist=0.1, umap_
     else:
         umap_model = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist, n_components=n_components)
         umap_model.fit(exp_df)
-        dump(umap_model, umap_model_result_fp)
+        if save_model:
+            dump(umap_model, umap_model_result_fp)
     return umap_model
 
 
