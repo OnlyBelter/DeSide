@@ -4,10 +4,8 @@ import pandas as pd
 import scanpy as sc
 import matplotlib.pyplot as plt
 import seaborn as sns
-from ..utility import (extract_gz_file, subcell_type2abbr, cell_type2abbr, log_exp2cpm,
-                       cell_type_mapping, default_core_marker_genes, cal_exp_by_gene_list)
+from ..utility import (extract_gz_file, log_exp2cpm, cal_exp_by_gene_list)
 import anndata as an
-from scipy.sparse import csr_matrix
 sc.settings.set_figure_params(dpi=200)
 sns.set()
 

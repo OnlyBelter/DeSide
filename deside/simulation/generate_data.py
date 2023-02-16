@@ -473,9 +473,9 @@ class BulkGEPGenerator(object):
     def generate_gep(self, n_samples, sampling_range: dict = None, sampling_method: str = 'segment',
                      total_cell_number: int = 100, n_threads: int = 10, filtering: bool = True,
                      reference_file: Union[str, pd.DataFrame] = None, ref_exp_type: str = None,
-                     gep_filtering_quantile: tuple = (None, 0.95), log_file_path: str = None, n_top: int = None,
-                     simu_method='mul', filtering_method='media_gep', add_noise: bool = False,
-                     noise_params: tuple = (), filtering_ref_types: list = None,
+                     gep_filtering_quantile: tuple = (None, 0.95), log_file_path: str = None,
+                     n_top: int = 20, simu_method='mul', filtering_method='media_gep',
+                     add_noise: bool = False, noise_params: tuple = (), filtering_ref_types: list = None,
                      show_filtering_info: bool = False, cell_prop_prior: dict = None,
                      high_corr_gene_list: list = None, filtering_by_gene_range: bool = False,
                      min_percentage_within_gene_range: float = 0.95, gene_quantile_range: list = None):
@@ -492,7 +492,8 @@ class BulkGEPGenerator(object):
         :param gep_filtering_quantile: quantile of nearest distance of each pair in reference,
             smaller quantile gives smaller radius and fewer simulated GEPs will be kept
         :param log_file_path:
-        :param n_top: if too many neighbors were founded for one single sample, only keep n_top neighbors
+        :param n_top: if too many neighbors were founded for one single sample, only keep n_top neighbors,
+            used in marker ratio filtering
         :param simu_method: the method to generate simulated bulk GEPs,
             ave (average all selected single cell GEPs), mul (multiple GEP by cell fractions)
         :param filtering_method: marker_ratio (l2 distance with marker gene ratio) or

@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 from typing import Union
 from .read_file import ReadExp
 from sklearn.neighbors import NearestNeighbors

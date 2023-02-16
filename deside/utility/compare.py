@@ -3,20 +3,12 @@ import warnings
 import pandas as pd
 from scipy.stats import percentileofscore
 from .pub_func import check_dir, read_marker_gene, read_df, sorted_cell_types
-# from ..decon_cf.scaden_main import evaluation
 from ..utility import log_exp2cpm, non_log2cpm, aggregate_marker_gene_exp
 
 name_mapping_CIBERSORT = {"B cells": 'B Cells', "T cells CD8": 'CD8 T', "T cells CD4": 'CD4 T',
                           "Macrophages": 'Macrophages', "Dendritic cells": 'DC',
                           "Mast cells": 'Mast Cells', "Myocytes": 'myocyte', "CAFs": 'Fibroblasts',
                           "Endothelial cells": 'Endothelial cells', "Malignant cells": 'Cancer Cells'}
-# sorted_cell_types = ['T cell', 'Mast', 'Macrophage', 'Fibroblast', 'Endothelial', 'cancer_cell', 'B cell']
-# sorted_cell_types = ['B Cells', 'CD4 T', 'CD8 T', 'Cancer Cells', 'DC', 'Endothelial cells',
-#                      'Fibroblasts', 'Macrophages', 'Mast Cells', 'NK', 'Neutrophils']
-
-# max_percentage_hnscc = {'T cell': 0.85, 'myocyte': 0, 'Mast': 0.1, 'Macrophage': 0.05,
-#                         'Fibroblast': 0.85, 'Endothelial': 0.25, 'Dendritic': 0,
-#                         'cancer_cell': 1, 'B cell': 0.15}
 
 
 def parse_result_from_cibersort(result_file_path):

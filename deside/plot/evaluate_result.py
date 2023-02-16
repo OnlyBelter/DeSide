@@ -4,8 +4,9 @@ import numpy as np
 from typing import Union
 import statsmodels.api as sm
 from sklearn.metrics import median_absolute_error
-from ..utility import (print_df, cal_relative_error, calculate_rmse, check_dir, get_corr, read_xy, read_df,
-                       get_inx2cell_type, log2_transform, set_fig_style, get_core_zone_of_pca)
+from ..utility import (print_df, cal_relative_error, calculate_rmse, check_dir, get_corr,
+                       read_xy, read_df, get_inx2cell_type, log2_transform, get_core_zone_of_pca,
+                       get_ccc, read_cancer_purity, cancer_types)
 # from ..utility.read_file import ReadExp
 from .plot_nn import plot_corr_two_columns
 import matplotlib.patches as patches
@@ -303,639 +304,6 @@ def compare_y_y_pred_plot(y_true: Union[str, pd.DataFrame], y_pred: Union[str, p
     if result_file_dir:
         plt.savefig(os.path.join(result_file_dir, 'y_true_vs_y_pred_{}.png'.format(model_name)), dpi=200)
     plt.close()
-
-
-def plot_error(y_true, y_pred_file_path, show_columns=None, error_type='relative_error',
-               result_file_dir=None, annotation=(('MAE', 0),), y_label=None, model_name='average'):
-    """
-    plot y against y_pred to visualize the performance of prediction scaden
-    :param y_true: str | pd.DataFrame
-        this file contains the ground truth of cell fractions when it was simulated
-    :param y_pred_file_path: str
-        this file contains the predicted value of y
-    :param show_columns: list
-        this list contains the name of columns which want to plot in figure
-    :param error_type: relative_error or absolute_error
-    :param result_file_dir: str
-    :param annotation: tuple of tuples, MAE means mean absolute error
-        annotations that need to show in figure, ((anno_name, value), (anno_name, value), ...)
-    :param y_label:
-    :param model_name: only for naming files
-    :return:
-    """
-    check_dir(result_file_dir)
-    result_file_path = os.path.join(result_file_dir, 'y_true_vs_{}_{}.png'.format(error_type, model_name))
-    if not os.path.exists(result_file_path):
-        y_true = read_xy(y_true, xy='cell_frac')
-        y_pred = pd.read_csv(y_pred_file_path, index_col=0)
-        if '1-others' in show_columns:
-            if 'Cancer Cells' in y_true.columns:
-                y_true['1-others'] = y_true['Cancer Cells']
-            else:
-                y_true['1-others'] = 0
-        # less cell type than show_columns for this dataset
-        show_columns = [i for i in show_columns if i in y_true.columns]
-        # for cell_type in show_columns:
-        #     if cell_type not in y_true.columns:
-        #         y_true[cell_type] = 0
-        show_columns_str = ', '.join(show_columns)
-        assert np.all([i in y_true.columns for i in show_columns]) and \
-               np.all([i in y_pred.columns for i in show_columns]), \
-               f'All of elements in show_columns ({show_columns_str}) should exist in ' \
-               f'the columns of both y_true ({y_true.columns}) and y_pred ({y_pred.columns})'
-        common_inx = [i for i in y_true.index if i in y_pred.index]
-        y_true = y_true.loc[common_inx, show_columns]
-        y_pred = y_pred.loc[common_inx, show_columns]
-        errors = cal_relative_error(y_true=y_true, y_pred=y_pred, max_error=1)
-        if error_type == 'absolute_error':
-            errors = y_pred - y_true
-        plt.figure(figsize=(8, 6))
-        for i, col in enumerate(show_columns):
-            _x = y_true.loc[:, col]
-            _y = errors.loc[:, col]
-            plt.scatter(_x, _y, label=col, s=6, alpha=1 - 0.02 * i)
-        if annotation:
-            x_left, x_right = plt.xlim()
-            y_bottom, y_top = plt.ylim()
-            for k, v in annotation:
-                if k == 'MAE':
-                    v = median_absolute_error(y_true=y_true, y_pred=y_pred)
-                plt.text(x_left + 0.05, y_top * 0.8, '{}: {:.3f}'.format(k, v))
-        # plt.plot([0, 1], [0, 1], linestyle='--', color='tab:gray')
-        plt.xlabel('y_true')
-        if y_label:
-            plt.ylabel(y_label)
-        else:
-            plt.ylabel('y_predicted')
-        # plt.legend()
-        plt.tight_layout()
-        plt.savefig(result_file_path, dpi=200)
-        plt.close()
-    else:
-        print(f'Using previous result: {result_file_path}')
-
-
-def plot_min_rmse(decon_performance, file_path):
-    """
-    plot the relation between minimal rmse and the number of sample
-    :param decon_performance: a dataFrame
-         the result of improved_cibersortx algo
-    :param file_path: the path to save result
-    :return:
-    """
-    sample_groups = decon_performance.groupby(['ref_sample_name'])
-    sample2min_rmse = {}
-    best_model_info = decon_performance.loc[decon_performance['best_model'] == 1, :]
-    for s, g in sample_groups:
-        sample_name = s
-        min_rmse = g['rmse'].min()
-        n_sample_with_min_rmse = int(g.loc[g['rmse'] == min_rmse, 'n_sample'])
-        sample2min_rmse[sample_name] = {'min_rmse': min_rmse, 'n_sample': n_sample_with_min_rmse}
-    sample2min_rmse_df = pd.DataFrame.from_dict(sample2min_rmse, orient='index')
-    plt.figure(figsize=(8, 6))
-    plt.scatter(sample2min_rmse_df['min_rmse'], sample2min_rmse_df['n_sample'], label='Mini RMSE')
-    plt.scatter(best_model_info['rmse'], best_model_info['n_sample'], marker='+', label='Best scaden RMSE')
-    plt.xlabel('RMSE')
-    plt.ylabel('n_sample')
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(file_path, dpi=200)
-
-
-def plot_emt_score(emt_score_file_path: str, sample2label_file_path: str, result_dir: str, bulk_exp_file_path: str):
-    """
-
-    :param emt_score_file_path: .gct file format
-        get this file from the scaden of ssGSEA in GenePattern
-    :param sample2label_file_path:
-    :param result_dir:
-    :param bulk_exp_file_path:
-    :return:
-    """
-    emt_score = pd.read_csv(emt_score_file_path, skiprows=[0, 1], sep='\t', index_col=0)
-    emt_score.drop(columns=['Description'], inplace=True)
-    emt_score_t = emt_score.T  # sample by gene set
-    # emt_score_t = (emt_score_t - emt_score_t.mean()) / emt_score_t.std()
-    print_df(emt_score_t)
-    sample2label = pd.read_csv(sample2label_file_path, index_col=0)
-    print_df(sample2label)
-    # label2samples = sample2label.groupby('labels')
-
-    bulk_exp = pd.read_csv(bulk_exp_file_path, index_col=0, sep='\t')
-    bulk_exp = bulk_exp.loc[:, bulk_exp.columns.isin(emt_score_t.index)].copy()
-    bulk_exp_sorted = bulk_exp.sort_values(by=['CD8A'], axis=1)
-    emt_score_sorted = emt_score_t.loc[bulk_exp_sorted.columns, :]
-    print_df(bulk_exp_sorted)
-    print_df(emt_score_sorted)
-
-    emt_gene_set = {'GenomeRes': ('GenomeRes_E', 'GenomeRes_M'), 'PNAS': ('PNAS_E', 'PNAS_M'),
-                    'NG': ('NG_E', 'NG_M'), 'Integrated': ('AtLeast2_E_in_3_geneset', 'AtLeast2_M_in_4_geneset'),
-                    'MIX': ('NG_E', 'MSigDB_EMT')}
-    for i, geneset in emt_gene_set.items():
-        plt.figure(figsize=(8, 6))
-        # current_emt_score = emt_score_sorted.loc[:, geneset]
-        # for label, current_g in label2samples:
-        less_than_samples = bulk_exp_sorted.loc['CD8A'] <= 20
-        emt_score_sorted = emt_score_sorted.loc[less_than_samples, :]
-        plt.scatter(x=bulk_exp_sorted.loc['CD8A', less_than_samples],
-                    y=emt_score_sorted.loc[:, geneset[1]] / emt_score_sorted.loc[:, geneset[0]])
-        plt.xlabel('CD8A expression')
-        plt.ylabel('{} / {}'.format(geneset[1], geneset[0]))
-        # plt.legend()
-        plt.tight_layout()
-        plt.savefig(os.path.join(result_dir, 'emt_score_{}_less_than20.png'.format(i)), dpi=200)
-        plt.close()
-
-
-def plot_emt_score_from_gsva(score_file_path, bulk_exp_file_path, result_file_path, sample2label_file_path=None):
-    """
-    GSVA: Hänzelmann, S., Castelo, R. & Guinney, J. GSVA: gene set variation analysis for microarray and RNA-Seq data.
-        BMC Bioinformatics 14, 7 (2013). https://doi.org/10.1186/1471-2105-14-7
-    :param score_file_path:
-    :param bulk_exp_file_path:
-    :param result_file_path:
-    :param sample2label_file_path:
-    :return:
-    """
-    emt_score = pd.read_csv(score_file_path, index_col=0)
-    emt_score.rename(columns={'V1': 'EMT_score'}, inplace=True)
-    emt_score.index = [i.replace('.', '-') for i in emt_score.index]
-    bulk_exp = pd.read_csv(bulk_exp_file_path, index_col=0, sep='\t')
-    bulk_exp_sorted = bulk_exp.sort_values(by=['CD8A'], axis=1)
-    emt_score_sorted = emt_score.loc[bulk_exp_sorted.columns, :]
-    if sample2label_file_path is not None:
-        sample2label = pd.read_csv(sample2label_file_path, index_col=0)
-        sample2label_sorted = sample2label.loc[bulk_exp_sorted.columns, :]
-        sample2label_sorted.sort_values(by=['labels'], ascending=False, inplace=True)
-        emt_score_sorted = emt_score_sorted.loc[sample2label_sorted.index, :]
-        bulk_exp_sorted = bulk_exp_sorted.loc[:, sample2label_sorted.index]
-    plt.figure(figsize=(8, 6))
-    plt.scatter(x=bulk_exp_sorted.loc['CD8A'], y=emt_score_sorted['EMT_score'])
-    plt.xlabel('CD8A expression')
-    plt.ylabel('EMT_score')
-    # plt.legend()
-    plt.tight_layout()
-    if result_file_path:
-        plt.savefig(result_file_path, dpi=200)
-    plt.show()
-
-
-def compare_cancer_purity(purity: pd.DataFrame, result_dir='.',
-                          xlabel: str = 'Cancer Type', ylabel: str = 'Tumor purity in each sample (CPE)',
-                          file_name: str = 'compare_cancer_purity_in_each_cancer.png'):
-    """
-    Specific plotting for file cancer_purity.csv, downloaded from Aran, D., Sirota, M. & Butte,
-    A. Systematic pan-cancer analysis of tumour purity. Nat Commun 6, 8971 (2015). https://doi.org/10.1038/ncomms9971
-
-    :param purity: sample by purity score (CPE), must contain group label ('labels') for each sample
-
-    :param result_dir: where to save result
-
-    :param xlabel: x label
-
-    :param ylabel: y label
-
-    :param file_name: file name
-
-    :return: None
-    """
-
-    plt.figure(figsize=(10, 6))
-    # Draw a nested boxplot to show bills by day and time
-    # sns.set_color_codes('bright')
-    # sample_labels = list(purity['Cancer type'].unique())
-    ax = sns.boxplot(x="Cancer type", y="CPE", palette=sns.color_palette("muted"), data=purity, whis=[0, 1])
-    ax.tick_params(labelsize=10)
-    # Add in points to show each observation, http://seaborn.pydata.org/examples/horizontal_boxplot.html
-    sns.stripplot(x="Cancer type", y="CPE", data=purity,
-                  size=3, color=".3", linewidth=0, dodge=True)
-    sns.despine(offset=10, trim=True, left=True)
-    # handles, labels = ax.get_legend_handles_labels()
-    # n_half_label = int(len(labels)/2)
-    # plt.legend(handles[0:n_half_label], labels[0:n_half_label], bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.tight_layout()
-    plt.savefig(os.path.join(result_dir, file_name), dpi=200)
-    plt.close()
-
-
-def compare_y_y_pred_decon(sample_name: str, purified_gep_file_path: str, result_file_dir=None,
-                           show_corr=True, x_label=None, y_label=None, font_scale=1.0,
-                           log_transform=False, z_score_threshold=8,
-                           rsd_z_score_threshold=0.9, all_sample_error=None):
-    """
-    Plot y against y_pred to visualize the performance of each model
-
-    :param sample_name: sample name
-
-    :param purified_gep_file_path: str
-        this file contains the true value of y
-
-    :param result_file_dir: str
-
-    :param show_corr: if show correlation
-
-    :param x_label:
-
-    :param y_label:
-
-    :param font_scale:
-
-    :param log_transform:
-
-    :param z_score_threshold: the threshold of z_score of absolute error, remove if |z_score| >= this value
-
-    :param rsd_z_score_threshold: the threshold of relative error, remove if |relative error| >= this value
-
-    :param all_sample_error: file all_sample_error_fp
-
-    :return:
-    """
-    gep_i = pd.read_csv(purified_gep_file_path, index_col=0)
-    # all_sample_error = pd.read_csv(all_sample_error_fp, index_col=0)
-    gep = gep_i.copy()
-    gep['error_code'] = all_sample_error['error_code']
-    # y_y_pred = gep.loc[:, ['y', 'y_pred']].copy()
-    if log_transform:
-        gep['y'] = np.log2(gep['y'] + 1)
-        gep['y_pred'] = np.log2(gep['y_pred'] + 1)
-    # y_y_pred['error'] = gep['y_pred'] - gep['y']
-    # y_y_pred['error_z_score'] = stats.zscore(y_y_pred['error'])
-    # https://mathworld.wolfram.com/RelativeError.html
-    # y_y_pred['relative_error'] = y_y_pred['error'] / (gep['y'] + 0.01)
-    # y_y_pred['label'] = 2
-    # y_y_pred.loc[gep['absolute_error_z_score'].abs() >= z_score_threshold, 'label'] = 3
-    # y_y_pred.loc[gep['relative_error'].abs() >= relative_error_threshold, 'label'] += 5
-    # y = y_y_pred.loc[:, ['y']]
-    # y_pred = y_y_pred.loc[:, ['y_pred']]
-    max_y = max(gep.loc[:, ['y', 'y_pred']].max())
-
-    # sns.set(font_scale=font_scale)
-    # plt.rcParams['font.sans-serif'] = ['Arial Unicode MS']  # Show Chinese characters
-    plt.figure(figsize=(8, 6))
-    for i, group in gep.groupby('error_code'):
-        if i == 2:
-            label = f'|z-score of mean abs error| < {z_score_threshold} & |z-score of RSD| < {rsd_z_score_threshold}'
-        elif i == 3:
-            label = f'|z-score of mean abs error| >= {z_score_threshold} & |z-score of RSD| < {rsd_z_score_threshold}'
-        elif i == 7:
-            label = f'|z-score of mean abs error| < {z_score_threshold} & |z-score of RSD| >= {rsd_z_score_threshold}'
-        else:
-            label = f'|z-score of mean abs error| >= {z_score_threshold} & |z-score of RSD| >= {rsd_z_score_threshold}'
-        plt.scatter(group['y'], group['y_pred'], s=6, label=label)
-
-    plt.plot([0, max_y], [0, max_y], linestyle='--', color='tab:gray')
-    plt.xlabel('y_true ({})'.format(sample_name))
-    plt.ylabel('y_predicted')
-    if x_label:
-        plt.xlabel(x_label.format(sample_name))
-    if y_label:
-        plt.ylabel(y_label)
-
-    if show_corr:
-        x_left, x_right = plt.xlim()
-        y_bottom, y_top = plt.ylim()
-        corr = gep['y'].corr(gep['y_pred'])
-        rmse = calculate_rmse(y_true=gep_i[['y']], y_pred=gep_i[['y_pred']])
-        plt.text(x_left + 1.5, y_top * 0.75, 'corr = {:.3f}'.format(corr))
-        plt.text(x_left + 1.5, y_top * 0.70, 'RMSE = {:.3f}'.format(rmse))
-        # plt.title('{}, corr: {:.4f}, RMSE: {:.4f}'.format(sample_name, corr, rmse))
-        # plt.text(x_left * 1.5, y_top * 0.7, ''.format(rmse))
-    plt.legend()
-    plt.tight_layout()
-    if result_file_dir:
-        plt.savefig(os.path.join(result_file_dir, 'y_true_vs_y_pred_{}.png'.format(sample_name)), dpi=200)
-    plt.close()
-
-
-def y_y_pred_error_hist_decon(sample_name, purified_gep_file_path, result_file_dir=None,
-                              y_label=None, font_scale=1.0):
-    """
-    plot y against y_pred to visualize the performance of each model
-    :param sample_name:
-    :param purified_gep_file_path: str
-        this file contains the true value of y
-    :param result_file_dir: str
-    :param y_label:
-    :param font_scale:
-    :return:
-    """
-    gep = pd.read_csv(purified_gep_file_path, index_col=0)
-
-    # y = gep.loc[:, ['y']]
-    # y_pred = gep.loc[:, ['y_pred']]
-
-    # sns.set(font_scale=font_scale)
-    plt.figure(figsize=(8, 6))
-    # error_z_score = stats.zscore(gep['y'] - gep['y_pred'])
-    plt.hist(gep['y'] - gep['y_pred'])
-
-    # plt.plot([0, max_y], [0, max_y], linestyle='--', color='tab:gray')
-    plt.xlabel('y_true - y_pred ({})'.format(sample_name))
-    if y_label:
-        plt.ylabel(y_label)
-    else:
-        plt.ylabel('number of samples')
-
-    plt.tight_layout()
-    if result_file_dir:
-        plt.savefig(os.path.join(result_file_dir, 'y_true_y_pred_error_hist_{}.png'.format(sample_name)), dpi=200)
-    plt.close()
-
-
-def compare_cancer_cell_with_cpe(cancer_type: str, algo2merged_fp, cancer_purity_fp, inx2plot: dict,
-                                 result_file_name_prefix, result_dir='./figures', error_metric='MAE'):
-    """
-    comparing predicted cell fraction of cancer cells with CPE value for a specific cancer type
-    :param cancer_type:
-    :param algo2merged_fp:
-    :param cancer_purity_fp:
-    :param inx2plot:
-    :param result_file_name_prefix:
-    :param result_dir:
-    :param error_metric: MAE or RMSE
-    :return:
-    """
-    check_dir(result_dir)
-    cancer_purity = pd.read_csv(cancer_purity_fp, index_col=0)
-    cancer_purity = cancer_purity.loc[(cancer_purity['Cancer type'] == cancer_type) &
-                                      (cancer_purity['CPE'].notna()), :]
-    corr_list = [None] * len(inx2plot)
-    error_list = [None] * len(inx2plot)
-    n_sample = 0
-    m, n = 2, 3
-    if len(inx2plot) == 4:
-        m, n = 2, 2
-    elif len(inx2plot) == 8:
-        m, n = 2, 4
-    if cancer_purity.shape[0] > 0:
-        fig, ax = plt.subplots(m, n, sharex='col', sharey='row', figsize=(1.2*n, 1.3*m), constrained_layout=True)
-        # plt.subplots_adjust(wspace=0.05, hspace=0.15)
-        for i in range(m):
-            for j in range(n):
-                plot_target = inx2plot[(i, j)]
-                if plot_target:
-                    algo, ref = plot_target.split('-')
-                    merged_result = pd.read_csv(algo2merged_fp[algo], index_col=0)
-                    merged_result = merged_result.loc[(merged_result['reference_dataset'] == ref) &
-                                                      (merged_result['cancer_type'] == cancer_type)].copy()
-                    merged_result.set_index('sample_id', inplace=True)
-                    if algo == 'EPIC' and 'otherCells' in merged_result.columns:
-                        merged_result['Cancer Cells'] = merged_result.loc[:, ['Cancer Cells', 'otherCells']].sum(axis=1)
-                    df = merged_result.merge(cancer_purity, left_index=True, right_index=True)
-                    n_sample = df.shape[0]
-                    # print(df.shape, algo)
-                    col_name1 = 'Cancer Cells'
-                    # if algo == 'DeSide':
-                    #     col_name1 = '1-others'
-                        # print(merged_result.head())
-                    col_name2 = 'CPE'
-                    corr = np.corrcoef(df[col_name1], df[col_name2])
-                    if error_metric == 'MAE':
-                        error = median_absolute_error(y_true=df[col_name1], y_pred=df[col_name2])  # pd.series
-                    elif error_metric == 'RMSE':
-                        error = calculate_rmse(y_true=df[[col_name1]], y_pred=df[[col_name2]])  # pd.dataframe
-                    else:
-                        raise ValueError('error metric {} not supported, '
-                                         'only "MAE" or "RMSE" was supported'.format(error_metric))
-                    ax[i, j].scatter(df[col_name1], df[col_name2], s=1, alpha=0.8)
-                    if 'CIBERSORT' in algo:
-                        algo = 'C.SORT'
-                    elif 'Scaden' in algo:
-                        algo = 'Scaden'
-                    elif 'EPIC' in algo:
-                        algo = 'EPIC'
-                    if 'simu_bulk' in ref:
-                        ref = 'simu_2ds'
-                    ax[i, j].set_xlabel('{} - {}'.format(algo, ref.replace('_ref', '')), fontsize=8)
-                    # plt.ylabel('{}预测值 (样本数={})'.format(predicted_by, df.shape[0]))
-                    ax[i, j].text(0.4, 0.18, 'corr = {:.2f}'.format(corr[0, 1]), fontsize=6)
-                    if error_metric == 'MAE':
-                        ax[i, j].text(0.4, 0.05, 'MAE = {:.2f}'.format(error), fontsize=6)
-                    elif error_metric == 'RMSE':
-                        ax[i, j].text(0.4, 0.05, 'RMSE = {:.2f}'.format(error), fontsize=6)
-                    ax[i, j].plot([0, 1], [0, 1], linestyle='--', color='tab:gray')
-                    corr_list[i * n + j] = round(corr[0, 1], 3)
-                    error_list[i * n + j] = round(error, 3)
-        fig.supxlabel('Predicted cell fraction of {} in {} (n={})'.format('Cancer Cells', cancer_type, n_sample))
-        fig.supylabel('CPE')
-        # plt.tight_layout()
-        plt.savefig(os.path.join(result_dir, '{}_{}.png'.format(result_file_name_prefix, cancer_type)), dpi=300)
-    return {'corr': corr_list, 'error': error_list}
-
-
-def compare_cd8t_with_cd8a(cancer_type, algo2merged_fp, tpm_fp, gene_list, inx2plot, cancer_type2max_frac=None,
-                           result_file_name_prefix='', result_dir='./figures'):
-    """
-    compare predicted cell fraction of CD8+ T cells with CD8A expression value in TPM
-    :param cancer_type:
-    :param algo2merged_fp:
-    :param tpm_fp:
-    :param gene_list:
-    :param inx2plot:
-    :param cancer_type2max_frac:
-    :param result_file_name_prefix:
-    :param result_dir:
-    :return:
-    """
-    check_dir(result_dir)
-    tpm = pd.read_csv(tpm_fp, index_col=0).T  # convert to sample by gene
-    tpm = tpm.loc[:, gene_list].copy()
-
-    corr_list = [None] * len(inx2plot)
-    if len(gene_list) > 0:
-        max_cell_frac = 0
-        fig, ax = plt.subplots(2, 3, sharex='col', sharey='row', figsize=(15, 10))
-        for i in range(2):
-            for j in range(3):
-                plot_target = inx2plot[(i, j)]
-                if plot_target:
-                    algo, ref = plot_target.split('-')
-                    merged_result = pd.read_csv(algo2merged_fp[algo], index_col=0)
-                    merged_result = merged_result.loc[(merged_result['reference_dataset'] == ref) &
-                                                      (merged_result['cancer_type'] == cancer_type)].copy()
-                    merged_result.set_index('sample_id', inplace=True)
-                    if algo == 'EPIC':
-                        merged_result['Cancer Cells'] = merged_result.loc[:, ['Cancer Cells', 'otherCells']].sum(axis=1)
-                    df = merged_result.merge(tpm, left_index=True, right_index=True)
-                    # print(df.shape, algo)
-                    col_name1 = 'CD8A'  # marker gene expression
-                    col_name2 = 'CD8 T'  # cell fraction
-                    corr = np.corrcoef(df[col_name1], df[col_name2])
-                    if df['CD8 T'].max() > max_cell_frac:
-                        max_cell_frac = df['CD8 T'].max()
-
-                    if cancer_type2max_frac:
-                        ax[i, j].set_ylim([-0.01, cancer_type2max_frac[cancer_type] + 0.02])
-                    else:
-                        ax[i, j].set_ylim([-0.01, 0.32])
-                        df.loc[df['CD8 T'] > 0.3, 'CD8 T'] = 0.3
-                    # mae = median_absolute_error(y_true=df[col_name1], y_pred=df[col_name2])
-                    ax[i, j].scatter(df[col_name1], df[col_name2])
-                    # x_left, x_right = ax[i, j].get_xlim()
-                    y_bottom, y_top = ax[i, j].get_ylim()
-                    ax[i, j].set_xlabel('{} with {} (n={})'.format(algo, ref, df.shape[0]))
-                    ax[i, j].text(1, y_top * 0.9, 'corr = {:.3f}'.format(corr[0, 1]))
-                    corr_list[i * 3 + j] = round(corr[0, 1], 3)
-        fig.supylabel('Predicted cell fraction of {}'.format('CD8+ T cells'))
-        fig.supxlabel('TPM of CD8A in {}'.format(cancer_type))
-        plt.tight_layout()
-        plt.savefig(os.path.join(result_dir, f'{result_file_name_prefix}_{cancer_type}.png'), dpi=200)
-        print('  Max cell fraction: {}'.format(max_cell_frac))
-    return {'corr': corr_list}
-
-
-def deside_compare_cc_1_others(cancer_type, algo2merged_fp, cancer_purity_fp, inx2plot,
-                               result_file_name_prefix, result_dir='./figures'):
-    """
-    compare predicted cell fraction of cancer cells and 1-others
-    :param cancer_type:
-    :param algo2merged_fp:
-    :param cancer_purity_fp:
-    :param inx2plot:
-    :param result_file_name_prefix:
-    :param result_dir:
-    :return:
-    """
-    check_dir(result_dir)
-    cancer_purity = pd.read_csv(cancer_purity_fp, index_col=0)
-    cancer_purity = cancer_purity.loc[(cancer_purity['Cancer type'] == cancer_type) &
-                                      (cancer_purity['CPE'].notna()), :]
-    corr_list = [None] * 2
-    mae_list = [None] * 2
-    if cancer_purity.shape[0] > 0:
-        fig, ax = plt.subplots(1, 2, sharex='col', sharey='row', figsize=(10, 5))
-        algo = ''
-        df = pd.DataFrame()
-        ref = ''
-        for j in range(2):
-            plot_target = inx2plot[j]
-            if plot_target:
-                algo, ref, col = plot_target.split('-')
-                merged_result = pd.read_csv(algo2merged_fp[algo], index_col=0)
-                merged_result = merged_result.loc[(merged_result['reference_dataset'] == ref) &
-                                                  (merged_result['cancer_type'] == cancer_type)].copy()
-                merged_result.set_index('sample_id', inplace=True)
-                df = merged_result.merge(cancer_purity, left_index=True, right_index=True)
-                if col == 'cancer_cells':
-                    col_name1 = 'Cancer Cells'
-                else:
-                    col_name1 = '1-others'
-                col_name2 = 'CPE'
-                corr = np.corrcoef(df[col_name1], df[col_name2])
-                mae = median_absolute_error(y_true=df[col_name1], y_pred=df[col_name2])
-                ax[j].scatter(df[col_name1], df[col_name2])
-                ax[j].set_xlabel('{}'.format(col_name1))
-                ax[j].text(0.5, 0.15, 'corr = {:.3f}'.format(corr[0, 1]))
-                ax[j].text(0.5, 0.05, '$MAE$ = {:.3f}'.format(mae))
-                ax[j].plot([0, 1], [0, 1], linestyle='--', color='tab:gray')
-                corr_list[j] = round(corr[0, 1], 3)
-                mae_list[j] = round(mae, 3)
-        fig.supxlabel('Predicted cell fraction by {} with {} (n={}) in {}'.format(algo, ref, df.shape[0], cancer_type))
-        fig.supylabel('CPE')
-        plt.tight_layout()
-        plt.savefig(os.path.join(result_dir, result_file_name_prefix + '_{}.png'.format(cancer_type)), dpi=200)
-    return {'corr': corr_list, 'mae': mae_list}
-
-
-def plot_line_across_cancers(inx2plot, values_df, result_file_path,
-                             xlabel='', ylabel='', mark_point=0, comparing_type=''):
-    """
-
-    :param inx2plot:
-    :param values_df:
-    :param result_file_path:
-    :param xlabel:
-    :param ylabel:
-    :param mark_point: horizontal line if not 0
-    :param comparing_type: diff_algo, diff_dataset
-    :return:
-    """
-    plt.figure(figsize=(12, 6))
-    n_cancer_type = values_df.shape[0]
-    for i in list(inx2plot.values()):
-        line_width = 1.5
-        marker = ''
-        if i:
-            if comparing_type == 'diff_algo':
-                if 'DeSide' in i:
-                    # line_width = 2.5
-                    marker = '*'
-            if comparing_type == 'diff_dataset':
-                if 'Mixed' in i:
-                    marker = '*'
-                if 'HNSC' in i:
-                    marker = '+'
-                if 'LUAD' in i:
-                    marker = 'o'
-
-            plt.plot(range(n_cancer_type), values_df.loc[:, i], label=i, linewidth=line_width,
-                     marker=marker, markersize=10)
-    if mark_point != 0:
-        xmin, xmax = plt.xlim()
-        plt.hlines(y=mark_point, xmin=xmin, xmax=xmax, linestyles='dashed', colors='tab:gray')
-    plt.xticks(range(n_cancer_type), values_df.index.to_list())
-    # plt.xlabel('Cancer type')
-    if xlabel:
-        plt.xlabel(xlabel)
-    if ylabel:
-        plt.ylabel(ylabel)
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(result_file_path, dpi=200)
-
-
-def plot_cell_fraction_hist(cell_fraction: pd.DataFrame, sampling_method='pure random',
-                            result_dir='.', dataset=None, density=False, bins=20):
-    """
-    plot cell fraction hist for each cell type for comparing different sampling methods
-    :param cell_fraction: sample by cell type
-    :param sampling_method: pure random / gradient
-    :param result_dir:
-    :param dataset
-    :param density: if plot density
-    :param bins:
-    :return:
-    """
-    file_path = os.path.join(result_dir, f'cell_fraction_sampled_by_{sampling_method}_hist.png')
-    if dataset is not None:
-        file_path = os.path.join(result_dir, f'cell_fraction_sampled_by_{sampling_method}_hist_{dataset}.png')
-    if not os.path.exists(file_path):
-        check_dir(result_dir)
-        plt.figure(figsize=(8, 6))
-        for ct in cell_fraction.columns:
-            plt.hist(cell_fraction[ct], label=ct, alpha=1, bins=bins, histtype='step', density=density)
-        plt.legend()
-        plt.xlabel(f'Cell fraction by {sampling_method} sampling')
-        if density:
-            plt.ylabel('Density')
-        else:
-            plt.ylabel('Number of samples')
-        plt.tight_layout()
-        plt.savefig(file_path, dpi=200)
-    else:
-        print(f'File existed at {file_path}')
-
-
-def plot_n_cell_type_hist(cell_frac, sampling_method, result_dir, dataset=None):
-    """
-    plot the hist of the number of cell types that the cell fraction is not zero in simulated dataset,
-    - some samples may contains all cell types, but some samples may only contains 1 or 2 cell types (others are 0)
-    """
-    file_path = os.path.join(result_dir, f'n_cell_type_sampled_by_{sampling_method}_hist.png')
-    if dataset is not None:
-        file_path = os.path.join(result_dir, f'n_cell_type_sampled_by_{sampling_method}_hist_{dataset}.png')
-    if not os.path.exists(file_path):
-        check_dir(result_dir)
-        plt.figure(figsize=(8, 6))
-        plt.hist(np.sum(cell_frac != 0, axis=1))
-        plt.xlabel(f'The number of cell types in each sample from {sampling_method} sampling')
-        plt.ylabel('The number of samples')
-        plt.tight_layout()
-        plt.savefig(file_path, dpi=200)
-    else:
-        print(f'File existed at {file_path}')
 
 
 def compare_exp_and_cell_fraction(merged_file_path, result_dir,
@@ -1289,95 +657,81 @@ def compare_mean_exp_with_cell_frac_across_algo(cancer_type: str, algo2merged_fp
     return {'corr': corr_list}
 
 
-def plot_latent_z(latent_z_file: pd.DataFrame, result_dir, file_name=None, label_type='cell_type'):
+def compare_y_y_pred_plot_cpe(y_true: pd.Series, y_pred: pd.Series, inx=tuple(), cancer_type='',
+                              show_metrics: bool = False, ax=None):
     """
+    Plot y against y_pred to visualize the performance of prediction result
 
-    :param latent_z_file: latent_z with class
-    :param result_dir:
-    :param file_name:
-    :param label_type:
-    :return:
-    """
-    inx2cell_type = get_inx2cell_type()
-    fig, ax = plt.subplots(1, 1, figsize=(8, 8))
-    cmap = plt.get_cmap('tab20')
-    cmaplist = [cmap(15)] + [cmap(i) for i in range(1, 14, 2)] + [cmap(i) for i in [16, 17, 18, 19]]
-    # cmap = mpl.colors.LinearSegmentedColormap.from_list('Custom cmap', cmaplist, 12)
-    col_names = latent_z_file.columns.to_list()
-    for inx in latent_z_file['class'].unique():
-        if label_type == 'cell_type':
-            label = inx2cell_type[inx]
-        else:
-            label = str(inx)
-        current_part = latent_z_file.loc[latent_z_file['class'] == inx, :].copy()
-        if (inx + 1) > len(cmaplist):
-            inx = (inx % 7)
-        ax.scatter(current_part[col_names[0]], current_part[col_names[1]],
-                   color=cmaplist[inx + 1], label=label, alpha=.8)
-    plt.legend()
-    plt.xlabel(col_names[0])
-    plt.ylabel(col_names[1])
-    plt.tight_layout()
-    plt.savefig(os.path.join(result_dir, file_name), dpi=200)
+    :param y_true: CPE
 
+    :param y_pred: this file contains the predicted value of y
 
-def plot_weights(w_file, selected_sample_ids: list, cell_types, gene_list,
-                 para_const_obj, postfix, result_dir, sample_id, check_validity: bool = True):
+    :param inx: a tuple of two elements, the first element is the index of y_true, the second element is the index of y_pred
+
+    :param cancer_type: cancer type
+
+    :param show_metrics: show correlation and RMSE
+
+    :param ax: matplotlib axis
+
+    :return: None
     """
-    compare the GEPs of each cell type before (ground truth) and after decon
-    :param w_file: gene by cell type, TPM
-    :param selected_sample_ids: selected sample ids during simulation bulk GEPs (random sampling)
-    :param cell_types:
-    :param gene_list:
-    :param para_const_obj:
-    :param postfix:
-    :param result_dir:
-    :param sample_id:
-    :param check_validity
-    :return:
-    """
-    w = read_df(w_file)
-    w = w.loc[:, cell_types].copy()
-    if check_validity:
-        w = para_const_obj.check_validity(w=w.values.T, training=False)
-    sc_after_decon = pd.DataFrame(w.T, index=gene_list, columns=cell_types)
-    sc_before_decon = para_const_obj.sct_dataset_df.loc[selected_sample_ids, :].T
-    sc_before_decon.columns = cell_types
-    sc_before_decon = log2_transform(sc_before_decon)
-    sc_after_decon = log2_transform(sc_after_decon)
-    for ct in cell_types:
-        plot_obj = ScatterPlot(x=sc_before_decon, y=sc_after_decon, postfix=postfix + '_' + ct)
-        plot_obj.plot(show_columns={'x': ct, 'y': ct}, show_rmse=True, result_file_dir=result_dir,
-                      x_label=f'Selected GEP of single cell type when simulation',
-                      y_label=f'GEP after dcon ({sample_id}, {ct})')
+    # Use the pyplot interface to change just one subplot...
+    plt.sca(ax)
+
+    plt.scatter(y_pred, y_true, s=1, alpha=0.75, rasterized=True)
+    plt.xlim([-0.05, 1.05])
+    plt.ylim([-0.05, 1.05])
+    plt.xticks([0, 1])
+    plt.yticks([0, 0.5, 1])
+    x_left, x_right = plt.xlim()
+    y_bottom, y_top = plt.ylim()
+    x_max = x_right
+    y_max = y_top
+    plt.plot([0, max(x_max, y_max)], [0, max(x_max, y_max)], linestyle='--', color='tab:gray')
+    corr = 0
+    rmse = 0
+    ccc = 0
+    if show_metrics:  # show metrics in test set
+        corr = get_corr(y_pred, y_true)
+        rmse = calculate_rmse(y_true=pd.DataFrame(y_true), y_pred=pd.DataFrame(y_pred))
+        ccc = get_ccc(y_pred.values, y_true.values)
+        plt.text(0.3 * x_max, 0.2 * y_max, 'corr = {:.2f}'.format(corr), fontsize=6)
+        plt.text(0.3 * x_max, 0.1 * y_max, 'RMSE = {:.2f}'.format(rmse), fontsize=6)
+        plt.text(0.3 * x_max, 0.0 * y_max, 'CCC = {:.2f}'.format(ccc), fontsize=6)
+    if inx:
+        plt.ylabel(f'{cancer_type} ({y_true.shape[0]})', fontsize=6)
+    # if inx and inx[0] == 8:
+    #     plt.xlabel(f'{algo}', fontsize=6)
+    # plt.legend()
+    return corr, rmse, ccc
 
 
-def plot_weights2(w_file, selected_sample_ids: list, cell_types, gene_list,
-                  sct_dataset_df, postfix, result_dir, sample_id, y: dict):
-    """
-    compare the GEPs of each cell type before (ground truth) and after decon
-    :param w_file: gene by cell type, TPM
-    :param selected_sample_ids: selected sample ids during simulation bulk GEPs (random sampling)
-    :param cell_types:
-    :param gene_list:
-    :param postfix:
-    :param result_dir:
-    :param sample_id:
-    :param sct_dataset_df: SCT (POS) dataset used when simulating bulk GEP, TPM
-    :param y: cell proportion of each cell type in current sample, {'y_ture': {}, 'y_pred': {}}
-    :return:
-    """
-    w = read_df(w_file)
-    w = w.loc[:, cell_types].copy()
-    sc_after_decon = pd.DataFrame(w, index=gene_list, columns=cell_types)
-    sc_before_decon = sct_dataset_df.loc[selected_sample_ids, :].T
-    sc_before_decon.columns = cell_types
-    sc_before_decon = log2_transform(sc_before_decon)
-    sc_after_decon = log2_transform(sc_after_decon)
-    for ct in cell_types:
-        y_true = y['y_true'][ct]
-        y_pred = y['y_pred'][ct]
-        plot_obj = ScatterPlot(x=sc_before_decon, y=sc_after_decon, postfix=postfix + '_' + ct)
-        plot_obj.plot(show_columns={'x': ct, 'y': ct}, show_rmse=True, result_file_dir=result_dir,
-                      x_label=f'Selected GEP of single cell type when simulation (y_true: {y_true:.3f}, {ct})',
-                      y_label=f'GEP after dcon ({sample_id}, y_pred: {y_pred:.3f})')
+def plot_pred_cell_prop_with_cpe(cpe_file_path, pred_cell_prop_file_path, result_dir, save_metrics: bool = True):
+    all_cancer_types = sorted([i for i in cancer_types if i != 'PAAD'])
+    fig, axes = plt.subplots(6, 3, sharex='all', sharey='all', figsize=(5, 6))
+    pred_cell_prop = pd.read_csv(pred_cell_prop_file_path, index_col=0)
+    cpe = read_cancer_purity(cpe_file_path, sample_names=pred_cell_prop.index)
+    pred_cell_prop = pred_cell_prop.merge(cpe['CPE'], left_index=True, right_index=True)
+    metrics_value = {}
+    for j in range(3):
+        for i in range(6):
+            current_cancer_type = all_cancer_types[i + j * 6]
+            current_data = pred_cell_prop.loc[pred_cell_prop['cancer_type'] == current_cancer_type, :]
+            corr, rmse, ccc = compare_y_y_pred_plot_cpe(y_pred=current_data['Cancer Cells'], y_true=current_data['CPE'],
+                                                        show_metrics=True, ax=axes[i, j], cancer_type=current_cancer_type,
+                                                        inx=(i, j))
+            metrics_value[current_cancer_type] = {'corr': corr, 'rmse': rmse, 'ccc': ccc}
+
+    # add a big axis, hide frame
+    fig.add_subplot(111, frameon=False)
+    # hide tick and tick label of the big axis
+    plt.tick_params(labelcolor='none', which='both', top=False, bottom=False, left=False, right=False)
+    plt.xlabel('Predicted cancer cell proportions by DeSide', labelpad=5)
+    plt.ylabel("CPE", labelpad=15)
+
+    plt.tight_layout(h_pad=0.02, w_pad=0.15)
+    plt.savefig(os.path.join(result_dir, 'pred_cancer_cell_prop_vs_cpe-deside.png'), dpi=300)
+    if save_metrics:
+        metrics_value_df = pd.DataFrame.from_dict(metrics_value, orient='index')
+        metrics_value_df.to_csv(os.path.join(result_dir, 'pred_cancer_cell_prop_vs_cpe-deside-metrics.csv'))
