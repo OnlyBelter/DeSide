@@ -139,7 +139,8 @@ def tcga_evaluation(marker_gene_file_path, total_result_dir, pred_cell_frac_tcga
                                                  cell_type=cell_type, cell_type2max=cell_type2max)
 
 
-def run_step3(evaluation_dataset2path, log_file_path, result_dir, model_dir, all_cell_types, one_minus_alpha):
+def run_step3(evaluation_dataset2path, log_file_path, result_dir, model_dir,
+              all_cell_types, one_minus_alpha=False):
     # Step3, evaluation on test set
     print_msg('Step3: Predicting cell fractions of test set and evaluation...',
               log_file_path=log_file_path)
@@ -185,7 +186,7 @@ def run_step3(evaluation_dataset2path, log_file_path, result_dir, model_dir, all
 
 def run_step4(tcga_data_dir, cancer_types, log_file_path, model_dir, marker_gene_file_path,
               result_dir, pred_cell_frac_tcga_dir, cancer_purity_file_path, all_cell_types,
-              model_names, signature_score_method, one_minus_alpha,
+              model_names, signature_score_method, one_minus_alpha=False,
               update_figures=False, outlier_file_path=None):
     # TCGA
     print_msg("Step 4: Predict cell fraction of TCGA...", log_file_path=log_file_path)

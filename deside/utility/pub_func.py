@@ -646,7 +646,7 @@ def save_key_params(all_vars: dict, save_to_file_path=None):
         hyper_params = all_vars['deside_parameters']
         other_params = ['all_cell_types', 'dataset2parameters', 'cd4_high_in_cd8', 'n_base',
                         'total_cell_number', 'removed_cell_types', 'merge_t_cell', 'filter_simulated_bulk_cell',
-                        'remove_cancer_cell_when_training', 'one_minus_alpha']
+                        'remove_cancer_cell_when_training', 'one_minus_alpha', 'remove_cancer_cell']
         key_paths_dict = {k: all_vars[k] for k in key_paths if k in all_vars}
         other_params_dict = {k: all_vars[k] for k in other_params if k in all_vars}
 
