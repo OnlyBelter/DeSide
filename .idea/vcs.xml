@@ -4,5 +4,6 @@
     <mapping directory="" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../DeSide_workflow" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../deside-utility" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../phys3047" vcs="Git" />
   </component>
 </project>

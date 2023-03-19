@@ -10,6 +10,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib as mpl
 from pathlib import Path
+import scipy.stats as stats
 from joblib import dump, load
 import matplotlib.pyplot as plt
 from scipy.sparse import csr_matrix
@@ -533,15 +534,21 @@ def non_log2cpm(exp_df, sum_exp=1e6) -> pd.DataFrame:
     return exp_df / np.vstack(exp_df.sum(axis=1)) * sum_exp
 
 
-def get_corr(df_col1, df_col2) -> float:
+def get_corr(df_col1, df_col2, return_p_value=False) -> Union[float, tuple]:
     """
     calculate the correlation between two columns of dataframe
     :param df_col1: series, column1
     :param df_col2: series, column2
+    :param return_p_value: if return p-value
     :return:
     """
-    correlation = np.corrcoef(df_col1, df_col2)
-    return correlation[0, 1]
+    # correlation = np.corrcoef(df_col1, df_col2)
+    corr, p_value = stats.pearsonr(df_col1, df_col2)
+    if return_p_value:
+        return corr, p_value
+    else:
+        return corr
+    # return correlation[0, 1]
 
 
 def get_sep(file_path, comment: str = None):

@@ -8,6 +8,7 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="DeSide_workflow" />
     <orderEntry type="module" module-name="deside-utility" />
+    <orderEntry type="module" module-name="phys3047" />
   </component>
   <component name="PyDocumentationSettings">
     <option name="format" value="PLAIN" />
