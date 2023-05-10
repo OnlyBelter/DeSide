@@ -84,13 +84,13 @@ def read_and_merge_result(raw_result_dir: str, cell_type_name_mapping: dict, alg
                 elif algo == 'Scaden_simu_bulk':
                     cancer_type = file_name.split('_')[-1].replace('.txt', '')
                     ds = 'simu_bulk_2ds'
-                elif algo == 'DeSide':
-                    # dir_names = root.split(os.path.sep)
-                    # print(dir_names)
+                elif 'DeSide' in algo:
                     cancer_type = root.split(os.path.sep)[-1]
                     if '/' in cancer_type:
                         cancer_type = cancer_type.split('/')[-1]
                     ds = 'simu_bulk_2ds'
+                    if algo == 'DeSide_softmax':
+                        ds = 'simu_bulk_2ds_softmax'
                 elif algo == 'Kassandra_self':
                     cancer_type = 'all'
                     ds = 'self'
