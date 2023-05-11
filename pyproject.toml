@@ -1,0 +1,77 @@
+# pyproject.toml
+
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "DeSide"
+version = "1.0.1"
+description = "A DEep-learning and SIngle-cell based DEconvolution method for solid tumors"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.8"
+authors = [
+    { name = "OnlyBelter", email = "onlybelter@outlook.com" },
+]
+keywords = [
+    "DeSide",
+    "RNA-seq",
+    "deconvolution",
+]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Typing :: Typed",
+]
+dependencies = [
+    "tensorflow>=2.8.0",
+    "scikit-learn==0.24.0",
+    "anndata>=0.8.0",
+    "scanpy==1.8.0",
+    "pandas==1.2.5",
+    "numpy<1.22",
+    "matplotlib",
+    "seaborn>=0.11.2",
+    "bbknn==1.5.1",
+    "SciencePlots",
+]
+#dynamic = ["version"]
+
+[project.urls]
+#Documentation = "https://deside.readthedocs.io/"
+Homepage = "https://github.com/OnlyBelter/DeSide"
+Source = "https://github.com/OnlyBelter/DeSide"
+Tracker = "https://github.com/OnlyBelter/DeSide/issues"
+
+# https://realpython.com/pypi-publish-python-package/#version-your-package
+[tool.bumpver]
+current_version = "1.0.0"
+version_pattern = "MAJOR.MINOR.PATCH"
+commit_message = "bump version {old_version} -> {new_version}"
+commit = true
+tag = true
+push = false
+
+[tool.bumpver.file_patterns]
+"pyproject.toml" = [
+    'current_version = "{version}"',
+]
+"setup.py" = [
+    "{version}",
+    "{pep440_version}",
+]
+"README.rst" = [
+    "{version}",
+    "{pep440_version}",
+]
+"README.md" = [
+    "{version}",
+    "{pep440_version}",
+]
+

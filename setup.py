@@ -2,21 +2,22 @@ import io
 import os
 import sys
 from setuptools import setup, find_packages
+# from deside._version import __version__
 
 install_requires = ["matplotlib", "pandas==1.2.5", "scikit-learn==0.24.0",
                     "seaborn>=0.11.2", "requests", "tensorflow>=2.8.0", "scipy", "numpy<1.22",
                     "anndata>=0.8.0", "scanpy==1.8.0", "joblib", "leidenalg", "jupyterlab",
                     "umap-learn==0.5.1", "bbknn==1.5.1", "openpyxl", "tensorboard",
-                    "build", "sphinx==3.5.4", "myst-parser==0.13.6", "fsspec",
+                    "build", "sphinx==3.5.4", "myst-parser>=0.13.6", "fsspec",
                     "h5py", "sphinx_book_theme", "tables>=3.6.1", "statsmodels", "matplotlib-venn",
                     "SciencePlots"]
 if sys.version_info < (3, 4, 0):
     install_requires.append("enum34")
 
 
-def get_version():
-    with open(os.path.join("deside", "_version.txt"), 'r') as f:
-        return f.readline().strip()
+# def get_version():
+#     with open(os.path.join("deside", "_version.txt"), 'r') as f:
+#         return f.readline().strip()
 
 
 def get_test_data():
@@ -34,7 +35,7 @@ with io.open(fndoc, mode="r", encoding="utf-8") as fd:
 
 setup(
     name="deside",
-    version=get_version(),
+    version='1.0.0',
     description="DEep-learning and SIngle-cell based DEconvolution",
     long_description=README_rst,
     license="BSD-3-Clause",

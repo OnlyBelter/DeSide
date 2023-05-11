@@ -1,4 +1,4 @@
-# DeSide <img src="./docs/_static/logo.png" width="50">
+# DeSide <img src="https://raw.githubusercontent.com/OnlyBelter/DeSide/main/docs/_static/logo.png" width="50">
 
 DeSide is a DEep-learning and SIngle-cell based DEconvolution method for solid tumors, which can be used to infer cellular proportions of different cell types from bulk RNA-seq data.
 
@@ -8,7 +8,7 @@ DeSide consists of the following four parts (see figure below):
 - Cell Proportion Generation
 - Bulk Tumor Synthesis
 
-<img src="Fig.1a_b.svg" width="800" alt="Overview of DeSide">
+<img src="https://raw.githubusercontent.com/OnlyBelter/DeSide/main/Fig.1a_b.svg" width="800" alt="Overview of DeSide">
 
 In this repository, we provide the code for implementing these four parts and visualizing the results.
 

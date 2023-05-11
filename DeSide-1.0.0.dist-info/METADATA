@@ -1,0 +1,110 @@
+Metadata-Version: 2.1
+Name: DeSide
+Version: 1.0.0
+Summary: A DEep-learning and SIngle-cell based DEconvolution method for solid tumors
+Home-page: 
+Author: Xin (Belter) Xiong
+Author-email: OnlyBelter <onlybelter@outlook.com>
+License: MIT License
+        
+        Copyright (c) 2022 Xin Xiong
+        
+        Permission is hereby granted, free of charge, to any person obtaining a copy
+        of this software and associated documentation files (the "Software"), to deal
+        in the Software without restriction, including without limitation the rights
+        to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+        copies of the Software, and to permit persons to whom the Software is
+        furnished to do so, subject to the following conditions:
+        
+        The above copyright notice and this permission notice shall be included in all
+        copies or substantial portions of the Software.
+        
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+        IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+        FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+        AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+        LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+        OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+        SOFTWARE.
+        
+Project-URL: Homepage, https://github.com/OnlyBelter/DeSide
+Project-URL: Source, https://github.com/OnlyBelter/DeSide
+Project-URL: Tracker, https://github.com/OnlyBelter/DeSide/issues
+Keywords: DeSide,RNA-seq,deconvolution
+Platform: any
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: BSD License
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Typing :: Typed
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: tensorflow (>=2.8.0)
+Requires-Dist: scikit-learn (==0.24.0)
+Requires-Dist: anndata (>=0.8.0)
+Requires-Dist: scanpy (==1.8.0)
+Requires-Dist: pandas (==1.2.5)
+Requires-Dist: numpy (<1.22)
+Requires-Dist: matplotlib
+Requires-Dist: seaborn (>=0.11.2)
+Requires-Dist: bbknn (==1.5.1)
+Requires-Dist: SciencePlots
+Provides-Extra: full
+Requires-Dist: py ; extra == 'full'
+Requires-Dist: tqdm ; extra == 'full'
+
+# DeSide <img src="./docs/_static/logo.png" width="50">
+
+DeSide is a DEep-learning and SIngle-cell based DEconvolution method for solid tumors, which can be used to infer cellular proportions of different cell types from bulk RNA-seq data.
+
+DeSide consists of the following four parts (see figure below):
+- DNN Model
+- Single Cell Dataset Integration
+- Cell Proportion Generation
+- Bulk Tumor Synthesis
+
+<img src="Fig.1a_b.svg" width="800" alt="Overview of DeSide">
+
+In this repository, we provide the code for implementing these four parts and visualizing the results.
+
+### Requirements
+DeSide requires Python 3.8 or higher. It has been tested on Linux and MacOS, but should work on Windows as well.
+- tensorflow>=2.8.0
+- scikit-learn==0.24.0
+- anndata>=0.8.0
+- scanpy==1.8.0
+- pandas==1.2.5
+- numpy<1.22
+- matplotlib
+- seaborn>=0.11.2
+- bbknn==1.5.1
+- SciencePlots
+
+### Installation
+
+pip should work out of the box:
+```
+# create a virtual environment if necessary
+conda create -n deside python=3.8
+conda activate deside
+pip install deside
+```
+
+### Documentation
+Documentation is available either in the source tree (doc/), or online. (will be available soon)
+
+
+### Usage Examples
+Usage examples can be found: [DeSide_mini_example](https://github.com/OnlyBelter/DeSide_mini_example)
+
+Three examples are provided:
+- Using pre-trained model
+- Training a model from scratch
+- Generating a synthetic dataset
+
+### License
+DeSide can be used under the terms of the MIT License.
