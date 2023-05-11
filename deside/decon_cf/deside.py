@@ -84,7 +84,7 @@ class DeSide(object):
     def train_model(self, training_set_file_path: Union[str, list], hyper_params: dict,
                     cell_types: list = None, scaling_by_sample: bool = True, callback: bool = True,
                     n_epoch: int = 10000, metrics: str = 'mse', n_patience: int = 100, scaling_by_constant=False,
-                    remove_cancer_cell=False, fine_tune=False, one_minus_alpha: bool = False):
+                    remove_cancer_cell=False, fine_tune=False, one_minus_alpha: bool = False, verbose=1):
         """
         :param training_set_file_path: the file path of training set, .h5ad file, log2cpm1p format, samples by genes
         :param hyper_params: pre-determined hyper-parameters for DeSide model
@@ -98,6 +98,7 @@ class DeSide(object):
         :param fine_tune: fine tune pre-trained model
         :param scaling_by_constant:
         :param one_minus_alpha: use 1 - alpha for all cell types if True
+        :param verbose: 0: silent, 1: progress bar, 2: one line per epoch
         """
         self.one_minus_alpha = one_minus_alpha
         if not os.path.exists(self.model_file_path):
@@ -181,14 +182,14 @@ class DeSide(object):
                     mode='min',
                     restore_best_weights=True)
                 history = self.model.fit(x.values, y.values, epochs=n_epoch,
-                                         batch_size=batch_size, verbose=2, validation_split=0.2,
+                                         batch_size=batch_size, verbose=verbose, validation_split=0.2,
                                          callbacks=[early_stopping_callback])
                 # history = self.model.fit(x.values, y.values, epochs=n_epoch,
                 #                          batch_size=batch_size, verbose=2)
 
             else:
                 history = self.model.fit(x.values, y.values, epochs=n_epoch,
-                                         batch_size=batch_size, verbose=2, validation_split=0.2)
+                                         batch_size=batch_size, verbose=verbose, validation_split=0.2)
 
             hist = pd.DataFrame(history.history)
             hist['epoch'] = history.epoch

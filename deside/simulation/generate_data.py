@@ -1380,7 +1380,7 @@ def cal_loading_by_pca(pca, gene_list, loading_matrix_file_path=None):
 def filtering_by_gene_list_and_pca_plot(bulk_exp, tcga_exp, gene_list, result_dir, simu_dataset_name,
                                         n_components=5, pca_model_name_postfix='', bulk_exp_type='log_space',
                                         tcga_exp_type='TPM', pca_model_file_path=None, pca_data_file_path=None,
-                                        h5ad_file_path=None, cell_frac_file=None):
+                                        h5ad_file_path=None, cell_frac_file=None, figsize=(5, 5)):
     """
     Filtering by gene list and pca plot
     :param bulk_exp: log2cpm1p
@@ -1408,13 +1408,17 @@ def filtering_by_gene_list_and_pca_plot(bulk_exp, tcga_exp, gene_list, result_di
 
     # PCA and plot
     check_dir(result_dir)
+    assert n_components >= 2, 'n_components must be >= 2'
     if not os.path.exists(pca_data_file_path):
         # combine both simulated bulk cell GEPs and TCGA dataset together
         simu_bulk_with_tcga = pd.concat([bulk_exp, tcga_exp])
         pca_model = do_pca_analysis(exp_df=simu_bulk_with_tcga, n_components=n_components,
                                     pca_result_fp=pca_model_file_path)
         pcs = pca_model.transform(simu_bulk_with_tcga)
-        pca_df = pd.DataFrame(pcs[:, range(3)], index=simu_bulk_with_tcga.index, columns=['PC1', 'PC2', 'PC3'])
+        if n_components >= 3:
+            pca_df = pd.DataFrame(pcs[:, range(3)], index=simu_bulk_with_tcga.index, columns=['PC1', 'PC2', 'PC3'])
+        else:
+            pca_df = pd.DataFrame(pcs[:, range(2)], index=simu_bulk_with_tcga.index, columns=['PC1', 'PC2'])
         pca_df.to_csv(pca_data_file_path)
     else:
         print(f'{pca_data_file_path} already exists, skip PCA analysis')
@@ -1425,8 +1429,8 @@ def filtering_by_gene_list_and_pca_plot(bulk_exp, tcga_exp, gene_list, result_di
     title = f'{simu_dataset_name}_PCA_with_TCGA_{pca_model_name_postfix}'
     color_code = np.array([simu_dataset_name] * bulk_exp.shape[0] + ['TCGA'] * tcga_exp.shape[0])
     # cumsum = np.cumsum(pca_model.explained_variance_ratio_)
-    pca_df['class'] = color_code
-    plot_pca(data=pca_df,
+    # pca_df['class'] = color_code
+    plot_pca(data=pca_df, figsize=figsize,
              result_fp=os.path.join(result_dir, title + '.png'),
              color_code=color_code, explained_variance_ratio=pca_model.explained_variance_ratio_)
     if h5ad_file_path is not None:

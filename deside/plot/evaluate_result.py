@@ -495,6 +495,8 @@ def plot_pca(data: pd.DataFrame, result_fp=None, color_code=None, s=5, figsize=(
         pc_comb = [(0, 1)]
     else:
         raise IndexError(f'data should have >= 2 columns, but {data.shape[1]} got')
+    if color_code is not None:
+        data['class'] = color_code
     for pc1, pc2 in pc_comb:
         # plt.figure(figsize=figsize)
         if 'class' in data.columns:
@@ -545,7 +547,7 @@ def plot_pca(data: pd.DataFrame, result_fp=None, color_code=None, s=5, figsize=(
             g.ax_marg_y.tick_params(axis='y', which='both', right=False)
             g.ax_marg_y.grid(False)
         else:
-            fig = plt.figure(figsize=(12, 8))
+            fig = plt.figure(figsize=figsize)
             ax = fig.add_subplot(111)
             for i in np.unique(color_code)[::-1]:
                 current_part = data.loc[color_code == i, :].copy()
