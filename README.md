@@ -1,4 +1,11 @@
-# DeSide <img src="https://raw.githubusercontent.com/OnlyBelter/DeSide/main/docs/_static/logo.png" width="50">
+# DeSide: Cellular Deconvolution of Bulk RNA-seq
+<img src="https://raw.githubusercontent.com/OnlyBelter/DeSide/main/docs/_static/logo.png" width="300">
+
+![PyPI version](https://img.shields.io/pypi/v/deside)
+![Install with pip](https://img.shields.io/badge/Install%20with-pip-blue)
+![MIT](https://img.shields.io/badge/License-MIT-black)
+
+## What is DeSide?
 
 DeSide is a DEep-learning and SIngle-cell based DEconvolution method for solid tumors, which can be used to infer cellular proportions of different cell types from bulk RNA-seq data.
 
@@ -12,7 +19,7 @@ DeSide consists of the following four parts (see figure below):
 
 In this repository, we provide the code for implementing these four parts and visualizing the results.
 
-### Requirements
+## Requirements
 DeSide requires Python 3.8 or higher. It has been tested on Linux and MacOS, but should work on Windows as well.
 - tensorflow>=2.8.0
 - scikit-learn==0.24.0
@@ -25,7 +32,7 @@ DeSide requires Python 3.8 or higher. It has been tested on Linux and MacOS, but
 - bbknn==1.5.1
 - SciencePlots
 
-### Installation
+## Installation
 
 pip should work out of the box:
 ```
@@ -35,11 +42,11 @@ conda activate deside
 pip install deside
 ```
 
-### Documentation
+## Documentation
 Documentation is available either in the source tree (doc/), or online. (will be available soon)
 
 
-### Usage Examples
+## Usage Examples
 Usage examples can be found: [DeSide_mini_example](https://github.com/OnlyBelter/DeSide_mini_example)
 
 Three examples are provided:
@@ -47,5 +54,7 @@ Three examples are provided:
 - Training a model from scratch
 - Generating a synthetic dataset
 
-### License
+## License
 DeSide can be used under the terms of the MIT License.
+
+## Citation
