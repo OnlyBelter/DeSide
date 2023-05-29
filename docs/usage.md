@@ -62,7 +62,7 @@ In this module, you can use the whole result directory of `result_dir` in `DeSid
 
 You will receive a `.csv` file containing the cell fraction for each cell type per sample, which will be saved in the directory specified by the `output_file_path` parameter.
 
-```test
+```text
 results  # The output folder of this example
 |-- CD8A_vs_predicted_CD8 T_proportion.png  # The figure depicting the predicted CD8 T cell proportions and the expression values of marker gene CD8A
 |-- pred_cell_prop_before_decon.png         # The figure depicting the predicted cell proportions for all cell types
@@ -134,7 +134,7 @@ In this module, you can use the simulated bulk GEPs (training set) were saved in
 ### Output files  （待确认）
 
 You will get 7 files in this module and details are show below. The entire result directory (specified by the `training_set_file_path` parameter) can be utilized as the `model_dir` paramater in the `DeSide prediction` module. 
-```test
+```text
 results  # The output folder of this example
 |-- DeSide_model
 |   |-- celltypes.txt       # Cell types included in the training set
@@ -322,7 +322,7 @@ File `simu_bulk_exp_xx_log2cpm1p.h5ad` is an output file of this moduel that can
 
 `xx` in the following file name is same as the parameter `dataset_name`.    `待确认xx`
 
-```test
+```text
 results  # the output folder of this example
 |-- DeSide_running_log.txt  # log file
 `-- segment_7ds_0.95_n_base100_median_gep
