@@ -6,33 +6,32 @@ How to use DeSide
 
 
 ****
+This package consists of three main modules:
 
-**DeSide have three steps to deconvolution. Here are two ways to use DeSide, one can use the provided well-trained model to predict cell fractions directly, if you do not want to train DeSide model by yourself. Another approach is to sequentially run DeSide Simulation and DeSide Training modules, retrain the model from scratch, and use the self-trained model to predict cell fractions with DeSide Prediction module.**  
+1.  Model Prediction
+2.  Model Training
+3.  Dataset Simulation
+
+There are two ways to use DeSide. Firstly, you can use the provided pre-trained model to directly predict cell proportions, 
+eliminating the need to train the model by yourself. Alternatively, you can sequentially execute the `Dataset Simulation` and `Model Training` modules, training the model from scratch. 
+Subsequently, you can use the self-trained model to predict cell proportions.
 
 
-The DeSide deconvolution workflow consists of three main modules:
+## Model Prediction
 
-1.  DeSide Prediction
-2.  DeSide Training
-3.  DeSide Simulation
+Using the pre-trained model or self-trained model, you can predict cell proportions in bulk gene expression profiles (bulk GEPs) by using the [`deside_model.predict()`]() function.
 
-## DeSide prediction
+To perform the deconvolution, you can use the following command:
 
-Using the pre-trained model or self-trained model to predict cell type proportions in Bulk gene expression profiles (bulk GEPs) with function `deside_model.predict()`. [See details on this function]().
-
-you can use the following command to perform the deconvolution:
-
-### Example code
 
 ```python
+import os
+import pandas as pd
+from deside.utility import check_dir
 from deside.decon_cf import DeSide
 
-# read pre-trained DeSide model
-model_dir = './DeSide_model/'
-deside_model = DeSide(model_dir=model_dir)  
 
-
-# bulk gene expression profiles (GEPs) in TPM formart
+# bulk gene expression profiles (GEPs) in TPM format
 bulk_tpm_file_path = './datasets/TCGA/tpm/LUAD/LUAD_TPM.csv'
 bulk_tpm = pd.read_csv(bulk_tpm_file_path, index_col=0)
 
@@ -41,26 +40,35 @@ result_dir = './results'
 y_pred_file_path = os.path.join(result_dir, 'y_pred.csv')
 check_dir(result_dir)
 
+# read pre-trained DeSide model
+model_dir = './DeSide_model/'
+deside_model = DeSide(model_dir=model_dir) 
+
 # predict by pre-trained model
-# - transpose=True, if the bulk_tpm_file is provided as genes by samples (rows by columns)
-# - we used scaling_by_constant in the manuscript, Scaden used scaling_by_sample
-deside_model.predict(input_file=bulk_tpm_file_path, output_file_path=y_pred_file_path, 
+deside_model.predict(input_file=bulk_tpm_file_path, 
+                     output_file_path=y_pred_file_path, 
                      exp_type='TPM', transpose=True,
                      scaling_by_sample=False, scaling_by_constant=True)
 ```
 
 ### Input files
 
-In this module, you can use the whole result directory of `result_dir` in `DeSide Training` module (location: results/whole_workflow_20230216_7ds_new_hp_without_caner_cell/DeSide_009/Mixed_N100K_segment_filtered-Mixed_N100K_segment_without_filtering)`（待确认）` as the input of parameter `model_dir`, **[or you can download our best pre-trained model file from datasets file](https://github.com/OnlyBelter/DeSide_mini_example/blob/main/DeSide_model/model_DeSide.h5)  and use the real directory in your computer.** Besides, bulk GEPs need to be delivered which were given in transcripts per million (TPM) or log2(TPM + 1). It should be separated by ','  and saved in a `.csv` file. The shape of this file should be m×n, where m is the number of features (genes) and n is the number of samples. You can download an example file from [our datasets file]() (location: datasets\TCGA\tpm). If you have not this format of bulk GEPs file, DeSide can only provide functionality to convert TCGA read count data into the correct file format. Have a look at the [Data Processing]() section for instructions on how to use this function. `Data Processing 待确认`
+In this part, you can use the whole result directory of `result_dir` in `Model Training` module as the input parameter of `model_dir`, 
+or you can download the pre-trained model from [DeSide_model]()  
+and use the real directory in your computer.** Besides, bulk GEPs need to be delivered which were given in transcripts per million (TPM) or log2(TPM + 1). 
+It should be separated by ','  and saved in a `.csv` file. The shape of this file should be m×n, where m is the number of features (genes) and n is the number of samples. 
+You can download an example file from [our datasets file]() (location: datasets\TCGA\tpm). 
+If you have not this format of bulk GEPs file, DeSide can only provide functionality to convert TCGA read count data into the correct file format. 
+Have a look at the [Data Processing]() section for instructions on how to use this function. 
+`Data Processing 待确认`
 
-- model_dir: The `result_dir` directory contains the well-trained model.
-- input_file: Bulk GEPs in transcripts per million (TPM) or log2(TPM + 1) format, separated by ',', and saved in a `.csv` file.
-
+- model_dir: a folder instead of a single file
+  - For self-trained model: the whole result folder of `result_dir` in `Model Training` module.
+  - For pre-trained model: it can be downloaded from [DeSide_model](https://github.com/OnlyBelter/DeSide_mini_example/blob/main/DeSide_model)
+- input_file: Bulk GEPs in `transcripts per million` (TPM) or `log2(TPM + 1)` format, separated by ',', and saved in a `.csv` file. [Example file]()
 
 
 ### Output files
-
-You will receive a `.csv` file containing the cell fraction for each cell type per sample, which will be saved in the directory specified by the `output_file_path` parameter.
 
 ```text
 results  # The output folder of this example
@@ -69,34 +77,25 @@ results  # The output folder of this example
 `-- y_pred.csv                              # The file containing the predicted cell proportions
 ```
 
-Example files: You can download this file from [our results file]() (location: results/predicted_cell_fraction).  `location待确认`   
-
-
-
-## DeSide Training
-
-If you wish to train a model from scranch, here is the module that we provide. Once you have set up the training set, you can start training a DeSide model with function `DeSide().train_model()`.  [See details on this function]().  
-
-
-
-### Example code
+## Model Training
 
 ```python
-from deside.utility import check_dir
+import os
+from deside.utility import check_dir, sorted_cell_types
 from deside.decon_cf import DeSide
 
 # create output directory
 result_dir = './results'
 check_dir(result_dir)
 
-# using D2 as the training set
+# using dataset D1 as the training set
 training_set2file_path = {
     'D1': './datasets/simulated_bulk_cell_dataset/simu_bulk_exp_Mixed_N100K_D1.h5ad',
 }
 
 all_cell_types = sorted_cell_types
 
-# set the hyper-parameters
+# set hyper-parameters of the DNN model
 deside_parameters = {'architecture': ([100, 1000, 1000, 1000, 50],
                                       [0, 0, 0, 0.2, 0]),
                      'loss_function': 'mae+rmse',
@@ -108,32 +107,31 @@ deside_parameters = {'architecture': ([100, 1000, 1000, 1000, 50],
 # remove cancer cell during training process
 remove_cancer_cell = True
 
-
-# set result dirtory to save DeSide model
+# set result folder to save DeSide model
 model_dir = os.path.join(result_dir, 'DeSide_model')
 log_file_path = os.path.join(result_dir, 'deside_running_log.txt')
-deside_obj = DeSide(model_dir=model_dir, log_file_path=log_file_path)  
+deside_obj = DeSide(model_dir=model_dir, log_file_path=log_file_path)
 
-# training DeSide
-# - training_set_file_path is a list, multiple datasets will be combined together
+# training DeSide model
+# - training_set_file_path is a list, multiple datasets will be combined as one training set
 deside_obj.train_model(training_set_file_path=[training_set2file_path['D1']], 
                        hyper_params=deside_parameters, cell_types=all_cell_types,
                        scaling_by_constant=True, scaling_by_sample=False,
                        remove_cancer_cell=remove_cancer_cell,
                        n_patience=100, n_epoch=3000, verbose=0)
-
 ```
 ### Input files
 
-In this module, you can use the simulated bulk GEPs (training set) were saved in `.h5ad` file to train the DeSide model. This file usually generated from  `DeSide Simulation` module. The training set D1 we used can be downloaded from [our datasets file](https://figshare.com/articles/dataset/Dataset_D1/23047391/1)   
+In this module, you can use the simulated bulk GEPs (training set) with the pre-defined cell proportion matrix to train the DeSide model. 
+This file usually generated from the `Dataset Simulation` module.
 
+- training_set_file_path: the file path of training set in `.h5ad` format.
 
-- training_set_file_path: simu_bulk_exp_Mixed_N100K_D1.h5ad, the simulated bulk GEPs (training set) were saved in `.h5ad` file that contains both GEPs (in log2(CPM+1) counts) information and the fraction of cell types.
-  
+The training set `D1` we used in this example can be downloaded from [simu_bulk_exp_Mixed_N100K_D1.h5ad.zip](https://figshare.com/articles/dataset/Dataset_D1/23047391/1) 
 
-### Output files  （待确认）
+### Output files
 
-You will get 7 files in this module and details are show below. The entire result directory (specified by the `training_set_file_path` parameter) can be utilized as the `model_dir` paramater in the `DeSide prediction` module. 
+There are 7 files in the result folder. The entire result folder, `DeSide_model`, can be utilized as the `model_dir` parameter in the `Model Prediction` part. 
 ```text
 results  # The output folder of this example
 |-- DeSide_model
@@ -145,185 +143,187 @@ results  # The output folder of this example
 |   `-- model_DeSide.h5     # Saved model after training
 `-- deside_running_log.txt  # Log file
 ```
-Example files: You can download this file from [our datasets file]() (location: ).     #目录指定到最好的模型目录？
-
-
-
-
 
 ## DeSide Simulation
 
 ### a. Using the single cell dataset we provided
 
-In this moduel, you can generate simulated GEPs based on single cell RNA-seq (scRNA-seq) dataset. We provided 7 scRNA-seq datasets so far: 'hnscc_cillo_01', 'pdac_pengj_02', 'hnscc_puram_03', 'pdac_steele_04', 'luad_kim_05', 'nsclc_guo_06', 'pan_cancer_07'. You can use all (or part) of 7 scRNA-seq datasets by specified the sc_dataset_ids parameter when you call class `BulkGEPGenerator()`. Generated GEPs can be used as `training set` for training DeSide model.        ` or `test set` for testing the model performance after training finished.      这句可删????`
-
-### b. Preparing single cell dataset by yourself
-
-If you want to use other scRNA-seq datasets to Simulate GEPs, you can follow our workflow to preprocess single cell datasets and merge them together. Python package `Scanpy` was used heavily in our workflow.
-
-- Preprocessing a single dataset: [Here is an example of how i process my scRNA-seq dataset(s)]().
-- Merging multiple datasets together: [Here is an example of how i process my scRNA-seq dataset(s)]().
-
-Also read the section "1. Integrating single cell RNA-seq dataset" in supplementary material for more details.
-
-[Explanation of parameters in this function can be found](). 
-
-#### Example code for generating a training set
+In this module, you can synthesize bulk tumors based on the dataset `S1`.
+This example synthesized 10,000 samples of bulk tumors as a demonstration about the generation and filtering steps.
 
 ```python
-from deside.simulation import simulated_bulk_gep_generator
+import os
+import pandas as pd
+from deside.utility import (check_dir, sorted_cell_types)
+from deside.utility.read_file import ReadExp, ReadH5AD
+from deside.simulation import (BulkGEPGenerator, get_gene_list_for_filtering,
+                               filtering_by_gene_list_and_pca_plot)
 
-n_base = 100  # averaging 100 GEPs sampled from S1 to synthesize 1 bulk GEP, used by S1 generation
-gep_filtering_quantile = (0.0, 0.95)  # GEP-level filtering, L1-norm threshold
-dataset_name = 'Mixed_N10K_segment'
 # the list of single cell RNA-seq datasets
 sc_dataset_ids = ['hnscc_cillo_01', 'pdac_pengj_02', 'hnscc_puram_03',
                   'pdac_steele_04', 'luad_kim_05', 'nsclc_guo_06', 'pan_cancer_07']
 
-params={"sampling_method": "segment",
-        "sc_dataset_ids": [
-            "hnscc_cillo_01",
-            "pdac_pengj_02",
-            "hnscc_puram_03",
-            "pdac_steele_04",
-            "luad_kim_05",
-            "nsclc_guo_06",
-            "pan_cancer_07"
-            ],
-        "cell_types": [
-            "B Cells",
-            "CD4 T",
-            "CD8 T",
-            "Cancer Cells",
-            "DC",
-            "Endothelial Cells",
-            "Fibroblasts",
-            "Macrophages",
-            "Mast Cells",
-            "NK",
-            "Neutrophils"],
-        "n_samples": 10000,
-        "sampling_method": "segment",
-        "filtering": true,
-        "filtering_ref_types": [
-            "ACC",
-            "BLCA",
-            "BRCA",
-            "GBM",
-            "HNSC",
-            "LGG",
-            "LIHC",
-            "LUAD",
-            "PAAD",
-            "PRAD",
-            "CESC",
-            "COAD",
-            "KICH",
-            "KIRC",
-            "KIRP",
-            "LUSC",
-            "READ",
-            "THCA",
-            "UCEC"]
-        }
-sampling_method = params['sampling_method']
-n_sc_datasets = len(sc_dataset_ids)
-simu_bulk_exp_dir= os.path.join('results', '{}_{}ds_{}_n_base{}_median_gep')
-simu_bulk_exp_dir= simu_bulk_exp_dir.format(sampling_method, n_sc_datasets,
-                                            gep_filtering_quantile[1], n_base)
+# the list of cancer types in the TCGA dataset
+cancer_types = ['ACC', 'BLCA', 'BRCA', 'GBM', 'HNSC', 'LGG', 'LIHC', 'LUAD', 'PAAD', 'PRAD',
+                'CESC', 'COAD', 'KICH', 'KIRC', 'KIRP', 'LUSC', 'READ', 'THCA', 'UCEC']
+
+# the list of cell types
+all_cell_types = sorted_cell_types
+
+# parameters
+# for gene-level filtering
+gene_list_type = 'high_corr_gene_and_quantile_range'
+gene_quantile_range = [0.05, 0.5, 0.95]  # gene-level filtering
+
+# for GEP-level filtering
+gep_filtering_quantile = (0.0, 0.95)  # GEP-level filtering, L1-norm threshold
+n_base = 100  # averaging 100 GEPs sampled from S1 to synthesize 1 bulk GEP, used by S1 generation
+
+# optional, if set a prior cell proportion range for each cell type, the GEP-filtering step will be faster, default is (0, 1)
+# It can be set as cell_prop_prior = {'B Cells': (0, 0.25), 'CD4 T': (0, 0.25), 'CD8 T': (0, 0.25),
+#                    'DC': (0, 0.1), 'Mast Cells': (0, 0.1), 'NK': (0, 0.1), 'Neutrophils': (0, 0.1),
+#                    'Endothelial Cells': (0, 0.5), 'Fibroblasts': (0, 0.5), 'Macrophages': (0, 0.5),
+#                    'Cancer Cells': (0, 1)}
+cell_prop_prior = None
+dataset2parameters = {
+    'Mixed_N10K_segment': {
+        'sc_dataset_ids': sc_dataset_ids,
+        'cell_types': all_cell_types,
+        'n_samples': 10000,
+        'sampling_method': 'segment', # or `random` used by Scaden
+        'filtering': True,
+    }
+}
+
+for ds, params in dataset2parameters.items():
+    if ('filtering' in params) and ('filtering_ref_types' not in params):
+        if params['filtering']:
+            params['filtering_ref_types'] = cancer_types
+        else:
+            params['filtering_ref_types'] = None
+
+# Using TCGA as reference GEPs to filter synthetic GEPs 
+tcga_data_dir = r'./datasets/TCGA/tpm/'  # input
+tcga_merged_tpm_file_path = os.path.join(tcga_data_dir, 'merged_tpm.csv')
+tcga2cancer_type_file_path = os.path.join(tcga_data_dir, 'tcga_sample_id2cancer_type.csv')
 
 # the file path of the dataset `S1`
 sct_dataset_file_path = './datasets/simu_bulk_exp_SCT_N10K_S1.h5ad'
-tcga_data_dir = './datasets/TCGA/tpm/' 
-tcga2cancer_type_file_path = os.path.join(tcga_data_dir, 'tcga_sample_id2cancer_type.csv')
 
-bulk_generator = BulkGEPGenerator(simu_bulk_dir=simu_bulk_exp_dir,
-                                    merged_sc_dataset_file_path=None,
-                                    cell_types=params['cell_types'],
-                                    sc_dataset_ids=params['sc_dataset_ids'],
-                                    bulk_dataset_name=dataset_name,
-                                    sct_dataset_file_path=sct_dataset_file_path,
-                                    check_basic_info=False,
-                                    tcga2cancer_type_file_path=tcga2cancer_type_file_path)
+# naming the file of filtered bulk cell dataset
+q_names = ['q_' + str(int(q * 1000)/10) for q in gene_quantile_range]
+replace_by = f'_filtered_by_{gene_list_type}.h5ad'
 
-# GEP-filtering will be performed during this generation process
+if 'quantile_range' in gene_list_type:
+    replace_by = f'_filtered_by_{gene_list_type}_{q_names[0]}_{q_names[2]}.h5ad'
 
-tcga_merged_tpm_file_path = os.path.join(tcga_data_dir, 'merged_tpm.csv')
-log_file_path= './results/DeSide_running_log.txt'
-cell_prop_prior = None
-bulk_generator.generate_gep(n_samples=params['n_samples'],
-                            simu_method='mul',
-                            sampling_method=params['sampling_method'],
-                            reference_file=tcga_merged_tpm_file_path,
-                            ref_exp_type='TPM',
-                            filtering=params['filtering'],
-                            filtering_ref_types=params['filtering_ref_types'],
-                            gep_filtering_quantile=gep_filtering_quantile,
-                            n_threads=5,
-                            log_file_path=log_file_path,
-                            show_filtering_info=False,
-                            filtering_method='median_gep',
-                            cell_prop_prior=cell_prop_prior)
+sampling_method2dir = {
+    'segment': os.path.join('results', 'E3', '{}_{}ds_{}_n_base{}_median_gep'),
+}
+
+n_sc_datasets = len(sc_dataset_ids)
+dataset2path = {}
+log_file_path = './results/E3/DeSide_running_log.txt'
+
+# for gene filtering
+d2_dir = './datasets/simulated_bulk_cell_dataset/D2/'
+high_corr_gene_file_path = os.path.join(d2_dir, f'gene_list_filtered_by_high_corr_gene.csv')
+high_corr_gene_list = pd.read_csv(high_corr_gene_file_path)
+high_corr_gene_list = high_corr_gene_list['gene_name'].to_list()
+
+for dataset_name, params in dataset2parameters.items():
+    if 'SCT' in dataset_name:
+        pass  # using `S1` directly, omit this step here
+    else:
+        sampling_method = params['sampling_method']
+        # the folder of simulated bulk cells
+        simu_bulk_exp_dir = sampling_method2dir[sampling_method]
+        if sampling_method in ['segment']:
+            simu_bulk_exp_dir = simu_bulk_exp_dir.format(sampling_method, n_sc_datasets,
+                                                         gep_filtering_quantile[1], n_base)
+        else:  # 'random'
+            simu_bulk_exp_dir = simu_bulk_exp_dir.format(sampling_method, n_sc_datasets, n_base)
+        check_dir(simu_bulk_exp_dir)
+        bulk_generator = BulkGEPGenerator(simu_bulk_dir=simu_bulk_exp_dir,
+                                          merged_sc_dataset_file_path=None,
+                                          cell_types=params['cell_types'],
+                                          sc_dataset_ids=params['sc_dataset_ids'],
+                                          bulk_dataset_name=dataset_name,
+                                          sct_dataset_file_path=sct_dataset_file_path,
+                                          check_basic_info=False,
+                                          tcga2cancer_type_file_path=tcga2cancer_type_file_path)
+        # GEP-filtering will be performed during this generation process
+        generated_bulk_gep_fp = bulk_generator.generated_bulk_gep_fp
+        dataset2path[dataset_name] = generated_bulk_gep_fp
+        if not os.path.exists(generated_bulk_gep_fp):
+            bulk_generator.generate_gep(n_samples=params['n_samples'],
+                                        simu_method='mul',
+                                        sampling_method=params['sampling_method'],
+                                        reference_file=tcga_merged_tpm_file_path,
+                                        ref_exp_type='TPM',
+                                        filtering=params['filtering'],
+                                        filtering_ref_types=params['filtering_ref_types'],
+                                        gep_filtering_quantile=gep_filtering_quantile,
+                                        n_threads=5,
+                                        log_file_path=log_file_path,
+                                        show_filtering_info=False,
+                                        filtering_method='median_gep',
+                                        cell_prop_prior=cell_prop_prior)
+
+        # gene-level filtering that depends on the high correlation genes and quantile range (each dataset itself)
+        if params['filtering']:
+            filtered_file_path = generated_bulk_gep_fp.replace('.h5ad', replace_by)
+            if not os.path.exists(filtered_file_path):
+                gene_list = high_corr_gene_list.copy()
+                # get gene list, filtering, PCA and plot
+                current_result_dir = os.path.join(simu_bulk_exp_dir, dataset_name)
+                check_dir(current_result_dir)
+                # the gene list file for current dataset
+                if 'quantile_range' in gene_list_type:
+                    gene_list_file_path = os.path.join(simu_bulk_exp_dir, dataset_name, f'gene_list_filtered_by_{gene_list_type}.csv')
+                    gene_list_file_path = gene_list_file_path.replace('.csv', f'_{q_names[0]}_{q_names[2]}.csv')
+                    if not os.path.exists(gene_list_file_path):
+                        print(f'Gene list of {dataset_name} will be saved in: {gene_list_file_path}')
+                        quantile_gene_list = get_gene_list_for_filtering(bulk_exp_file=generated_bulk_gep_fp,
+                                                                         filtering_type='quantile_range',
+                                                                         tcga_file=tcga_merged_tpm_file_path,
+                                                                         quantile_range=gene_quantile_range,
+                                                                         result_file_path=gene_list_file_path,
+                                                                         q_col_name=q_names)
+                    else:
+                        print(f'Gene list file existed: {gene_list_file_path}')
+                        quantile_gene_list = pd.read_csv(gene_list_file_path)
+                        quantile_gene_list = quantile_gene_list['gene_name'].to_list()
+                    # get the intersection of the two gene lists (high correlation genes and within quantile range)
+                    gene_list = [gene for gene in gene_list if gene in quantile_gene_list]
+                bulk_exp_obj = ReadH5AD(generated_bulk_gep_fp)
+                bulk_exp = bulk_exp_obj.get_df()
+                bulk_exp_cell_frac = bulk_exp_obj.get_cell_fraction()
+                tcga_exp = ReadExp(tcga_merged_tpm_file_path, exp_type='TPM').get_exp()
+                pc_file_name = f'both_TCGA_and_simu_data_{dataset_name}'
+                pca_model_file_path = os.path.join(current_result_dir, f'{pc_file_name}_PCA_{gene_list_type}.joblib')
+                pca_data_file_path = os.path.join(current_result_dir, f'{dataset_name}_PCA_with_TCGA_{gene_list_type}.csv')
+                # save GEPs data by filtered gene list
+                print('Filtering by gene list and PCA plot')
+                filtering_by_gene_list_and_pca_plot(bulk_exp=bulk_exp, tcga_exp=tcga_exp, gene_list=gene_list,
+                                                    result_dir=current_result_dir, n_components=2,
+                                                    simu_dataset_name=dataset_name,
+                                                    pca_model_name_postfix=gene_list_type,
+                                                    pca_model_file_path=pca_model_file_path,
+                                                    pca_data_file_path=pca_data_file_path,
+                                                    h5ad_file_path=filtered_file_path,
+                                                    cell_frac_file=bulk_exp_cell_frac,
+                                                    figsize=(5, 5))
 ```
 
-#### Example code for generating a test set    删去???
+#### Input files
+- merged_tpm.csv: Gene expression profiles (GEPs) of 19 cancer types in TCGA (TPM format). Download link: https://doi.org/10.6084/m9.figshare.23047547.v1
+- tcga_sample_id2cancer_type.csv: An annotation file that contains the cancer type for each sample id of above 19 cancer types. Download link: https://raw.githubusercontent.com/OnlyBelter/DeSide_mini_example/main/datasets/TCGA/tpm/tcga_sample_id2cancer_type.csv
+- simu_bulk_exp_SCT_N10K_S1.h5ad: Dataset S1, which contains the synthesized single-cell GEPs (scGEPs). Download link: https://doi.org/10.6084/m9.figshare.23043560.v1
 
-```python
-from deside.simulation import simulated_bulk_gep_generator
-
-simulated_bulk_gep_generator(n_per_gradient=5, 
-                             result_dir="path/result/bulk_simulate/", n_sample_cell_type=5000, 
-                             merged_sc_dataset_file_path="path/result/sc_datasets/file.h5ad ", 
-                             cell_types=['Cancer Cells', 'CD4 T', 'CD8 T', 'Fibroblasts', 'DC', 'NK'], 
-                             gradient_range={'Cancer Cells': (50, 100), 'CD8 T': (1, 30), 
-                                             'Fibroblasts': (80, 100)},
-                             dataset_name="Test_set", sc_dataset_id=["all"], 
-                             generated_sc_dataset_dir="path/result/bulk_simulate/sc_data/")
-```
-
-### Input files
-
-The provided single cell dataset of sct_dataset_file_path param in generate_gep() function, `simu_bulk_exp_SCT_N10K_S1.h5ad`,  is a `h5ad` file (see more details about this file format from [anndata](https://anndata.readthedocs.io/en/latest/index.html)) which contains 7 scRNA-seq datasets and 11 cell types. You can download this file from [our datasets file](https://figshare.com/articles/dataset/Dataset_S1/23043560/1). 
-
-- reference_file: merged_tpm.csv, GEPs of 19 cancer types in TCGA (TPM format). You can download this file from [our datasets file](https://github.com/OnlyBelter/DeSide_mini_example/tree/main). 
-
-- tcga2cancer_type_file_path: tcga_sample_id2cancer_type.csv, An annotation file that contains the cancer type for each sample id of above 19 cancer types.
-
-- sct_dataset_file_path: simu_bulk_exp_SCT_N10K_S1.h5ad
-
-  - `obs` contains the information of single cell samples such as sample id, cell type and dataset id.
-
-  - `var` contains gene names of samples. 
-
-  - `X` is a matrix of gene expression profiles (GEPs, log space) with the shape of n_sample  by n_gene.
-
-  - 7 scRNA-seq dataset ids: "hnscc_cillo_01", "pdac_pengj_02", "hnscc_puram_03", "pdac_steele_04", "luad_kim_05", "nsclc_guo_06", "pan_cancer_07".
-
-  - 11 cell types: B Cells, CD4 T, CD8 T, Cancer Cells, DC, Endothelial cells, Fibroblasts, Macrophages, Mast Cells, NK, Neutrophils.
-    This file can be accessed by:
-
-    ```python
-    import anndata as an
-    
-    merged_sc_dataaset = an.read_h5ad('path/to/merged_6_sc_dataset.h5ad')
-    print(merged_sc_dataset.X.shape)  # (67870, 11785)
-    ```
-
-
-    
-
-
-
-    
-
-### Output files  `之前的版本，待确认`
-
-File `simu_bulk_exp_xx_log2cpm1p.h5ad` is an output file of this moduel that can be used as input data of function `DeSide().train_model()` for training model or function `DeSide().predict()` for testing model performance.
-
-`xx` in the following file name is same as the parameter `dataset_name`.    `待确认xx`
-
+#### Output files
 ```text
-results  # the output folder of this example
+results/E3  # the output folder of this example
 |-- DeSide_running_log.txt  # log file
 `-- segment_7ds_0.95_n_base100_median_gep
     |-- Mixed_N10K_segment
@@ -336,9 +336,13 @@ results  # the output folder of this example
     |-- simu_bulk_exp_Mixed_N10K_segment_log2cpm1p_filtered_by_high_corr_gene_and_quantile_range_q_5.0_q_95.0.h5ad  # Generated bulk GEPs after filtering (h5ad format)
     `-- simu_bulk_exp_Mixed_N10K_segment_sampled_sc_cell_id.csv  # Selected single-cell GEPs from dataset S1 during GEP sampling
 ```
-Example files: You can downloda this files from [our datasets file]() (location: datasets/simulated_bulk_cell_dataset).
 
+### b. Preparing single cell dataset by yourself
 
+If you want to use other scRNA-seq datasets to simulate GEPs, you can follow our workflow to preprocess single cell datasets and merge them together. The Python package `Scanpy` was used heavily in our workflow.
+
+- Preprocessing a single dataset: [Here is an example of how i process my scRNA-seq dataset(s)]().
+- Merging multiple datasets together: [Here is an example of how i process my scRNA-seq dataset(s)]().
 
 
 ## Data Processing
@@ -358,7 +362,9 @@ read_counts2tpm(read_counts_file_path='path/ACC_htseq.counts.csv', file_name_pre
 
 ### Input files
 
-In this step, TCGA read counts data (htseq.counts) in a .csv file (separated by ",")  or .txt file (separated by "\t") should be prepared. This file has the shape of m×n, where m is the number of features (genes) and n is the number of samples. You can download an example file from [our datasets file]() (location: datasets\TCGA\merged_data). Besides, file `gencode.gene.info.v22.tsv` for .. is also need, you can download this file from [our datasets file]() (location: datasets\TCGA\gencode.gene.info.v22.tsv)
+In this step, TCGA read counts data (htseq.counts) in a .csv file (separated by ",")  or .txt file (separated by "\t") should be prepared. 
+This file has the shape of `m×n`, where `m` is the number of features (genes) and `n` is the number of samples. 
+You can download an example file from [our datasets file]() (location: datasets\TCGA\merged_data). Besides, file `gencode.gene.info.v22.tsv` for .. is also need, you can download this file from [our datasets file]() (location: datasets\TCGA\gencode.gene.info.v22.tsv)
 
 - xx.csv: TCGA read counts data. 
 - gencode.gene.info.v22.tsv:	?
@@ -372,122 +378,3 @@ You will get 3 files transfer from TCGA read counts data, details show below. `x
 - xx_log2tpm1p.csv: GEPs given in log2(TPM + 1).
 
 Example files: You can download this file from [our results file]() (location: datasets\TCGA\tpm).
-     
-
-
-
-  
-
-##  Directory tree structure of `datasets`
-
-We provided the datasets file with following directory tree structure, [you can download this file here](). Our datasets file contains all input datas and some intermediate output datas in our process by used DeSide. 
-
-```
-datasets/
-├── cancer_purity/
-│   └── cancer_purity.csv
-├── simulated_bulk_cell_dataset/
-│   ├── generated_frac_**.csv
-│   ├── simu_bulk_exp_**_log2cpm1p.csv
-│   ├── simu_bulk_exp_**_log2cpm1p.h5ad
-│   ├── simu_bulk_exp_**_selected_cell_id.csv
-│   ├── sc_dataset/
-│   │   ├── generated_10_cell_type_n5000_pdac_pengj_02_pdac_steele_04.h5ad
-│   │   ├── generated_11_cell_type_n5000_all.h5ad
-│   │   ├── generated_8_cell_type_n5000_hnscc_cillo_01_hnscc_puram_03.h5ad
-│   │   └── generated_9_cell_type_n5000_luad_kim_05.h5ad
-│   └── test_set/
-│       ├── generated_frac_**.csv
-│       ├── simu_bulk_exp_**_CPM.txt
-│       ├── simu_bulk_exp_**_log2cpm1p.csv
-│       ├── simu_bulk_exp_**_log2cpm1p.h5ad
-│       └── simu_bulk_exp_**_selected_cell_id.csv
-├── single_cell/
-│   ├── count_by_cell_type_and_dataset2.csv
-│   ├── merged_6_sc_datasets.h5ad
-│   ├── merged_6_sc_datasets.rar
-│   └── merged_single_cell_dataset_sample_info.csv
-├── TCGA/
-│   ├── gdc_sample_sheet_10_tumors.tsv
-│   ├── gencode.gene.info.v22.tsv
-│   ├── merged_data/
-│   │   └── **/
-│   │       └── merged_**_htseq.counts.csv
-│   └── tpm/
-│       └── **/
-│            ├── **_htseq.counts.csv
-│            ├── **_log2tpm1p.csv
-│            └── **_TPM.csv
-└── well_trained_model/
-    └── **/
-        └── **/
-            ├── celltypes.txt
-            ├── genes.txt
-            ├── history_reg.csv
-            ├── loss.png
-            └── model_**.h5
-```
-
-
-
-
-
-## Directory tree structure of `results`
-
-We provided the results file with following directory tree structure, [you can download this file here](). Our results file contains final results in our process by used DeSide. 
-
-```
-results/
-├── predicted_cell_fraction/
-│   └── **/
-│       ├── cell_fraction_by_DeSide_**/
-│       │   ├── cancer_purity_merged_DeSide_**_predicted_result.csv
-│       │   ├── CD8A_vs_predicted_CD8 T_proportion.png
-│       │   ├── CPE_vs_predicted_1-others_proportion.png
-│       │   ├── CPE_vs_predicted_Cancer Cells_proportion.png
-│       │   ├── pred_cell_frac_before_decon.png
-│       │   └── y_predicted_result.csv
-│       └── cell_fraction_by_Scaden_**/
-│           ├── cancer_purity_merged_Scaden_**_predicted_result.csv
-│           ├── CD8A_vs_predicted_CD8 T_proportion.png
-│           ├── CPE_vs_predicted_1-others_proportion.png
-│           ├── CPE_vs_predicted_Cancer Cells_proportion.png
-│           ├── pred_by_model_m1024.csv
-│           ├── pred_by_model_m256.csv
-│           ├── pred_by_model_m512.csv
-│           ├── pred_cell_frac_before_decon.png
-│           └── y_predicted_result.csv
-└── test_set_pred/
-    └── Test_set**/
-        ├── DeSide_**/
-        │   ├── Cancer Cells_true_vs_predicted_1-others_proportion.png
-        │   ├── Cancer Cells_true_vs_predicted_Cancer Cells_pred_proportion.png
-        │   ├── CD8 T_true_vs_predicted_CD8 T_pred_proportion.png
-        │   ├── CD8A_vs_predicted_CD8 T_true_proportion.png
-        │   ├── model_performance_evaluation.csv
-        │   ├── y_predicted_result.csv
-        │   ├── y_true_vs_absolute_error_deside.png
-        │   ├── y_true_vs_absolute_error_deside_1-others.png
-        │   ├── y_true_vs_y_pred_deside.png
-        │   └── y_true_vs_y_pred_deside_1-others.png
-        └── Scaden_**/
-            ├── Cancer Cells_true_vs_predicted_Cancer Cells_pred_proportion.png
-            ├── CD8 T_true_vs_predicted_CD8 T_pred_proportion.png
-            ├── CD8A_vs_predicted_CD8 T_true_proportion.png
-            ├── model_performance_evaluation.csv
-            ├── pred_by_model_m1024.csv
-            ├── pred_by_model_m256.csv
-            ├── pred_by_model_m512.csv
-            ├── y_predicted_result.csv
-            ├── y_true_vs_absolute_error_average.png
-            ├── y_true_vs_absolute_error_m1024.png
-            ├── y_true_vs_absolute_error_m256.png
-            ├── y_true_vs_absolute_error_m512.png
-            ├── y_true_vs_y_pred_average.png
-            ├── y_true_vs_y_pred_m1024.png
-            ├── y_true_vs_y_pred_m256.png
-            └── y_true_vs_y_pred_m512.png
-```
-
-
-
