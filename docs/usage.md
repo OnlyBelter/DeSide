@@ -62,10 +62,12 @@ In this module, you can use the whole result directory of `result_dir` in `DeSid
 
 You will receive a `.csv` file containing the cell fraction for each cell type per sample, which will be saved in the directory specified by the `output_file_path` parameter.
 
+```test
 results  # The output folder of this example
 |-- CD8A_vs_predicted_CD8 T_proportion.png  # The figure depicting the predicted CD8 T cell proportions and the expression values of marker gene CD8A
 |-- pred_cell_prop_before_decon.png         # The figure depicting the predicted cell proportions for all cell types
 `-- y_pred.csv                              # The file containing the predicted cell proportions
+```
 
 Example files: You can download this file from [our results file]() (location: results/predicted_cell_fraction).  `location待确认`   
 
@@ -132,7 +134,7 @@ In this module, you can use the simulated bulk GEPs (training set) were saved in
 ### Output files  （待确认）
 
 You will get 7 files in this module and details are show below. The entire result directory (specified by the `training_set_file_path` parameter) can be utilized as the `model_dir` paramater in the `DeSide prediction` module. 
-
+```test
 results  # The output folder of this example
 |-- DeSide_model
 |   |-- celltypes.txt       # Cell types included in the training set
@@ -142,7 +144,7 @@ results  # The output folder of this example
 |   |-- loss.png            # The figure depicting loss values over epochs
 |   `-- model_DeSide.h5     # Saved model after training
 `-- deside_running_log.txt  # Log file
-
+```
 Example files: You can download this file from [our datasets file]() (location: ).     #目录指定到最好的模型目录？
 
 
@@ -320,6 +322,7 @@ File `simu_bulk_exp_xx_log2cpm1p.h5ad` is an output file of this moduel that can
 
 `xx` in the following file name is same as the parameter `dataset_name`.    `待确认xx`
 
+```test
 results  # the output folder of this example
 |-- DeSide_running_log.txt  # log file
 `-- segment_7ds_0.95_n_base100_median_gep
@@ -332,7 +335,7 @@ results  # the output folder of this example
     |-- simu_bulk_exp_Mixed_N10K_segment_log2cpm1p.h5ad  # Generated bulk GEPs without filtering (h5ad format)
     |-- simu_bulk_exp_Mixed_N10K_segment_log2cpm1p_filtered_by_high_corr_gene_and_quantile_range_q_5.0_q_95.0.h5ad  # Generated bulk GEPs after filtering (h5ad format)
     `-- simu_bulk_exp_Mixed_N10K_segment_sampled_sc_cell_id.csv  # Selected single-cell GEPs from dataset S1 during GEP sampling
-
+```
 Example files: You can downloda this files from [our datasets file]() (location: datasets/simulated_bulk_cell_dataset).
 
 
