@@ -18,3 +18,4 @@ tables>=3.6.1
 build
 fsspec
 h5py
+sphinx_rtd_theme

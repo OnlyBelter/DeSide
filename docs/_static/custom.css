@@ -1,0 +1,4 @@
+/* custom color */
+div.body pre.docutils.literal-block.code {
+    background-color: #00bbff;
+}

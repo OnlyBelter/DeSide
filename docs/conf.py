@@ -12,6 +12,7 @@
 #
 import os
 import sys
+import sphinx_book_theme
 sys.path.insert(0, os.path.abspath(r'..'))
 
 
@@ -19,7 +20,7 @@ sys.path.insert(0, os.path.abspath(r'..'))
 
 project = 'DeSide'
 copyright = '2023, iSynBio & HKBU'
-author = 'Xin Xiong'
+author = 'Xin Xiong & Yerong Liu'
 
 # The full version, including alpha/beta/rc tags
 release = '1.0.1'
@@ -33,6 +34,7 @@ release = '1.0.1'
 extensions = [
     "myst_parser",
     'sphinx.ext.autodoc',
+    'sphinx.ext.viewcode',
     # 'sphinx.ext.doctest',
     # 'sphinx.ext.coverage',
     # 'sphinx.ext.napoleon',
@@ -66,6 +68,7 @@ html_copy_source = True
 # html_sourcelink_suffix = ""
 html_favicon = "_static/logo.png"
 # html_last_updated_fmt = ""
+highlight_language = "python"
 
 
 # Add any paths that contain custom static files (such as style sheets) here,
@@ -82,6 +85,11 @@ html_theme_options = {
     "use_repository_button": True,
     "use_download_button": True,
 }
+
+# custom css
+html_css_files = [
+    '_static/custom.css',
+]
 
 # Add type of source files
 source_suffix = ['.rst', '.md']
