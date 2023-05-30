@@ -36,6 +36,8 @@ dependencies = [
     "scanpy==1.8.0",
     "pandas==1.2.5",
     "numpy<1.22",
+    "scipy",
+    "umap-learn==0.5.1",
     "matplotlib<3.7",
     "seaborn>=0.11.2",
     "bbknn==1.5.1",

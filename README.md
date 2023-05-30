@@ -31,6 +31,7 @@ DeSide requires Python 3.8 or higher. It has been tested on Linux and MacOS, but
 - seaborn>=0.11.2
 - bbknn==1.5.1
 - SciencePlots
+- matplotlib<3.7
 
 ## Installation
 

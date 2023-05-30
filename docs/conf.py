@@ -18,11 +18,11 @@ sys.path.insert(0, os.path.abspath(r'..'))
 # -- Project information -----------------------------------------------------
 
 project = 'DeSide'
-copyright = '2021, iSynBio'
+copyright = '2023, iSynBio & HKBU'
 author = 'Xin Xiong'
 
 # The full version, including alpha/beta/rc tags
-release = '0.9.1'
+release = '1.0.1'
 
 
 # -- General configuration ---------------------------------------------------
