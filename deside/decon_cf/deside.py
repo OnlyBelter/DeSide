@@ -12,11 +12,15 @@ from ..plot import plot_loss
 
 
 class DeSide(object):
+    """
+    DeSide model for predicting cell proportions in bulk RNA-seq data
+
+    :param model_dir: the directory of saving well-trained model
+    :param log_file_path: the file path of log
+    :param model_name: only for naming
+    """
     def __init__(self, model_dir: str, log_file_path: str = None, model_name: str = 'DeSide'):
         """
-        :param model_dir: the directory of saving well-trained model
-        :param log_file_path: the file path of log
-        :param model_name: only for naming
         """
         self.model_dir = model_dir
         self.model = None
@@ -35,7 +39,7 @@ class DeSide(object):
         self.log_file_path = log_file_path
         check_dir(self.model_dir)
 
-    def build_model(self, input_shape, output_shape, hyper_params):
+    def _build_model(self, input_shape, output_shape, hyper_params):
         """
         :param input_shape: the number of features (genes)
         :param output_shape: the dimension of output (number of cell types to predict cell fraction)
@@ -86,6 +90,8 @@ class DeSide(object):
                     n_epoch: int = 10000, metrics: str = 'mse', n_patience: int = 100, scaling_by_constant=False,
                     remove_cancer_cell=False, fine_tune=False, one_minus_alpha: bool = False, verbose=1):
         """
+        Training DeSide model
+
         :param training_set_file_path: the file path of training set, .h5ad file, log2cpm1p format, samples by genes
         :param hyper_params: pre-determined hyper-parameters for DeSide model
         :param cell_types: specific a list of cell types instead of using all cell types in training set
@@ -96,9 +102,10 @@ class DeSide(object):
         :param n_patience: patience in early_stopping_callback
         :param remove_cancer_cell: remove cancer cell from y if True, using "1-others"
         :param fine_tune: fine tune pre-trained model
-        :param scaling_by_constant:
+        :param scaling_by_constant: scaling GEP by dividing a constant in log space, default value is 20,
+            to make sure all expression values are in [0, 1) if True
         :param one_minus_alpha: use 1 - alpha for all cell types if True
-        :param verbose: 0: silent, 1: progress bar, 2: one line per epoch
+        :param verbose: if printing progress during training, 0: silent, 1: progress bar, 2: one line per epoch
         """
         self.one_minus_alpha = one_minus_alpha
         if not os.path.exists(self.model_file_path):
@@ -158,8 +165,8 @@ class DeSide(object):
             print(f'   The shape of X is: {x.shape}, (n_sample, n_gene)')
             print(f'   The shape of y is: {y.shape}, (n_sample, n_cell_type)')
             if not fine_tune:
-                self.build_model(input_shape=len(self.gene_list), output_shape=len(self.cell_types),
-                                 hyper_params=hyper_params)
+                self._build_model(input_shape=len(self.gene_list), output_shape=len(self.cell_types),
+                                  hyper_params=hyper_params)
             if self.model is None:
                 raise FileNotFoundError('pre-trained model should be assigned to self.model')
             opt = keras.optimizers.Adam(learning_rate=learning_rate)
@@ -204,8 +211,8 @@ class DeSide(object):
         else:
             print(f'Previous model existed: {self.model_file_path}')
 
-    def get_x_before_predict(self, input_file, exp_type, transpose: bool = False, print_info: bool = True,
-                             scaling_by_sample: bool = False, scaling_by_constant: bool = True):
+    def _get_x_before_predict(self, input_file, exp_type, transpose: bool = False, print_info: bool = True,
+                              scaling_by_sample: bool = False, scaling_by_constant: bool = True):
         """
         :param input_file: input file path
         :param exp_type: 'log_space' or 'raw_space'
@@ -256,7 +263,9 @@ class DeSide(object):
                 transpose: bool = False, print_info: bool = True, add_cell_type: bool = False,
                 scaling_by_constant=False, scaling_by_sample=True, one_minus_alpha: bool = False):
         """
-        :param input_file: the file path of input file (.csv / .h5ad / pd.Dataframe), samples x genes
+        Predicting cell proportions using pre-trained model.
+
+        :param input_file: the file path of input file (.csv / .h5ad / pd.Dataframe), samples by genes
             simulated (or TCGA) bulk expression profiles, log2(TPM + 1) or TPM
         :param output_file_path: the file path to save prediction result
         :param exp_type: log_space or TPM, log_space means log2(TPM + 1)
@@ -274,8 +283,8 @@ class DeSide(object):
             self.cell_types = self.get_cell_type()
 
         # load input data
-        x = self.get_x_before_predict(input_file, exp_type, transpose=transpose, print_info=print_info,
-                                      scaling_by_constant=scaling_by_constant, scaling_by_sample=scaling_by_sample)
+        x = self._get_x_before_predict(input_file, exp_type, transpose=transpose, print_info=print_info,
+                                       scaling_by_constant=scaling_by_constant, scaling_by_sample=scaling_by_sample)
 
         # load pre-trained model
         if self.model is None:
@@ -307,7 +316,7 @@ class DeSide(object):
             pred_df = pred_df_with_1_others.copy()
         # pred_df_with_1_others.to_csv(output_file_path, float_format='%.3f')
         if add_cell_type:
-            pred_df['pred_cell_type'] = self.pred_cell_type_by_cell_frac(pred_cell_frac=pred_df)
+            pred_df['pred_cell_type'] = self._pred_cell_type_by_cell_frac(pred_cell_frac=pred_df)
         if print_info:
             print('   Model prediction done.')
         if output_file_path is not None:
@@ -316,6 +325,11 @@ class DeSide(object):
             return pred_df
 
     def get_model(self):
+        """
+        Load pre-trained model by `keras.models.load_model` if exists.
+
+        :return: pre-trained model
+        """
         if (self.model is None) and (os.path.exists(self.model_file_path)):
             try:
                 self.model = keras.models.load_model(self.model_file_path)
@@ -328,6 +342,9 @@ class DeSide(object):
         return self.model
 
     def get_parameters(self) -> dict:
+        """
+        Get key parameters of the model.
+        """
         key_params = {
             'model_name': self.model_name, 'model_file_path': self.model_file_path,
             'hyper_params': self.hyper_params, 'training_set_file_path': self.training_set_file_path,
@@ -351,7 +368,7 @@ class DeSide(object):
         with open(output_file_path, 'w') as f_handle:
             json.dump(key_params, fp=f_handle, indent=2)
 
-    def pred_cell_type_by_cell_frac(self, pred_cell_frac: pd.DataFrame) -> list:
+    def _pred_cell_type_by_cell_frac(self, pred_cell_frac: pd.DataFrame) -> list:
         """
         convert predicted cell fractions to cell types
         """
@@ -361,6 +378,13 @@ class DeSide(object):
 
 
 def loss_fn_mae_rmse(y_true, y_pred, alpha=0.8):
+    """
+    Customized loss function for training the model. `alpha*MAE + (1-alpha)*RMSE`
+
+    :param y_true: true cell fractions
+    :param y_pred: predicted cell fractions
+    :param alpha: weight of MAE
+    """
     mae = keras.losses.MeanAbsoluteError()
     mse = keras.losses.MeanSquaredError()
     return alpha * mae(y_true, y_pred) + (1 - alpha) * tf.sqrt(mse(y_true, y_pred))

@@ -5,7 +5,6 @@ Functions
 .. toctree::
    :maxdepth: 2
 
-   func/single_cell.md
    func/bulk_cell.md
    func/simulation.md
    func/deconvolution.md

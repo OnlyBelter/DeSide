@@ -75,7 +75,6 @@ html_static_path = ['_static']
 
 # ref to https://github.com/mwaskom/seaborn/blob/master/doc/conf.py
 html_theme_options = {
-    "theme_dev_mode": True,
     "path_to_docs": "docs",
     "repository_url": "https://github.com/OnlyBelter/DeSide",
     "use_edit_page_button": True,

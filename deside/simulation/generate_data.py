@@ -338,16 +338,25 @@ def map_cell_id2exp(sc_exp, selected_cell_id):
 
 
 class BulkGEPGenerator(object):
+    """
+    Generate bulk GEPs from single cell datasets
+
+    :param simu_bulk_dir: the directory to save simulated bulk cell GEPs
+    :param merged_sc_dataset_file_path: the file path of pre-merged single cell datasets
+    :param sct_dataset_file_path: the file path of single cell datasets (scGEP, dataset `S1`)
+    :param cell_types: cell types used when generating bulk GEPs
+    :param sc_dataset_ids: single cell dataset id used when generating bulk GEPs
+    :param bulk_dataset_name: the name of generated bulk dataset, only for naming
+    :param check_basic_info: whether to check basic information of single cell datasets
+    :param zero_ratio_threshold: the threshold of zero ratio of genes in single cell GEPs, remove the GEP if zero ratio > threshold
+    :param sc_dataset_gep_type: the type of single cell GEPs, `log_space` or `linear_space`
+    :param tcga2cancer_type_file_path: the file path of `tcga_sample_id2cancer_type.csv`, which contains the cancer type of TCGA samples
+    """
     def __init__(self, simu_bulk_dir, merged_sc_dataset_file_path, sct_dataset_file_path,
                  cell_types: list, sc_dataset_ids: list, bulk_dataset_name: str = None,
                  check_basic_info: bool = True, zero_ratio_threshold: float = 0.97,
                  sc_dataset_gep_type: str = 'log_space', tcga2cancer_type_file_path: str = None):
         """
-        :param simu_bulk_dir: the directory to save simulated bulk cell GEPs
-        :param merged_sc_dataset_file_path: the file path of pre-merged single cell datasets
-        :param cell_types: cell types used when generating bulk GEPs
-        :param sc_dataset_ids: single cell datasets used when generating bulk GEPs
-        :param bulk_dataset_name: the name of generated bulk dataset, only for naming
         """
         self.simu_bulk_dir = simu_bulk_dir  # result dir
         check_dir(simu_bulk_dir)
@@ -396,13 +405,14 @@ class BulkGEPGenerator(object):
         self.sc_dataset_gep_type = sc_dataset_gep_type
         self.tcga2cancer_type_file_path = tcga2cancer_type_file_path
         if check_basic_info and not os.path.exists(self.generated_bulk_gep_fp):
-            self.check_basic_info()
+            self._check_basic_info()
 
     def _generate_cell_fraction(self, sampling_method: str, n_cell_frac: int, sampling_range: dict = None,
                                 sample_prefix: str = None, ref_distribution: dict = None,
                                 random_n_cell_type: list = None, cell_prop_prior: dict = None):
         """
-        generate cell proportions for each simulated bulk GEP
+        Generate cell proportions for each simulated bulk GEP
+
         :param sampling_method: 'segment' or 'random'
         :param n_cell_frac: the number of GEPs to generate
         :param sampling_range: the range of sampling, such as {'cell_type1': [0.1, 0.9], 'cell_type2': [0.1, 0.9], ...}
@@ -480,24 +490,27 @@ class BulkGEPGenerator(object):
                      high_corr_gene_list: list = None, filtering_by_gene_range: bool = False,
                      min_percentage_within_gene_range: float = 0.95, gene_quantile_range: list = None):
         """
+        Generating simulated bulk GEPs from scGEP dataset (`S1`)
+
         :param n_samples: the number of GEPs to generate
         :param total_cell_number: N, the total number of cells sampled from merged single cell dataset
                                       and averaged to simulate a single bulk RNA-seq sample
         :param sampling_method: segment or random, method to generate cell fractions
-        :param sampling_range:
+        :param sampling_range: the range of sampling, such as {'cell_type1': [0.1, 0.9], 'cell_type2': [0.1, 0.9], ...},
+            optional, only used when sampling_method is `random`
         :param n_threads: number of threads used for parallel computing
         :param filtering: whether filtering generated GEPs
         :param reference_file: the file path of reference dataset for filtering
         :param ref_exp_type: the type of expression values in reference dataset, TPM / log_space
         :param gep_filtering_quantile: quantile of nearest distance of each pair in reference,
             smaller quantile gives smaller radius and fewer simulated GEPs will be kept
-        :param log_file_path:
+        :param log_file_path: the path of log file
         :param n_top: if too many neighbors were founded for one single sample, only keep n_top neighbors,
             used in marker ratio filtering
         :param simu_method: the method to generate simulated bulk GEPs,
             ave (average all selected single cell GEPs), mul (multiple GEP by cell fractions)
         :param filtering_method: marker_ratio (l2 distance with marker gene ratio) or
-            median_gep (l1 distance with median expression value for each gene)
+            median_gep (`l1` distance with median expression value for each gene)
         :param add_noise: whether add noise to generated bulk GEPs
         :param noise_params: parameters for noise generation, (f, max_sum),
             ref: Hao, Yuning, et al. PLoS Computational Biology, 2019
@@ -524,7 +537,7 @@ class BulkGEPGenerator(object):
             min_n_cell_frac = np.min([1000, n_samples])  # smaller number of samples without filtering
         if not os.path.exists(self.generated_bulk_gep_fp):
             # read generated single cell dataset into self.generated_sc_dataset
-            self.check_intermediate_generated_gep()
+            self._check_intermediate_generated_gep()
             # using merged single cell dataset directly
             obs_df = self.merged_sc_dataset_obs
             sc_dataset = 'merged_sc_dataset'
@@ -541,7 +554,7 @@ class BulkGEPGenerator(object):
             if simu_method == 'mul':  # mul, using either merged_sc_dataset or sct_dataset
                 self.total_cell_number = 1  # only 1 sample for each cell type
                 if (self.sct_dataset_file_path is not None) and (self.sct_dataset_df is None):
-                    self.sct_dataset_obs, self.sct_dataset_df = self.read_sct_dataset()
+                    self.sct_dataset_obs, self.sct_dataset_df = self._read_sct_dataset()
                     sc_dataset = 'sct_dataset'
                     obs_df = self.sct_dataset_obs
                     gene_list_in_sc_ds = self.sct_dataset_df.columns.to_list()
@@ -606,8 +619,8 @@ class BulkGEPGenerator(object):
                                 self.ref_neighbor_counter = {i: 0 for i in self.marker_ratio_ref.index}
                             n_top = min(n_top, self.n_neighbors_each_ref)
 
-                        simulated_gep = self.filter_gep_by_reference(simulated_gep=simulated_gep,
-                                                                     n_top=n_top)
+                        simulated_gep = self._filter_gep_by_reference(simulated_gep=simulated_gep,
+                                                                      n_top=n_top)
                         if (simulated_gep is None) or (simulated_gep.shape[0] < 50):
                             if self.filtering_quantile_upper < 0.999:
                                 # larger filtering_quantile to get more neighbors
@@ -708,9 +721,10 @@ class BulkGEPGenerator(object):
             print(f'   Previous result existed: {self.generated_bulk_gep_fp}')
             print(self.__str__())
 
-    def filter_gep_by_reference(self, simulated_gep, n_top: int = None) -> Union[pd.DataFrame, None]:
+    def _filter_gep_by_reference(self, simulated_gep, n_top: int = None) -> Union[pd.DataFrame, None]:
         """
-        filter generated GEP by reference dataset, such as TCGA
+        Filtering generated GEP by reference dataset, such as TCGA
+
         :param simulated_gep: simulated GEPs that need to filter by reference, TPM
         :param n_top: if too many neighbors were founded for one single sample, only keep n_top neighbors
         """
@@ -846,12 +860,12 @@ class BulkGEPGenerator(object):
         return sampled_cell_ids
 
     @staticmethod
-    def sample_noise(miu=0, s=566.1, f=0.25, n_samples=10000) -> np.ndarray:
+    def _sample_noise(miu=0, s=566.1, f=0.25, n_samples=10000) -> np.ndarray:
         """
-        generate noise for each gene in one bulk GEP,
-            Modified by Hao, Yuning, et al. PLoS Computational Biology, 2019
-        miu: mean of normal distribution
-        s: the mean std of all samples in TCGA with TPM values, LGG and GBM were excluded
+        Generate noise for each gene in one bulk GEP, modified from Hao, Yuning, et al. PLoS Computational Biology, 2019
+
+        :param miu: mean of normal distribution
+        :param s: the mean std of all samples in TCGA with TPM values, LGG and GBM were excluded
         """
         sigma = f * np.log2(s)
         norm_dis = stats.norm(miu, sigma)
@@ -911,7 +925,7 @@ class BulkGEPGenerator(object):
                                                      index=current_merged.columns)
                 if add_noise:
                     assert len(noise_params) == 2, 'noise_params should be a tuple of (f, total_max)'
-                    noise = self.sample_noise(n_samples=len(simulated_exp[sample_id]), f=noise_params[0])
+                    noise = self._sample_noise(n_samples=len(simulated_exp[sample_id]), f=noise_params[0])
                     if noise.sum() > noise_params[1]:
                         noise = noise / np.sum(noise) * noise_params[1]
                     simulated_exp[sample_id] = simulated_exp[sample_id] + noise
@@ -941,7 +955,7 @@ class BulkGEPGenerator(object):
         if self.ref_neighbor_counter:
             pd.DataFrame.from_dict(self.ref_neighbor_counter, orient='index').to_csv(self.ref_neighbor_counter_fp)
 
-    def check_intermediate_generated_gep(self):
+    def _check_intermediate_generated_gep(self):
         """
         if the generation process broke accidentally,
         generated intermediate result can be used to recovery generation process
@@ -972,7 +986,7 @@ class BulkGEPGenerator(object):
                     os.remove(self.generated_bulk_gep_csv_fp)
                     os.remove(self.sampled_sc_cell_id_file_path)
 
-    def check_basic_info(self):
+    def _check_basic_info(self):
         """
         check cell types and dataset
         """
@@ -997,9 +1011,9 @@ class BulkGEPGenerator(object):
             used_datasets = ', '.join(self.sc_dataset_used)
             print(f'   The following datasets will be used: {used_datasets}')
 
-    def read_sct_dataset(self, latent_z_nn_info_file=None):
+    def _read_sct_dataset(self, latent_z_nn_info_file=None):
         """
-        positive samples of SCT (single cell type), generated by SingleCellTypeGEPGenerator
+        positive samples of SCT (single cell type), generated by BulkGEPGeneratorSCT
         :param latent_z_nn_info_file: neighbor information of latent z for all samples, used for QC
         """
         sct_dataset_obs, sct_dataset_df = \
@@ -1013,6 +1027,17 @@ class BulkGEPGenerator(object):
 
 
 class SingleCellTypeGEPGenerator(BulkGEPGenerator):
+    """
+    Generating single cell GEPs (scGEPs)
+
+    :param simu_bulk_dir: the directory to save simulated bulk cell GEPs
+    :param merged_sc_dataset_file_path: the file path of pre-merged single cell datasets
+    :param cell_types: cell types used when generating bulk GEPs
+    :param sc_dataset_ids: single cell dataset id used when generating bulk GEPs
+    :param bulk_dataset_name: the name of generated bulk dataset, only for naming
+    :param zero_ratio_threshold: the threshold of zero ratio of genes in single cell GEPs, remove the GEP if zero ratio > threshold
+    :param sc_dataset_gep_type: the type of single cell GEPs, `log_space` or `linear_space`
+    """
     def __init__(self, merged_sc_dataset_file_path, cell_types, sc_dataset_ids,
                  simu_bulk_dir, bulk_dataset_name, zero_ratio_threshold: float = 0.97,
                  sc_dataset_gep_type: str = 'log_space'):
@@ -1022,20 +1047,23 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
                          sc_dataset_gep_type=sc_dataset_gep_type)
 
     def generate_samples(self, n_sample_each_cell_type: int = 10000,
-                         n_base_for_positive_samples: int = 1,
+                         n_base_for_positive_samples: int = 100,
                          sample_type: str = 'positive', sep_by_patient=False,
                          simu_method='ave', cell_type2subgroup_id: dict = None, subgroup_by: list = None):
         """
-        :param n_sample_each_cell_type:
+        :param n_sample_each_cell_type: the number of samples to generate for each cell type
+
         :param n_base_for_positive_samples: the number of single cells to average
+
         :param sample_type: positive means only 1 cell type is used, negative means more than 1 cell types are used
+
         :param sep_by_patient: only sampling from one patient in original dataset if True
-        :param simu_method: 'ave': averaging all GEPs,
-            or 'scale_by_mGEP': scaling by the mean GEP of all samples in the TCGA dataset
-            or 'random_replacement': replacing the gene expression value (<1) by another value within the same cell type
-             selected randomly
+
+        :param simu_method: `ave`: averaging all GEPs, or `scale_by_mGEP`: scaling by the mean GEP of all samples in the TCGA dataset
+            or `random_replacement`: replacing the gene expression value (<1) by another value within the same cell type selected randomly
+
         :param cell_type2subgroup_id: a dict, key is cell type, value is a list of subgroup ids
-        :parma subgroup_by: a list of column names in the merged single cell dataset, used to group samples
+        :param subgroup_by: a list of column names in the merged single cell dataset, used to group samples
         """
         if not os.path.exists(self.generated_bulk_gep_fp):
             if subgroup_by is None:
@@ -1192,7 +1220,7 @@ class BulkGEPGeneratorSCT(BulkGEPGenerator):
         if cell_prop_file_path is not None:
             self.generated_cell_fraction_fp = cell_prop_file_path
         if not os.path.exists(self.generated_bulk_gep_fp):
-            self.sct_dataset_obs, self.sct_dataset_df = self.read_sct_dataset(latent_z_nn_info_file=
+            self.sct_dataset_obs, self.sct_dataset_df = self._read_sct_dataset(latent_z_nn_info_file=
                                                                               latent_z_nn_file_path)
 
             if not os.path.exists(self.generated_cell_fraction_fp):

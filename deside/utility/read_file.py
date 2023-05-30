@@ -13,11 +13,13 @@ from .pub_func import (log_exp2cpm, read_df, non_log2log_cpm, non_log2cpm,
 
 class ReadH5AD(object):
     """
-    read .h5ad file, usually the values are log2 transformed
+    Read .h5ad file, usually the values are log2 transformed
+
+    :param file_path: the file path of .h5ad file, samples by genes, log2cpm1p format
+    :param show_info: whether to show the information of the dataset after reading
     """
     def __init__(self, file_path: str, show_info: bool = False):
         """
-        :param file_path: the file path of .h5ad file, samples by genes, log2cpm1p format
         """
         self.dataset = an.read_h5ad(file_path)
         if show_info:
@@ -26,7 +28,8 @@ class ReadH5AD(object):
     def get_df(self, result_file_path: str = None, convert_to_tpm: bool = False,
                scaling_by_sample: bool = False) -> pd.DataFrame:
         """
-        convert to DataFrame, samples by genes, log space (log2cpm1p)
+        Convert to DataFrame, samples by genes, log space (log2cpm1p)
+
         :param result_file_path:
         :param convert_to_tpm: whether to convert log2cpm1p to TPM
         :param scaling_by_sample: whether to scale the expression values of each sample to [0, 1] by 'min_max'
@@ -49,6 +52,9 @@ class ReadH5AD(object):
         return df
 
     def get_cell_fraction(self) -> Union[None, pd.DataFrame]:
+        """
+        Get cell fraction, cells by cell types
+        """
         if self.dataset.obs.shape[1] > 0:
             return self.dataset.obs.round(3)
         else:
@@ -56,27 +62,36 @@ class ReadH5AD(object):
             return None
 
     def get_h5ad(self):
+        """
+        Get the .h5ad file
+        """
         return self.dataset
 
 
 class ReadExp(object):
     """
-    read gene expression file, and convert to specific format (TPM / CPM, log2cpm1p)
+    Read gene expression file, and convert to specific format (TPM / CPM, log2cpm1p)
+
     - TPM: transcript per million
+
     - CPM: UMI reads per million (3' end sc-RNA seq), same as TPM in the full-length RNA-seq of bulk cells
+
     - log_space: log2(CPM + 1), or log2(TPM + 1)
+
     - non_log: non log space, could be normalized to TPM
-    Data from full-length protocols may benefit from normalization methods that take into account gene length
-    (e.g. Patelet al, 2014; Kowalczyket al,2015; Soneson & Robinson, 2018),
-    while 3' enrichment data do not.
-    A  commonly  used  normalization  method  for  full-length scRNA-seq data is TPM normalization (Liet al, 2009),
-    which comes from bulk RNA-seq analysis. (Luecken, M. D. & Theis, F. J., Mol. Syst. Biol. 15, e8746 (2019))
+
+    - Data from full-length protocols may benefit from normalization methods that take into account gene length
+      (e.g. Patelet al, 2014; Kowalczyket al,2015; Soneson & Robinson, 2018), while 3' enrichment data do not.
+
+    - A commonly used normalization method for full-length scRNA-seq data is TPM normalization (Liet al, 2009),
+      which comes from bulk RNA-seq analysis. (Luecken, M. D. & Theis, F. J., Mol. Syst. Biol. 15, e8746 (2019))
+
+    :param exp_file: file path or DataFrame, samples by genes
+    :param exp_type: TPM / CPM, log_space, non_log
+    :param transpose: transpose if exp_file formed as genes (index) by samples (columns)
     """
     def __init__(self, exp_file, exp_type='TPM', transpose: bool = False):
         """
-        :param exp_file: file path or DataFrame, samples by genes
-        :param exp_type: TPM / CPM, log_space, non_log
-        :param transpose: transpose if exp_file formed as genes (index) by samples (columns)
         """
         assert exp_type in ['TPM', 'CPM', 'log_space', 'non_log']
         self.file_type = exp_type
@@ -86,6 +101,9 @@ class ReadExp(object):
         self.scaled_by_sample = False
 
     def to_tpm(self):
+        """
+        Convert to TPM
+        """
         if self.file_type == 'non_log':
             self.exp = non_log2cpm(self.exp)
         elif self.file_type == 'TPM' or self.file_type == 'CPM':
@@ -95,26 +113,42 @@ class ReadExp(object):
         self.file_type = 'TPM'
 
     def to_log2cpm1p(self):
+        """
+        Convert to log2(TPM + 1)
+        """
         if self.file_type != 'log_space':
             self.exp = non_log2log_cpm(self.exp, transpose=False)
         else:
             print('   This file has already log2 transformed.')
         self.file_type = 'log_space'
 
-    def get_file_type(self):
+    def get_file_type(self) -> str:
+        """
+        Get the file type
+        """
         return self.file_type
 
-    def get_exp(self):
+    def get_exp(self) -> pd.DataFrame:
+        """
+        Get the expression matrix
+        """
         return self.exp.round(3)
 
     def save(self, file_path, sep=',', transpose: bool = False):
+        """
+        Save the expression matrix to file
+
+        :param file_path: file path
+        :param sep: separator, default is ','
+        :param transpose: transpose index and columns
+        """
         if transpose:
             self.exp = self.exp.T.copy()
         self.exp.to_csv(file_path, sep=sep, float_format='%.3f')
 
     def do_scaling(self):
         """
-        Scaling by sample to [0, 1], same as Scaden
+        Scaling GEPs by sample to [0, 1], same as Scaden
         """
         if not self.scaled_by_sample:
             scaler = pp.MinMaxScaler(feature_range=(0, 1), copy=True)
@@ -126,7 +160,7 @@ class ReadExp(object):
 
     def do_scaling_by_constant(self, divide_by=20):
         """
-        Scaling by dividing a constant in log space, so all expression values are in [0, 1)
+        Scaling GEPs by dividing a constant in log space, so all expression values are in [0, 1)
         """
         if self.file_type != 'log_space':
             raise ValueError('   This file is not in log space')
@@ -134,6 +168,12 @@ class ReadExp(object):
             self.exp = self.exp / divide_by
 
     def align_with_gene_list(self, gene_list: list = None, fill_not_exist=False):
+        """
+        Align the expression matrix with a gene list
+
+        :param gene_list: gene list
+        :param fill_not_exist: fill 0 if gene not exist in the expression matrix when True
+        """
         common_genes = [i for i in gene_list if i in self.exp.columns]
         not_exist_in_exp = [i for i in gene_list if i not in common_genes]
         removed_genes = [i for i in self.exp.columns if i not in common_genes]
