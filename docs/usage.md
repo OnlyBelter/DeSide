@@ -53,9 +53,7 @@ deside_model.predict(input_file=bulk_tpm_file_path,
 
 ### Input files
 
-In this part, you can use the whole result directory of `result_dir` in `Model Training` module as the input parameter of `model_dir`, 
-or you can download the pre-trained model from [DeSide_model]()  
-and use the real directory in your computer.** Besides, bulk GEPs need to be delivered which were given in transcripts per million (TPM) or log2(TPM + 1). 
+In this part, you can use the whole result directory of `result_dir` in `Model Training` module as the input parameter of `model_dir`, **or you can download the pre-trained model from [DeSide_model]() and use the real directory in your computer.** Besides, bulk GEPs need to be delivered which were given in transcripts per million (TPM) or log2(TPM + 1). 
 It should be separated by ','  and saved in a `.csv` file. The shape of this file should be m×n, where m is the number of features (genes) and n is the number of samples. 
 You can download an example file from [our datasets file]() (location: datasets\TCGA\tpm). 
 If you have not this format of bulk GEPs file, DeSide can only provide functionality to convert TCGA read count data into the correct file format. 
@@ -64,7 +62,7 @@ Have a look at the [Data Processing]() section for instructions on how to use th
 
 - model_dir: a folder instead of a single file
   - For self-trained model: the whole result folder of `result_dir` in `Model Training` module.
-  - For pre-trained model: it can be downloaded from [DeSide_model](https://github.com/OnlyBelter/DeSide_mini_example/blob/main/DeSide_model)
+  - For pre-trained model: it can be downloaded from [DeSide_model](https://github.com/OnlyBelter/DeSide_mini_example/blob/main/DeSide_model).
 - input_file: Bulk GEPs in `transcripts per million` (TPM) or `log2(TPM + 1)` format, separated by ',', and saved in a `.csv` file. [Example file]()
 
 
@@ -317,9 +315,9 @@ for dataset_name, params in dataset2parameters.items():
 ```
 
 #### Input files
-- merged_tpm.csv: Gene expression profiles (GEPs) of 19 cancer types in TCGA (TPM format). Download link: https://doi.org/10.6084/m9.figshare.23047547.v1
+- merged_tpm.csv: GEPs of 19 cancer types in TCGA (TPM format). [Download link](https://doi.org/10.6084/m9.figshare.23047547.v1)
 - tcga_sample_id2cancer_type.csv: An annotation file that contains the cancer type for each sample id of above 19 cancer types. Download link: https://raw.githubusercontent.com/OnlyBelter/DeSide_mini_example/main/datasets/TCGA/tpm/tcga_sample_id2cancer_type.csv
-- simu_bulk_exp_SCT_N10K_S1.h5ad: Dataset S1, which contains the synthesized single-cell GEPs (scGEPs). Download link: https://doi.org/10.6084/m9.figshare.23043560.v1
+- simu_bulk_exp_SCT_N10K_S1.h5ad: Dataset S1, which contains the synthesized single-cell GEPs (scGEPs). [Download link](https://doi.org/10.6084/m9.figshare.23043560.v1)
 
 #### Output files
 ```text
