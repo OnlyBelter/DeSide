@@ -32,13 +32,6 @@ Change Log
 - Building the whole workflow in one file
 - Recording main parameters and running logs
 
-## v0.9.9
-21 Jan 2022
-- Using marker gene ratios to compare the similarity of GEPs between simulated bulk cell dataset and TCGA dataset
-- New method to filter simulated bulk cell GEPs depends on the nearest neighbors of each sample in TCGA dataset
-- Filtering genes by the correlation between gene expression values and cell fraction of each cell type
-- Removing genes depends on the loading matrix of PCA analysis by combining both simulated dataset and TCGA dataset
-
-## v0.9.9.1
-3 Mar 2022
-- update for evaluation
+## v1.0.2 (bioRxiv)
+2 Jun 2023
+- Update documentation

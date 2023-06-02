@@ -36,10 +36,13 @@ DeSide requires Python 3.8 or higher. It has been tested on Linux and MacOS, but
 ## Installation
 
 pip should work out of the box:
-```
-# create a virtual environment if necessary
+```shell
+# creating a virtual environment is recommended
 conda create -n deside python=3.8
 conda activate deside
+# update pip
+python3 -m pip install --upgrade pip
+# install deside
 pip install deside
 ```
 

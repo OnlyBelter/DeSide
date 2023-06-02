@@ -9,22 +9,22 @@ Welcome to DeSide's documentation!
 What is DeSide?
 ---------------
 
-DeSide is a cell fraction deconvolution algorithm based on deep-learning and single-cell datasets,
-created by Xin Xiong, Dandan Pu and Yerong Liu from `Li(X) Lib <http://isynbio.siat.ac.cn/Li(x)lab/>`_
-at Institute for Synthetic Biology Research (iSynBio), Chinese Academy of Sciences.
+DeSide is a deep-learning and single-cell-based deconvolution method for solid tumors.
+It enables the inference of cellular proportions of different cell types from bulk RNA-seq data.
+DeSide was developed by Xin Xiong and Yerong Liu under the supervision of
+the `Li(X) Lab <http://isynbio.siat.ac.cn/Li(x)lab/>`_ at the Institute for Synthetic Biology Research (iSynBio), Chinese Academy of Sciences,
+and the `Tian Lab <https://physics.hkbu.edu.hk/people/tian-liang>`_ at Hong Kong Baptist University (HKBU).
 
-- structure
-- function
+DeSide consists of the following four parts (see figure below):
 
-Features
---------
+- DNN Model
+- Single Cell Dataset Integration
+- Cell Proportion Generation
+- Bulk Tumor Synthesis
 
-Here is some text explaining some very complicated staff.
-
-Project background
-------------------
-
-Here is some text explaining some very complicated staff.
+.. image:: https://raw.githubusercontent.com/OnlyBelter/DeSide/main/Fig.1a_b.svg
+   :alt: Overview of DeSide
+   :width: 800
 
 
 .. toctree::

@@ -1,4 +1,4 @@
 Contact
 =======
 
-If you have any question please email xin.xiong@siat.ac.cn or xuefei.li@siat.ac.cn.
+If you have any question please email Xin Xiong (onlybelter@outlook.com) or Xuefei Li (xuefei.li@siat.ac.cn).

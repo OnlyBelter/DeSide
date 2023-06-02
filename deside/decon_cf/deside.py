@@ -211,8 +211,8 @@ class DeSide(object):
         else:
             print(f'Previous model existed: {self.model_file_path}')
 
-    def _get_x_before_predict(self, input_file, exp_type, transpose: bool = False, print_info: bool = True,
-                              scaling_by_sample: bool = False, scaling_by_constant: bool = True):
+    def get_x_before_predict(self, input_file, exp_type, transpose: bool = False, print_info: bool = True,
+                             scaling_by_sample: bool = False, scaling_by_constant: bool = True):
         """
         :param input_file: input file path
         :param exp_type: 'log_space' or 'raw_space'

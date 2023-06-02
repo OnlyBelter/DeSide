@@ -12,7 +12,7 @@
 #
 import os
 import sys
-import sphinx_book_theme
+# import sphinx_book_theme
 sys.path.insert(0, os.path.abspath(r'..'))
 
 
@@ -23,7 +23,7 @@ copyright = '2023, iSynBio & HKBU'
 author = 'Xin Xiong & Yerong Liu'
 
 # The full version, including alpha/beta/rc tags
-release = '1.0.1'
+release = '1.0.2'
 
 
 # -- General configuration ---------------------------------------------------
@@ -61,9 +61,9 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 # https://sphinx-book-theme.readthedocs.io/en/latest/, sphinx-book-theme-0.0.42
-html_theme = 'sphinx_book_theme'
+html_theme = 'furo'
 html_logo = "_static/logo.png"
-html_title = "DEep-learning and SIngle-cell based DEconvolution"
+html_title = "DeSide"
 html_copy_source = True
 # html_sourcelink_suffix = ""
 html_favicon = "_static/logo.png"
@@ -78,12 +78,12 @@ html_static_path = ['_static']
 
 # ref to https://github.com/mwaskom/seaborn/blob/master/doc/conf.py
 html_theme_options = {
-    "path_to_docs": "docs",
-    "repository_url": "https://github.com/OnlyBelter/DeSide",
-    "use_edit_page_button": True,
-    "use_issues_button": True,
-    "use_repository_button": True,
-    "use_download_button": True,
+    "source_directory": "docs/",
+    "source_repository": "https://github.com/OnlyBelter/DeSide",
+    # "source_edit_link": True,
+    # "use_issues_button": True,
+    # "use_repository_button": True,
+    # "use_download_button": True,
 }
 
 # custom css
