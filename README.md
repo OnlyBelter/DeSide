@@ -47,7 +47,7 @@ pip install deside
 ```
 
 ## Documentation
-Documentation is available either in the source tree (doc/), or online. (will be available soon)
+Documentation is available either in the source tree (docs/), or https://deside.readthedocs.io/.
 
 
 ## Usage Examples
