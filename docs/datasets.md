@@ -2,7 +2,7 @@ Datasets
 ========
 
 Datasets used in DeSide
-
+***
 ## scRNA-seq datasets
 
 | Dataset ID  | Journal              | DOI                         | Publish Date | Reported cells (total) | Organism               | Tissue                           | Data location                     | Sequencing method       | #patients |

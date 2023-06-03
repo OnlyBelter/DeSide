@@ -6,6 +6,8 @@
 Welcome to DeSide's documentation!
 ==================================
 
+----
+
 What is DeSide?
 ---------------
 

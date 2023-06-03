@@ -1,5 +1,7 @@
 Change Log
 ==========
+The record of all notable changes to this project will be documented in this file.
+***
 
 ## v0.2
 1 Oct 2020, first release.
