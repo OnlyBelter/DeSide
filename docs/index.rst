@@ -6,6 +6,8 @@
 Welcome to DeSide's documentation!
 ==================================
 
+The usage of DeSide as a Python package is described in this documentation.
+
 ----
 
 What is DeSide?
@@ -17,7 +19,15 @@ DeSide was developed by Xin Xiong and Yerong Liu under the guidance and collabor
 the `Li(X) Lab <http://isynbio.siat.ac.cn/Li(x)lab/>`_ at the Institute for Synthetic Biology Research (iSynBio), Chinese Academy of Sciences,
 and the `Tian Lab <https://physics.hkbu.edu.hk/people/tian-liang>`_ at Hong Kong Baptist University (HKBU).
 
-DeSide consists of the following four parts (see figure below):
+Contents
+------------------------------
+- `Installation <https://deside.readthedocs.io/en/latest/installation.html>`_
+- `Usage <https://deside.readthedocs.io/en/latest/usage.html>`_
+- `Datasets <https://deside.readthedocs.io/en/latest/datasets.html>`_
+- `Functions <https://deside.readthedocs.io/en/latest/functions.html>`_
+
+
+`Our manuscript <https://www.biorxiv.org/content/10.1101/2023.05.11.540466v1>`_ consists of the following four parts (see figure below):
 
 - DNN Model
 - Single Cell Dataset Integration
@@ -27,6 +37,8 @@ DeSide consists of the following four parts (see figure below):
 .. image:: https://raw.githubusercontent.com/OnlyBelter/DeSide/main/Fig.1a_b.svg
    :alt: Overview of DeSide
    :width: 800
+
+Please check `Usage <https://deside.readthedocs.io/en/latest/usage.html>`_ for more details of each part.
 
 
 .. toctree::
@@ -45,7 +57,7 @@ DeSide consists of the following four parts (see figure below):
 
 
 Indices and tables
-==================
+------------------
 
 * :ref:`genindex`
 * :ref:`modindex`

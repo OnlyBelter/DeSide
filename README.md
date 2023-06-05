@@ -46,10 +46,6 @@ python3 -m pip install --upgrade pip
 pip install deside
 ```
 
-## Documentation
-Documentation is available either in the source tree (docs/), or https://deside.readthedocs.io/.
-
-
 ## Usage Examples
 Usage examples can be found: [DeSide_mini_example](https://github.com/OnlyBelter/DeSide_mini_example)
 
@@ -58,7 +54,32 @@ Three examples are provided:
 - Training a model from scratch
 - Generating a synthetic dataset
 
+## Documentation
+For all detailed documentation, please check https://deside.readthedocs.io/. The documentation will demonstrate the usage of DeSide from the following aspects:
+- Installation in a virtual environment
+- Usage examples
+- Datasets used in DeSide
+- Functions and classes in DeSide
+
+
 ## License
 DeSide can be used under the terms of the MIT License.
 
-## Citation
+## Contact
+Any questions or suggestions about DeSide are welcomed! Please report it on [issues](https://github.com/OnlyBelter/DeSide/issues), or contact Xin Xiong (onlybelter@outlook.com) or Xuefei Li (xuefei.li@siat.ac.cn).
+
+## Manuscript
+```text
+@article {Xiong2023.05.11.540466,
+	author = {Xin Xiong and Yerong Liu and Dandan Pu and Zhu Yang and Zedong Bi and Liang Tian and Xuefei Li},
+	title = {DeSide: A unified deep learning approach for cellular decomposition of bulk tumors based on limited scRNA-seq data},
+	elocation-id = {2023.05.11.540466},
+	year = {2023},
+	doi = {10.1101/2023.05.11.540466},
+	URL = {https://www.biorxiv.org/content/early/2023/05/14/2023.05.11.540466},
+	eprint = {https://www.biorxiv.org/content/early/2023/05/14/2023.05.11.540466.full.pdf},
+	journal = {bioRxiv}
+}
+```
+
+
