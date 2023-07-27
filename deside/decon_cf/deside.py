@@ -283,8 +283,8 @@ class DeSide(object):
             self.cell_types = self.get_cell_type()
 
         # load input data
-        x = self._get_x_before_predict(input_file, exp_type, transpose=transpose, print_info=print_info,
-                                       scaling_by_constant=scaling_by_constant, scaling_by_sample=scaling_by_sample)
+        x = self.get_x_before_predict(input_file, exp_type, transpose=transpose, print_info=print_info,
+                                      scaling_by_constant=scaling_by_constant, scaling_by_sample=scaling_by_sample)
 
         # load pre-trained model
         if self.model is None:
