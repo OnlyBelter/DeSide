@@ -494,7 +494,7 @@ def non_log2log_cpm(input_file_path: Union[str, pd.DataFrame], result_file_path:
     """
     Convert non-log expression data to log2(CPM + 1) or log2(TPM + 1)
 
-    :param input_file_path: non-log space expression file
+    :param input_file_path: non-log space expression file, genes by samples
 
     :param result_file_path: file path, samples by genes
 
@@ -502,7 +502,7 @@ def non_log2log_cpm(input_file_path: Union[str, pd.DataFrame], result_file_path:
 
     :param correct: plus 1 for avoiding log transform 0
 
-    :return: log2(CPM + 1) or save result to file
+    :return: log2(CPM + 1) or save result to file, samples by genes if transpose is True, otherwise genes by samples
     """
 
     bulk_exp = pd.DataFrame()

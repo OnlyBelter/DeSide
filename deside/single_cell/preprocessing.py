@@ -79,11 +79,12 @@ def get_10x_mtx(file_dir, prefix=None, min_genes=200, min_cells=3, result_dir=No
 
 
 def normalize_mtx(adata, prefix=None, min_genes=200, min_cells=3, result_dir=None,
-                  target_sum=1e4, log_base=None, max_n_genes_by_counts=2500, max_pct_counts_mt=5,
+                  target_sum=1e6, log_base=2, max_n_genes_by_counts=2500, max_pct_counts_mt=5,
                   max_total_counts=None, filter_genes: bool = True, fig_prefix=None):
     """
-
+    filter cells and genes, calculate QC metrics, plot QC metrics, normalize the data to log2(CPM + 1)
     :param adata: an AnnData object which contains a single sample data (cells by genes)
+        using raw read counts or CPM (non-log transformed) as input
     :param prefix:
     :param min_genes: min genes in each cell
     :param min_cells: min cells for each gene expressed
