@@ -37,3 +37,11 @@ The record of all notable changes to this project will be documented in this fil
 ## v1.0.2 (bioRxiv)
 2 Jun 2023
 - Update documentation
+
+## v1.1.0
+1 Oct 2023
+- Update the workflow to contain the following parameters:
+  - `alpha_total_rna_coefficient`: the coefficient of total RNA for each cell type during the simulation of bulk RNA-seq data
+  - `cell_type2subtypes`: the dictionary of cell types and their subtypes
+- Update the DNN model to include pathway profiles
+- Update the documentation

@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "DeSide"
-version = "1.0.2"
+version = "1.1.0"
 description = "A DEep-learning and SIngle-cell based DEconvolution method for solid tumors"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -31,11 +31,11 @@ classifiers = [
 ]
 dependencies = [
     "tensorflow>=2.8.0",
-    "scikit-learn==0.24.0",
+    "scikit-learn==1.2.0",
     "anndata>=0.8.0",
     "scanpy==1.8.0",
-    "pandas==1.2.5",
-    "numpy<1.22",
+    "pandas==2.0.3",
+    "numpy",
     "scipy",
     "umap-learn==0.5.1",
     "matplotlib<3.7",
@@ -62,7 +62,7 @@ Tracker = "https://github.com/OnlyBelter/DeSide/issues"
 
 # https://realpython.com/pypi-publish-python-package/#version-your-package
 [tool.bumpver]
-current_version = "1.0.0"
+current_version = "1.1.0"
 version_pattern = "MAJOR.MINOR.PATCH"
 commit_message = "bump version {old_version} -> {new_version}"
 commit = true

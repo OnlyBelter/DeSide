@@ -3,12 +3,11 @@ import sys
 import numpy as np
 import pandas as pd
 import anndata as an
-from tqdm import tqdm
 from typing import Union
 from scipy.sparse import csr_matrix
 from sklearn import preprocessing as pp
-from .pub_func import (log_exp2cpm, read_df, non_log2log_cpm, non_log2cpm,
-                       get_inx2cell_type, sorted_cell_types, log2_transform)
+from .pub_func import (log_exp2cpm, read_df, non_log2log_cpm,
+                       non_log2cpm, get_inx2cell_type)
 
 
 class ReadH5AD(object):
@@ -167,30 +166,32 @@ class ReadExp(object):
         if np.any(self.exp.values > 1.0):
             self.exp = self.exp / divide_by
 
-    def align_with_gene_list(self, gene_list: list = None, fill_not_exist=False):
+    def align_with_gene_list(self, gene_list: list = None, fill_not_exist=False, pathway_list: bool = False):
         """
         Align the expression matrix with a gene list
 
         :param gene_list: gene list
-        :param fill_not_exist: fill 0 if gene not exist in the expression matrix when True
+        :param fill_not_exist: fill 0 if gene not exist in the provided gene_list when True
+        :param pathway_list: gene list contains pathway names, so TPM normalization is not suitable
         """
         common_genes = [i for i in gene_list if i in self.exp.columns]
-        not_exist_in_exp = [i for i in gene_list if i not in common_genes]
+        not_exist_in_gene_list = [i for i in gene_list if i not in common_genes]
         removed_genes = [i for i in self.exp.columns if i not in common_genes]
-        print(f'{len(common_genes)} common genes will be used, {len(removed_genes)} genes will be removed.')
+        print(f'   {len(common_genes)} common genes will be used, {len(removed_genes)} genes will be removed.')
         self.exp = self.exp.loc[:, common_genes].copy()
-        if fill_not_exist and (len(not_exist_in_exp) != 0):
-            print(f'{len(not_exist_in_exp)} genes are not in current dataset, 0 will be filled')
-            _not_exist_exp = pd.DataFrame(np.zeros((self.exp.shape[0], len(not_exist_in_exp))), index=self.exp.index,
-                                          columns=not_exist_in_exp)
+        if fill_not_exist and (len(not_exist_in_gene_list) != 0):
+            print(f'   {len(not_exist_in_gene_list)} genes are not in current dataset, 0 will be filled')
+            _not_exist_exp = pd.DataFrame(np.zeros((self.exp.shape[0], len(not_exist_in_gene_list))), index=self.exp.index,
+                                          columns=not_exist_in_gene_list)
             self.exp = pd.concat([self.exp, _not_exist_exp], axis=1)
             self.exp = self.exp.loc[:, gene_list].copy()
-        if self.file_type == 'log_space':  # scaling to TPM after alignment
-            self.to_tpm()
-            self.to_log2cpm1p()
-        else:
-            self.file_type = 'non_log'
-            self.to_tpm()
+        if not pathway_list:
+            if self.file_type == 'log_space':  # scaling to TPM after alignment
+                self.to_tpm()
+                self.to_log2cpm1p()
+            else:
+                self.file_type = 'non_log'
+                self.to_tpm()
 
 
 class TrainingDatasetLoader(object):
@@ -267,7 +268,8 @@ def read_single_cell_type_dataset(sct_dataset_file_path: str, latent_z_nn_info_f
     """
     sct_dataset_obj = ReadH5AD(sct_dataset_file_path)
     sct_dataset_df = sct_dataset_obj.get_df(convert_to_tpm=True)
-    inx2cell_type = get_inx2cell_type()
+    cell_type_list = sct_dataset_obj.get_h5ad().obs.columns.tolist()
+    inx2cell_type = get_inx2cell_type(cell_type_list=cell_type_list)
     if (latent_z_nn_info_file is not None) and os.path.exists(latent_z_nn_info_file):
         latent_z_nn_info = read_df(latent_z_nn_info_file)
         latent_z_nn_info = \
@@ -285,88 +287,30 @@ def read_single_cell_type_dataset(sct_dataset_file_path: str, latent_z_nn_info_f
     return sct_dataset_obs, sct_dataset_df
 
 
-def read_sct_dataset(sct_files: list, scaling_by_constant=False):
+def read_gene_set(gene_set_file_path: list, max_n_genes: int = 300) -> pd.DataFrame:
     """
-    combine all sct dataset together
-    :param sct_files: a list of file paths for all used SCT datasets, .h5ad format
-    :param scaling_by_constant:
-    :return:
+    read gene set from .gmt files and convert to DataFrame with genes as index and gene sets as columns,
+     1 for a gene in a gene set and 0 for not
+    :param gene_set_file_path: the file path of gene set
+    :param max_n_genes: the maximum number of genes in a gene set
+    :return: DataFrame of gene set with genes as index and gene sets as columns
     """
-    sct_exp_list, sct_info_list = [], []
-    for file_path in sct_files:
-        sct_obj = ReadH5AD(file_path)
-        sct_df = sct_obj.get_df().astype(np.float32)
-        sct_cell_frac = sct_obj.get_cell_fraction()
-        if scaling_by_constant:
-            sct_obj = ReadExp(sct_df, exp_type='log_space')
-            sct_obj.do_scaling_by_constant()
-            sct_df = sct_obj.get_exp()
-        sct_exp_list.append(sct_df)
-        sct_info_list.append(sct_cell_frac)
-    sct_exp = pd.concat(sct_exp_list, axis=0)
-    sct_info = pd.concat(sct_info_list, axis=0)
-    sample2inx_sct_ds = {sample_id: i for i, sample_id in enumerate(sct_info.index.to_list())}
-    assert len(sample2inx_sct_ds) == sct_exp.shape[0], 'Duplicated sample ids are not allowed.'
-    return sct_exp, sample2inx_sct_ds
-
-
-def read_ds_two_parts(dataset2info: dict, dataset_name: str, sample2inx_sct_ds: dict, scaling_by_constant=False):
-    """
-
-    :param dataset2info:
-    :param dataset_name:
-    :param sample2inx_sct_ds: mapping sample id to index in SCT dataset (used in simulating bulk GEPs)
-    :param scaling_by_constant:
-    :return:
-    """
-    x_list, y_list = [], []
-    col_name_sc_id = [f'{_}_sc_inx' for _ in sorted_cell_types]
-    for k, v in dataset2info.items():
-        path_to_exp_data = v['h5ad_file_path']
-        dataset_type = v['dataset_type']
-        x_obj = ReadH5AD(path_to_exp_data)
-        cell_prop = x_obj.get_cell_fraction()
-        x_df = x_obj.get_df().astype(np.float32)
-        if dataset_type == 'sct':
-            cell_prop[col_name_sc_id] = 0
-            for r_id, _ in tqdm(cell_prop.iterrows()):
-                cell_prop.loc[r_id, col_name_sc_id] = sample2inx_sct_ds[r_id]
-        else:
-            path_to_sc_id = os.path.join(v['file_dir'], v['sampled_sc_id_file'])
-            sc_ids = pd.read_csv(path_to_sc_id, index_col=[0, 1])
-            r_id2sc_inx = {}
-            for r_id, row in tqdm(cell_prop.iterrows()):
-                q_inx = list(zip([r_id] * len(sorted_cell_types), sorted_cell_types))
-                selected_sc_id = sc_ids.loc[q_inx, 'selected_cell_id'].to_list()
-                r_id2sc_inx[r_id] = [sample2inx_sct_ds[_] for _ in selected_sc_id]
-            r_id2sc_inx_df = pd.DataFrame.from_dict(r_id2sc_inx, orient='index', columns=col_name_sc_id)
-            cell_prop = cell_prop.merge(r_id2sc_inx_df, left_index=True, right_index=True)
-            # cell_prop.loc[r_id, col_name_sc_id] =
-        if scaling_by_constant:
-            x_obj = ReadExp(x_df, exp_type='log_space')
-            x_obj.do_scaling_by_constant()
-            x_df = x_obj.get_exp()
-        x_list.append(x_df.copy())
-        y_list.append(cell_prop.copy())
-    x = pd.concat(x_list)
-    y = pd.concat(y_list)
-
-    print(f'   There are {x.shape[0]} samples in {dataset_name}...')
-    return x, y
-
-
-def align_with_gene_list(dataset_file: Union[pd.DataFrame, str], gene_list, gene_exp_type) -> pd.DataFrame:
-    """
-
-    :param dataset_file: file path or DataFrame, samples by genes
-    :param gene_list:
-    :param gene_exp_type: TPM / CPM, log_space, non_log
-    :return: log2tpm1p
-    """
-    dataset = ReadExp(dataset_file, exp_type=gene_exp_type).get_exp()
-    gene_not_in_ds = [i for i in gene_list if i not in dataset.columns]
-    dataset[gene_not_in_ds] = 0  # set expression values to 0 if a gene not exists
-    dataset = dataset.loc[:, gene_list].copy()  # remove genes not contain in gene_list
-    dataset = log_exp2cpm(dataset)
-    dataset = log2_transform(dataset)
-    return dataset
+    gs2genes = {}
+    all_genes = set()
+    for gs_file in gene_set_file_path:
+        if not os.path.exists(gs_file):
+            raise FileNotFoundError(f'gene set file {gs_file} not found')
+        with open(gs_file, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    gs, _, *genes = line.split('\t')
+                    if len(genes) > max_n_genes:
+                        genes = genes[:max_n_genes]
+                    gs2genes[gs] = genes
+                    all_genes.update(genes)
+    gene_set_df = pd.DataFrame(index=list(all_genes), columns=list(gs2genes.keys()))
+    for gs, genes in gs2genes.items():
+        gene_set_df.loc[genes, gs] = 1
+    gene_set_df.fillna(0, inplace=True)
+    return gene_set_df

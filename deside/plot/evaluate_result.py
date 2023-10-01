@@ -4,20 +4,13 @@ import numpy as np
 from typing import Union
 import statsmodels.api as sm
 from sklearn.metrics import median_absolute_error
-from ..utility import (print_df, cal_relative_error, calculate_rmse, check_dir, get_corr,
-                       read_xy, read_df, get_inx2cell_type, log2_transform, get_core_zone_of_pca,
+from ..utility import (calculate_rmse, check_dir, get_corr, read_xy, read_df, get_core_zone_of_pca,
                        get_ccc, read_cancer_purity, cancer_types)
-# from ..utility.read_file import ReadExp
 from .plot_nn import plot_corr_two_columns
 import matplotlib.patches as patches
-# import importlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import gc
-
-# set_fig_style()
-# sns.set(font_scale=1.5)
-# sns.set_style('white')
 
 
 class ScatterPlot(object):
@@ -660,7 +653,8 @@ def compare_mean_exp_with_cell_frac_across_algo(cancer_type: str, algo2merged_fp
 
 
 def compare_y_y_pred_plot_cpe(y_true: pd.Series, y_pred: pd.Series, inx=tuple(), cancer_type='',
-                              show_metrics: bool = False, ax=None):
+                              show_metrics: bool = False, ax=None, show_ylabel: bool = True,
+                              fontsize: int = 6):
     """
     Plot y against y_pred to visualize the performance of prediction result
 
@@ -676,6 +670,10 @@ def compare_y_y_pred_plot_cpe(y_true: pd.Series, y_pred: pd.Series, inx=tuple(),
 
     :param ax: matplotlib axis
 
+    :param show_ylabel: show ylabel or not
+
+    :param fontsize: fontsize of the text
+
     :return: None
     """
     # Use the pyplot interface to change just one subplot...
@@ -690,7 +688,7 @@ def compare_y_y_pred_plot_cpe(y_true: pd.Series, y_pred: pd.Series, inx=tuple(),
     y_bottom, y_top = plt.ylim()
     x_max = x_right
     y_max = y_top
-    plt.plot([0, max(x_max, y_max)], [0, max(x_max, y_max)], linestyle='--', color='tab:gray')
+    plt.plot([0, max(x_max, y_max)], [0, max(x_max, y_max)], linestyle='--', color='tab:gray', rasterized=True)
     corr = 0
     rmse = 0
     ccc = 0
@@ -698,11 +696,11 @@ def compare_y_y_pred_plot_cpe(y_true: pd.Series, y_pred: pd.Series, inx=tuple(),
         corr = get_corr(y_pred, y_true)
         rmse = calculate_rmse(y_true=pd.DataFrame(y_true), y_pred=pd.DataFrame(y_pred))
         ccc = get_ccc(y_pred.values, y_true.values)
-        plt.text(0.3 * x_max, 0.2 * y_max, 'corr = {:.2f}'.format(corr), fontsize=6)
-        plt.text(0.3 * x_max, 0.1 * y_max, 'RMSE = {:.2f}'.format(rmse), fontsize=6)
-        plt.text(0.3 * x_max, 0.0 * y_max, 'CCC = {:.2f}'.format(ccc), fontsize=6)
-    if inx:
-        plt.ylabel(f'{cancer_type} ({y_true.shape[0]})', fontsize=6)
+        plt.text(0.3 * x_max, 0.2 * y_max, 'r = {:.3f}'.format(corr), fontsize=fontsize)
+        plt.text(0.3 * x_max, 0.1 * y_max, 'RMSE = {:.3f}'.format(rmse), fontsize=fontsize)
+        plt.text(0.3 * x_max, 0.0 * y_max, 'CCC = {:.3f}'.format(ccc), fontsize=fontsize)
+    if inx and show_ylabel:
+        plt.ylabel(f'{cancer_type} ({y_true.shape[0]})', fontsize=fontsize)
     # if inx and inx[0] == 8:
     #     plt.xlabel(f'{algo}', fontsize=6)
     # plt.legend()
@@ -712,7 +710,7 @@ def compare_y_y_pred_plot_cpe(y_true: pd.Series, y_pred: pd.Series, inx=tuple(),
 def plot_pred_cell_prop_with_cpe(cpe_file_path, pred_cell_prop_file_path, result_dir, save_metrics: bool = True):
     all_cancer_types = sorted([i for i in cancer_types if i != 'PAAD'])
     fig, axes = plt.subplots(6, 3, sharex='all', sharey='all', figsize=(5, 6))
-    pred_cell_prop = pd.read_csv(pred_cell_prop_file_path, index_col=0)
+    pred_cell_prop = pd.read_csv(pred_cell_prop_file_path, index_col='sample_id')
     cpe = read_cancer_purity(cpe_file_path, sample_names=pred_cell_prop.index)
     pred_cell_prop = pred_cell_prop.merge(cpe['CPE'], left_index=True, right_index=True)
     metrics_value = {}

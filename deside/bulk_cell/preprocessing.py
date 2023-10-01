@@ -5,8 +5,6 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from ..utility import print_df, center_value, log2_transform, check_dir, get_sep
-# from ..utility import filter_gene_by_expression_min_max
-# from ..plot import plot_hcluster
 
 
 def get_data_from_firehose_raw(file_path, data_type):

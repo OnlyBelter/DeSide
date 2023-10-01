@@ -3,7 +3,7 @@ import os
 # import umap
 import numpy as np
 import pandas as pd
-import seaborn as sns
+# import seaborn as sns
 # import scipy.stats as stats
 import matplotlib.pyplot as plt
 # from joblib import dump, load
@@ -192,18 +192,8 @@ def plot_predicted_result(cell_frac_result_fp, bulk_exp_fp, cancer_type,
             print('   There is no any samples in cancer purity about this cancer type ({})'.format(cancer_type))
     # plot cell fraction of each cell type before decon_cf
     y_pred['labels'] = 1
-    # if 'DeSide' in model_name:
-    #     y_pred.drop(columns='Cancer Cells', inplace=True)
-    #     # remove labels and the last cell type
-    #     cell_types = sorted(y_pred.columns.to_list())
-    #     cell_types = [i for i in cell_types if i not in ['1-others', 'labels']]
-    #     cell_types = cell_types + ['1-others']
-    # else:
-    #     y_pred.drop(columns='1-others', inplace=True)
-    #     cell_types = sorted(y_pred.columns.to_list()[:-2]) + ['Cancer Cells']
     cell_types = sorted(y_pred.columns.to_list())
     cell_types = [i for i in cell_types if i not in ['1-others', 'labels']]
-    # cell_types =
     print('   Cell types: ', ', '.join(cell_types))
     compare_exp_between_group(exp=y_pred, group_list=tuple(cell_types),
                               result_dir=result_dir, xlabel=f'Cell Type ({cancer_type})',

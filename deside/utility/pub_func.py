@@ -39,8 +39,10 @@ sorted_cell_types = ['B Cells', 'CD4 T', 'CD8 T', 'Cancer Cells', 'DC', 'Endothe
                      'Fibroblasts', 'Macrophages', 'Mast Cells', 'NK', 'Neutrophils']
 
 
-def get_inx2cell_type() -> dict:
-    inx2cell_type = {_i: ct for _i, ct in enumerate(sorted_cell_types)}
+def get_inx2cell_type(cell_type_list: list = None) -> dict:
+    if cell_type_list is None:
+        cell_type_list = sorted_cell_types
+    inx2cell_type = {_i: ct for _i, ct in enumerate(cell_type_list)}
     inx2cell_type[-1] = 'Neg'
     return inx2cell_type
 
@@ -242,7 +244,7 @@ def read_cancer_purity(cancer_purity_file_path, sample_names: list):
     cancer_purity = cancer_purity.loc[~cancer_purity['CPE'].isnull()].copy()
     # print_df(cancer_purity)
     sample_name_mapping = {i[0:16]: i for i in sample_names}
-    common_sample = set(list(sample_name_mapping.keys())) & set(cancer_purity.index)
+    common_sample = list(set(list(sample_name_mapping.keys())) & set(cancer_purity.index))
     cancer_purity = cancer_purity.loc[common_sample, :].copy()
     cancer_purity.index = cancer_purity.index.map(sample_name_mapping)
     return cancer_purity
@@ -653,7 +655,9 @@ def save_key_params(all_vars: dict, save_to_file_path=None):
         hyper_params = all_vars['deside_parameters']
         other_params = ['all_cell_types', 'dataset2parameters', 'cd4_high_in_cd8', 'n_base',
                         'total_cell_number', 'removed_cell_types', 'merge_t_cell', 'filter_simulated_bulk_cell',
-                        'remove_cancer_cell_when_training', 'one_minus_alpha', 'remove_cancer_cell']
+                        'remove_cancer_cell_when_training', 'one_minus_alpha', 'remove_cancer_cell',
+                        'alpha_total_rna_coefficient', 'cell_type2subtypes', 'all_pathway_files', 'cell_type_col',
+                        'cell_subtype_col']
         key_paths_dict = {k: all_vars[k] for k in key_paths if k in all_vars}
         other_params_dict = {k: all_vars[k] for k in other_params if k in all_vars}
 
@@ -902,6 +906,23 @@ def get_ccc(x, y):
     vx, cov_xy, cov_xy, vy = np.cov(x, y, bias=True).flatten()
     mx, my = x.mean(), y.mean()
     return 2*cov_xy / (vx + vy + (mx-my)**2)
+
+
+def get_x_by_pathway_network(x: pd.DataFrame, pathway_network: bool, pathway_mask: pd.DataFrame = None):
+    """
+    :param x: the input gene expression profile
+    :param pathway_network: the pathway network
+    :param pathway_mask: the mask of pathway network
+    :return: the input gene expression profile with pathway network
+    """
+    if pathway_network:
+        pathways = pathway_mask.columns.to_list()
+        x_gep = x.loc[:, ~x.columns.isin(pathways)].copy()
+        x_pathway = x.loc[:, x.columns.isin(pathways)].copy()
+        x = {'gep': x_gep.values, 'pathway_profile': x_pathway.values}
+    else:
+        x = x.values
+    return x
 
 
 if __name__ == '__main__':

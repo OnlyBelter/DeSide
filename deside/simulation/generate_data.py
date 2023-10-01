@@ -1,15 +1,15 @@
 import os
-import gc
+# import gc
 import json
 import numpy as np
 import pandas as pd
 from scipy import stats
-import scanpy as sc
+# import scanpy as sc
 from typing import Union
 from tqdm import tqdm
 import multiprocessing
 
-from joblib import dump, load
+from joblib import load
 from sklearn.utils import shuffle
 from ..utility import (create_h5ad_dataset, check_dir, cal_corr_gene_exp_with_cell_frac,
                        ExpObj, QueryNeighbors, log2_transform, print_msg, get_cell_num,
@@ -62,17 +62,7 @@ def segment_generation_fraction(n_samples: int = None, max_value: int = 10000,
         frag_for_one_sample.append(current_max_value)  # for last fragment (0 or > 0)
         assert np.sum(frag_for_one_sample) == max_value
         np.random.shuffle(frag_for_one_sample)
-        # if max_value == 0:
-        #     all_samples_tmp.append(dict(zip(cell_types, frag_for_one_sample)))
-        # else:
-        #     if max_value > n_cell_type:  # the most common situation
-        #         # cell fraction equals to 0 for at least 4 cell types or none, avoid too much 0 for any cell types
-        #         if (np.sum(np.array(frag_for_one_sample) == 0) >= 4) or \
-        #                 (np.sum(np.array(frag_for_one_sample) == 0) <= 1):
-        #             current_sample_valid = True
-        #     else:   # 0 < max_value <= len(cell_types), don't check, more zeros will be included
-        #         current_sample_valid = True
-        #     if current_sample_valid:
+
         frag_for_one_sample = np.array(frag_for_one_sample) / max_value  # normalize to sum to 1
         cell_type2frag = dict(zip(cell_types, frag_for_one_sample))
         if cell_prop_prior is not None:
@@ -83,8 +73,6 @@ def segment_generation_fraction(n_samples: int = None, max_value: int = 10000,
                     break
         if current_sample_valid:
             all_samples_tmp.append(cell_type2frag)
-        # frag_for_one_sample = np.array(frag_for_one_sample) / max_value  # normalize to decimal
-        # all_samples_tmp.append(dict(zip(cell_types, frag_for_one_sample)))
 
     index = [sample_prefix + '_' + str(i + 1) for i in range(len(all_samples_tmp))]
     all_samples_df = pd.DataFrame(all_samples_tmp, index=index)
@@ -255,88 +243,6 @@ def map_cell_id2exp(sc_exp, selected_cell_id):
     return pd.DataFrame(log2cpm, index=simulated_exp_df.index, columns=sc_exp.var.index).round(2)
 
 
-# def simulate_bulk_expression(cell_frac: pd.DataFrame, sc_exp_file_path: str,
-#                              n_threads: int = 2, result_dir=None,
-#                              prefix='simu_bulk_exp', step_size: int = 201, total_cell_number: int = 500):
-#     """
-#     Mix single cell expression profile to simulated bulk expression profile according to `cell_frac`. at large scale
-#
-#     :param cell_frac: dataFrame, generated cell fraction for each cell type, samples by cell types
-#
-#     :param sc_exp_file_path: string, .h5ad file, single cell n5000 dataset, log2(CPM + 1)
-#         the file path of single cell expression profiles classified by cell types
-#
-#     :param n_threads: how many thread to use
-#
-#     :param result_dir:
-#
-#     :param prefix: only for naming output files
-#
-#     :param step_size: separate to multiple steps when memory is not enough
-#
-#     :param total_cell_number: N, the total number of cells in single cell dataset
-#                               averagedd to simulate a single bulk RNA-seq sample
-#
-#     :return: simulated bulk expression profiles, sample by gene, log2(CPM + 1), .h5ad file
-#     """
-#
-#     # cell_type2sample_name
-#     # single cell dataset, .h5ad file, samples by genes, log2(CPM + 1)
-#     cell_num = get_cell_num(cell_type_frac=cell_frac, total_num=total_cell_number)
-#     sc_exp = sc.read_h5ad(sc_exp_file_path)
-#     obs_df = sc_exp.obs
-#     # adata_df = pd.DataFrame(sc_exp.X.A, index=sc_exp.obs.index, columns=sc_exp.var.index)
-#     # adata_df = np.power(2, adata_df) - 1  # convert to non-log values
-#     print('   Start to select cells randomly based on cell types for generating each bulk expression profile...')
-#     selected_cell_id = []
-#     # step = 201
-#     n_parts = cell_frac.shape[0] // step_size
-#     for inx in tqdm(range(n_parts+1)):
-#         if inx == n_parts:
-#             current_part = cell_num.iloc[inx * step_size:, :]
-#             if current_part.shape[0] == 0:
-#                 break
-#         else:
-#             # continue
-#             current_part = cell_num.iloc[inx * step_size: (inx + 1) * step_size, :]
-#         current_part_flatten = []
-#         for cell_type in current_part.columns:
-#             _part = pd.DataFrame(index=current_part.index)
-#             _part['cell_type'] = cell_type
-#             _part['n_cell'] = current_part[cell_type]
-#             current_part_flatten.append(_part)
-#         current_part_flatten = pd.concat(current_part_flatten)
-#         # contains all cell types for each single simulated bulk expression
-#         paras = [(obs_df, 1, row['cell_type'], row['n_cell'], 'cell_type')
-#                  for i, row in current_part_flatten.iterrows()]
-#         # https://pythonspeed.com/articles/python-multiprocessing/
-#         with multiprocessing.get_context('spawn').Pool(n_threads) as p:
-#             results = p.starmap(get_sample_id, paras)
-#         # print(results)
-#         results_str = [';'.join(i) for i in results]
-#         current_part_flatten['selected_cell_id'] = results_str
-#         current_part_flatten.sort_index(inplace=True)
-#         if result_dir is not None:
-#             current_exp = map_cell_id2exp(sc_exp=sc_exp, selected_cell_id=current_part_flatten)
-#             cell_id_fp = os.path.join(result_dir, prefix + '_selected_cell_id.csv')
-#             exp_fp = os.path.join(result_dir, prefix + '_log2cpm1p.csv')
-#             if not os.path.exists(cell_id_fp):
-#                 current_part_flatten.to_csv(cell_id_fp)
-#             else:
-#                 current_part_flatten.to_csv(cell_id_fp, header=False, mode='a')
-#             if not os.path.exists(exp_fp):
-#                 current_exp.to_csv(exp_fp)
-#             else:
-#                 current_exp.to_csv(exp_fp, header=False, mode='a')
-#             gc.collect()
-#         else:
-#             selected_cell_id.append(current_part_flatten)
-#
-#     if selected_cell_id:
-#         selected_cell_df = pd.concat(selected_cell_id)
-#         return selected_cell_df
-
-
 class BulkGEPGenerator(object):
     """
     Generate bulk GEPs from single cell datasets
@@ -344,26 +250,34 @@ class BulkGEPGenerator(object):
     :param simu_bulk_dir: the directory to save simulated bulk cell GEPs
     :param merged_sc_dataset_file_path: the file path of pre-merged single cell datasets
     :param sct_dataset_file_path: the file path of single cell datasets (scGEP, dataset `S1`)
-    :param cell_types: cell types used when generating bulk GEPs
+    :param cell_type2subtype: cell types used when generating bulk GEPs, {'cell_type': ['subtype1', 'subtype2', ...], ...}'
     :param sc_dataset_ids: single cell dataset id used when generating bulk GEPs
     :param bulk_dataset_name: the name of generated bulk dataset, only for naming
     :param check_basic_info: whether to check basic information of single cell datasets
     :param zero_ratio_threshold: the threshold of zero ratio of genes in single cell GEPs, remove the GEP if zero ratio > threshold
     :param sc_dataset_gep_type: the type of single cell GEPs, `log_space` or `linear_space`
     :param tcga2cancer_type_file_path: the file path of `tcga_sample_id2cancer_type.csv`, which contains the cancer type of TCGA samples
+    :param total_rna_coefficient: the coefficient of total RNA, used to correct the difference of total RNA for each cell type
+    :param subtype_col_name: the column name of subtype in single cell datasets
+    :param cell_type_col_name: the column name of cell type in single cell datasets
     """
     def __init__(self, simu_bulk_dir, merged_sc_dataset_file_path, sct_dataset_file_path,
-                 cell_types: list, sc_dataset_ids: list, bulk_dataset_name: str = None,
+                 cell_type2subtype: dict, sc_dataset_ids: list, bulk_dataset_name: str = None,
                  check_basic_info: bool = True, zero_ratio_threshold: float = 0.97,
-                 sc_dataset_gep_type: str = 'log_space', tcga2cancer_type_file_path: str = None):
+                 sc_dataset_gep_type: str = 'log_space', tcga2cancer_type_file_path: str = None,
+                 total_rna_coefficient: dict = None, subtype_col_name: str = None, cell_type_col_name: str = None):
         """
         """
         self.simu_bulk_dir = simu_bulk_dir  # result dir
         check_dir(simu_bulk_dir)
         self.merged_sc_fp = merged_sc_dataset_file_path
         self.cell_type_in_sc = None  # cell types in merged single cell datasets
+        self.cell_subtype_in_sc = None  # cell subtypes in merged single cell datasets
         self.dataset_in_sc = None  # single cell datasets were merged together
-        self.cell_type_used = cell_types
+        self.cell_type2subtype = cell_type2subtype
+        # self.cell_subtype_used only contains cell subtypes, not including cell types.
+        # If cell subtypes were not needed, self.cell_subtype_used is []
+        self.cell_type_used, self.cell_subtype_used = self.get_cell_type_used(cell_type2subtype)
         self.sc_dataset_used = sc_dataset_ids
         self.merged_sc_dataset = None
         self.generated_sc_fp = None  # the file path of generated single cell dataset
@@ -404,6 +318,9 @@ class BulkGEPGenerator(object):
         self.unique_exp_value_in_s0 = None  # {'cell_type1': {'gene1': np.array([]), ...}, 'cell_type2': {}, ...}
         self.sc_dataset_gep_type = sc_dataset_gep_type
         self.tcga2cancer_type_file_path = tcga2cancer_type_file_path
+        self.total_rna_coefficient = total_rna_coefficient
+        self.subtype_col_name = subtype_col_name
+        self.cell_type_col_name = cell_type_col_name
         if check_basic_info and not os.path.exists(self.generated_bulk_gep_fp):
             self._check_basic_info()
 
@@ -421,30 +338,51 @@ class BulkGEPGenerator(object):
         :param random_n_cell_type: the number of cell types to randomly select from reference distribution
         :param cell_prop_prior: the prior of cell proportions, such as {'cell_type1': 0.1, 'cell_type2': 0.2, ...}
         """
+        cell_type_with_subtype = []
+        cell_type_contain_subtype = []
+        for k, v in self.cell_type2subtype.items():
+            if len(v) == 1 and v[0] == k:
+                cell_type_with_subtype.append(k)
+            else:
+                cell_type_with_subtype.extend(v)
+                cell_type_contain_subtype.append(k)
         if sampling_method == 'segment':
             gen_cell_fracs = segment_generation_fraction(n_samples=n_cell_frac,
                                                          max_value=10000,
                                                          sample_prefix=sample_prefix,
                                                          cell_types=self.cell_type_used,
                                                          cell_prop_prior=cell_prop_prior)
+            if len(cell_type_contain_subtype) > 0:
+                for cell_type in cell_type_contain_subtype:
+                    _cell_fracs = segment_generation_fraction(
+                        n_samples=n_cell_frac,
+                        max_value=10000,
+                        sample_prefix=sample_prefix,
+                        cell_types=self.cell_type2subtype[cell_type],
+                        cell_prop_prior=cell_prop_prior
+                    )
+                    _cell_fracs = _cell_fracs * gen_cell_fracs[cell_type].values.reshape(-1, 1)
+                    for subtype in self.cell_type2subtype[cell_type]:
+                        gen_cell_fracs[subtype] = _cell_fracs[subtype]
+                    gen_cell_fracs.pop(cell_type)
 
         elif sampling_method == 'seg_random':
             gen_cell_fracs = seg_random_generation_fraction(n_samples=n_cell_frac,
                                                             sample_prefix=sample_prefix,
-                                                            cell_types=self.cell_type_used)
+                                                            cell_types=cell_type_with_subtype)
 
         elif sampling_method == 'fragment':
             if random_n_cell_type is None:
                 gen_cell_fracs = fragment_generation_fraction(n_samples=n_cell_frac,
                                                               sample_prefix=sample_prefix,
-                                                              cell_types=self.cell_type_used,
+                                                              cell_types=cell_type_with_subtype,
                                                               reference_distribution=ref_distribution)
             else:
                 gen_cell_frac_list = []
                 n_sample_for_each_n_cell_type = int(n_cell_frac / len(random_n_cell_type))
                 for n_cell_type in random_n_cell_type:
-                    if 2 <= n_cell_type <= len(self.cell_type_used):
-                        cell_types = self.cell_type_used[:n_cell_type]  # generate by fixed cell types, then shuffle
+                    if 2 <= n_cell_type <= len(cell_type_with_subtype):
+                        cell_types = cell_type_with_subtype[:n_cell_type]  # generate by fixed cell types, then shuffle
                         _gen_cell_fracs = fragment_generation_fraction(n_samples=n_sample_for_each_n_cell_type,
                                                                        sample_prefix=f'{sample_prefix}_{n_cell_type}',
                                                                        cell_types=cell_types,
@@ -467,11 +405,12 @@ class BulkGEPGenerator(object):
         elif sampling_method == 'random':
             if sampling_range is not None:
                 # gradient_range = sampling_range.copy()
-                if len(sampling_range) < len(self.cell_type_used):
+                if len(sampling_range) < len(cell_type_with_subtype):
                     print('   * Since the length of gradient_range is less than cell types, gradient range '
                           'will not be used. Instead, [0, 1] range will be used for all cell types...')
                     sampling_range = None
-            gen_cell_fracs = random_generation_fraction(n_samples=n_cell_frac, cell_types=self.cell_type_used,
+            gen_cell_fracs = random_generation_fraction(n_samples=n_cell_frac,
+                                                        cell_types=cell_type_with_subtype,
                                                         sample_prefix=sample_prefix,
                                                         fixed_range=sampling_range)
         else:
@@ -479,6 +418,13 @@ class BulkGEPGenerator(object):
                 f'Only "segment" and "random" were supported for parameter "sampling_method", '
                 f'{sampling_method} is invalid')
         return gen_cell_fracs
+
+    @staticmethod
+    def get_cell_type_used(cell_type2subtype: dict):
+        cell_type_used = list(cell_type2subtype.keys())
+        sub_cell_type_used = [i for v in cell_type2subtype.values() for i in v if i not in cell_type_used]
+
+        return cell_type_used, sub_cell_type_used
 
     def generate_gep(self, n_samples, sampling_range: dict = None, sampling_method: str = 'segment',
                      total_cell_number: int = 100, n_threads: int = 10, filtering: bool = True,
@@ -778,13 +724,20 @@ class BulkGEPGenerator(object):
                                                zero_ratio_threshold: float = 0.95):
         if self.merged_sc_dataset is None:
             self.read_merged_single_cell_dataset()
-        self.cell_type_in_sc = list(self.merged_sc_dataset.obs['cell_type'].unique())
+        self.cell_type_in_sc = list(self.merged_sc_dataset.obs[self.cell_type_col_name].unique())
+        if self.subtype_col_name is not None:
+            self.cell_subtype_in_sc = list(self.merged_sc_dataset.obs[self.subtype_col_name].unique())
         self.dataset_in_sc = list(self.merged_sc_dataset.obs['dataset_id'].unique())
         # self.merged_sc_dataset_obs = self.merged_sc_dataset.obs.copy()
+        self.merged_sc_dataset_obs = self.merged_sc_dataset.obs.loc[
+            self.merged_sc_dataset.obs['dataset_id'].isin(self.sc_dataset_used), :].copy()
         # always removing this part: marker genes of CD4 T cells expressed high in CD8 T cells
-        self.merged_sc_dataset_obs = \
-            self.merged_sc_dataset.obs.loc[~((self.merged_sc_dataset.obs['cell_type'] == 'CD8 T')
-                                           & (self.merged_sc_dataset.obs['m_cd4/m_cd8 group'] == 'high')), :].copy()
+        if 'm_cd4/m_cd8 group' in self.merged_sc_dataset_obs.columns:
+            self.merged_sc_dataset_obs = \
+                self.merged_sc_dataset_obs.loc[~((self.merged_sc_dataset_obs['cell_type'] == 'CD8 T')
+                                                 & (self.merged_sc_dataset_obs['m_cd4/m_cd8 group'] == 'high')),
+                                               :].copy()
+
         self.merged_sc_dataset_obs['sample_id'] = \
             self.merged_sc_dataset_obs['sample_id'].cat.add_categories('pan_cancer')
         # add sample_id for pan_cancer_07 dataset to use groupby later
@@ -837,6 +790,9 @@ class BulkGEPGenerator(object):
             _part = pd.DataFrame(index=cell_num.index)
             _part['cell_type'] = cell_type
             _part['n_cell'] = cell_num[cell_type]
+            _part['class_by'] = self.cell_type_col_name
+            if cell_type in self.cell_subtype_used:
+                _part['class_by'] = self.subtype_col_name
             # if all_cell_num_is_one:
             #     _selected_cell_ids = self.obs_df.loc[self.obs_df['cell_type'] == cell_type,
             #                                          :].sample(n=n_samples).index.to_list()
@@ -845,7 +801,7 @@ class BulkGEPGenerator(object):
         sampled_cell_ids = pd.concat(cell_num_flatten)
         # contains all cell types for each single simulated bulk expression profile
         # if not all_cell_num_is_one:
-        paras = [(obs_df, 1, row['cell_type'], row['n_cell'], 'cell_type', sep_by_patient)
+        paras = [(obs_df, 1, row['cell_type'], row['n_cell'], row['class_by'], sep_by_patient)
                  for i, row in sampled_cell_ids.iterrows()]
         n_threads = min(multiprocessing.cpu_count()-2, n_threads)
         # https://pythonspeed.com/articles/python-multiprocessing/
@@ -910,6 +866,20 @@ class BulkGEPGenerator(object):
                     simulated_exp[sample_id] = pd.Series(current_gene_exp.values, index=current_gene_exp.index)
         else:
             assert simu_method == 'mul', 'Only support matrix multiplication for generating MCT'
+            subtype2cell_type = {i: k for k, v in self.cell_type2subtype.items() for i in v}
+            ct2rna_coefficient = {}
+            if self.total_rna_coefficient is not None:
+                # consider the total RNA amount of each cell type
+                all_cell_types = selected_cell_id['cell_type'].unique()
+                for cell_type in all_cell_types:
+                    if cell_type in self.total_rna_coefficient:
+                        ct2rna_coefficient[cell_type] = self.total_rna_coefficient[cell_type]
+                    elif (cell_type in subtype2cell_type) and \
+                            (subtype2cell_type[cell_type] in self.total_rna_coefficient):
+                        ct2rna_coefficient[cell_type] = self.total_rna_coefficient[subtype2cell_type[cell_type]]
+                    else:
+                        ct2rna_coefficient[cell_type] = 1.0
+                print('   > The following total RNA coefficient will be used: ', ct2rna_coefficient)
             for sample_id, group in selected_cell_id.groupby(by=selected_cell_id.index):
                 all_n_cell_is_one = np.all(group['n_cell'] == 1)
                 assert all_n_cell_is_one, 'n_cell should be 1 for all cell types'
@@ -920,9 +890,17 @@ class BulkGEPGenerator(object):
                 # sort by cell types to make sure the correction of matrix multiplication
                 _cell_types = group['cell_type'].to_list()
                 current_cell_frac = cell_frac.loc[sample_id, _cell_types].copy().to_frame()
-                # current_cell_frac = current_cell_frac.loc[group['cell_type'].to_list(), :]
-                simulated_exp[sample_id] = pd.Series((current_merged.values.T @ current_cell_frac.values).reshape(-1),
-                                                     index=current_merged.columns)
+                if self.total_rna_coefficient is not None:
+                    # consider the total RNA amount of each cell type
+                    rna_coefficient = [ct2rna_coefficient[ct] for ct in _cell_types]
+                    # multiply by total RNA coefficient for each cell type
+                    current_merged = current_merged * np.array(rna_coefficient).reshape(-1, 1)
+                    matrix_mul = current_merged.values.T @ current_cell_frac.values  # mix different cell types
+                    matrix_mul = matrix_mul / np.sum(matrix_mul, axis=0) * 1e6  # convert to TPM
+                else:
+                    matrix_mul = current_merged.values.T @ current_cell_frac.values  # mix different cell types directly
+
+                simulated_exp[sample_id] = pd.Series(matrix_mul.reshape(-1), index=current_merged.columns)
                 if add_noise:
                     assert len(noise_params) == 2, 'noise_params should be a tuple of (f, total_max)'
                     noise = self._sample_noise(n_samples=len(simulated_exp[sample_id]), f=noise_params[0])
@@ -992,6 +970,9 @@ class BulkGEPGenerator(object):
         """
         self.get_info_in_merged_single_cell_dataset(zero_ratio_threshold=self.zero_ratio_threshold)
         cell_type_not_in_sc = [i for i in self.cell_type_used if i not in self.cell_type_in_sc]
+        sub_cell_type_not_in_sc = []
+        if self.cell_subtype_used:
+            sub_cell_type_not_in_sc = [i for i in self.cell_subtype_used if i not in self.cell_subtype_in_sc]
         dataset_not_in_sc = [i for i in self.sc_dataset_used if i not in self.dataset_in_sc]
         if len(cell_type_not_in_sc) > 0:
             invalid_cell_types = ', '.join(cell_type_not_in_sc)
@@ -1001,6 +982,15 @@ class BulkGEPGenerator(object):
         else:
             used_cell_types = ', '.join(self.cell_type_used)
             print(f'   The following cell types will be used: {used_cell_types}')
+
+        if len(sub_cell_type_not_in_sc) > 0:
+            invalid_sub_cell_types = ', '.join(sub_cell_type_not_in_sc)
+            valid_sub_cell_types = ', '.join(self.cell_subtype_in_sc)
+            raise ValueError(f'   Invalid sub cell types: {invalid_sub_cell_types}, '
+                             f'only the following sub cell types existed in single cell dataset: {valid_sub_cell_types}')
+        else:
+            used_sub_cell_types = ', '.join(self.cell_subtype_used)
+            print(f'   The following sub cell types will be used: {used_sub_cell_types}')
 
         if len(dataset_not_in_sc) > 0:
             invalid_datasets = ', '.join(dataset_not_in_sc)
@@ -1028,28 +1018,33 @@ class BulkGEPGenerator(object):
 
 class SingleCellTypeGEPGenerator(BulkGEPGenerator):
     """
-    Generating single cell GEPs (scGEPs)
+    Generating single cell type GEPs (sctGEPs)
 
     :param simu_bulk_dir: the directory to save simulated bulk cell GEPs
     :param merged_sc_dataset_file_path: the file path of pre-merged single cell datasets
-    :param cell_types: cell types used when generating bulk GEPs
+    :param cell_type2subtype: cell types used when generating bulk GEPs,
+        {cell_type: [sub_cell_type1, sub_cell_type2, ...], ...}
     :param sc_dataset_ids: single cell dataset id used when generating bulk GEPs
     :param bulk_dataset_name: the name of generated bulk dataset, only for naming
-    :param zero_ratio_threshold: the threshold of zero ratio of genes in single cell GEPs, remove the GEP if zero ratio > threshold
+    :param zero_ratio_threshold: the threshold of zero ratio of genes in single cell GEPs,
+        remove the GEP if zero ratio > threshold
     :param sc_dataset_gep_type: the type of single cell GEPs, `log_space` or `linear_space`
     """
-    def __init__(self, merged_sc_dataset_file_path, cell_types, sc_dataset_ids,
+    def __init__(self, merged_sc_dataset_file_path, cell_type2subtype, sc_dataset_ids,
                  simu_bulk_dir, bulk_dataset_name, zero_ratio_threshold: float = 0.97,
-                 sc_dataset_gep_type: str = 'log_space'):
+                 sc_dataset_gep_type: str = 'log_space', subtype_col_name: str = None,
+                 cell_type_col_name: str = 'cell_type'):
         super().__init__(merged_sc_dataset_file_path=merged_sc_dataset_file_path, simu_bulk_dir=simu_bulk_dir,
-                         cell_types=cell_types, sc_dataset_ids=sc_dataset_ids, bulk_dataset_name=bulk_dataset_name,
+                         cell_type2subtype=cell_type2subtype, sc_dataset_ids=sc_dataset_ids,
+                         bulk_dataset_name=bulk_dataset_name,
                          zero_ratio_threshold=zero_ratio_threshold, sct_dataset_file_path=None,
-                         sc_dataset_gep_type=sc_dataset_gep_type)
+                         sc_dataset_gep_type=sc_dataset_gep_type, subtype_col_name=subtype_col_name,
+                         cell_type_col_name=cell_type_col_name)
 
     def generate_samples(self, n_sample_each_cell_type: int = 10000,
                          n_base_for_positive_samples: int = 100,
                          sample_type: str = 'positive', sep_by_patient=False,
-                         simu_method='ave', cell_type2subgroup_id: dict = None, subgroup_by: list = None):
+                         simu_method='ave'):
         """
         :param n_sample_each_cell_type: the number of samples to generate for each cell type
 
@@ -1062,34 +1057,19 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
         :param simu_method: `ave`: averaging all GEPs, or `scale_by_mGEP`: scaling by the mean GEP of all samples in the TCGA dataset
             or `random_replacement`: replacing the gene expression value (<1) by another value within the same cell type selected randomly
 
-        :param cell_type2subgroup_id: a dict, key is cell type, value is a list of subgroup ids
-        :param subgroup_by: a list of column names in the merged single cell dataset, used to group samples
         """
         if not os.path.exists(self.generated_bulk_gep_fp):
-            if subgroup_by is None:
-                subgroup_by = ['dataset_id', 'leiden']
-            self.n_samples = n_sample_each_cell_type * len(self.cell_type_used)
+            self.n_samples = n_sample_each_cell_type * (len(self.cell_type_used) + len(self.cell_subtype_used))
             if not os.path.exists(self.generated_cell_fraction_fp):
                 print(f'   Generate cell proportions for single cell type (SCT) samples in {self.bulk_dataset_name}')
                 generated_cell_frac = self.generate_frac_sc(
-                    sample_type=sample_type, sample_prefix=f'sct_{self.bulk_dataset_name}_{sample_type[:3]}'
+                    sample_type=sample_type, sample_prefix=f'{self.bulk_dataset_name}_{sample_type[:3]}'
                 )
                 generated_cell_frac.to_csv(self.generated_cell_fraction_fp, float_format='%g')
             else:
                 print(f'   Previous result exists: {self.generated_cell_fraction_fp}')
             # DC has 543 cells, larger chunk_size can cause error if set 'replace=False' and 'n_base=1' while sampling
-            chunk_size_factor = max([len(v) for k, v in cell_type2subgroup_id.items()])
-            if chunk_size_factor <= 10:
-                chunk_size_factor = 10
-            elif 10 < chunk_size_factor <= 20:
-                chunk_size_factor = 20
-            elif 20 < chunk_size_factor <= 50:
-                chunk_size_factor = 50
-            chunk_size = int(n_sample_each_cell_type / chunk_size_factor)
-            # if n_base_for_positive_samples == 1:
-            #     chunk_size = 300
-            # else:
-            #     chunk_size = 1000
+            chunk_size = int(n_sample_each_cell_type / 10)
             chunk_counter = 0
             with pd.read_csv(self.generated_cell_fraction_fp, chunksize=chunk_size, index_col=0) as reader:
                 simu_method = simu_method  # average single cell GEPs for both positive and negative sampling
@@ -1098,25 +1078,20 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
                         total_cell_number = n_base_for_positive_samples
                     else:  # negative sampling (multiple cell types are used) or positive sampling with n_base=1
                         total_cell_number = 0  # assign 1 for the cell types with non-zero cell fractions
-                    if sample_type == 'positive' and cell_type2subgroup_id is not None:
+                    if sample_type == 'positive':
                         # change subgroup for each chunk based on cell_type2subgroup_id
                         all_cell_types = rows.columns[np.argmax(rows.values, axis=1)].unique()
                         if len(all_cell_types) > 1:
                             raise ValueError(f'   More than one cell types are selected: {all_cell_types}')
                         cell_type = all_cell_types[0]
-                        current_subgroups = cell_type2subgroup_id[cell_type]
-                        selected_subgroup = current_subgroups[chunk_counter % chunk_size_factor % len(current_subgroups)]
-                        if len(subgroup_by) == 1 and subgroup_by[0] in self.merged_sc_dataset_obs.columns:
-                            current_obs_df = self.merged_sc_dataset_obs.loc[
-                                             self.merged_sc_dataset_obs[subgroup_by[0]].isin(selected_subgroup),
-                                             :].copy()
-                        elif len(subgroup_by) == 2 and set(subgroup_by).issubset(self.merged_sc_dataset_obs.columns):
-                            current_obs_df = self.merged_sc_dataset_obs.loc[
-                                             (self.merged_sc_dataset_obs[subgroup_by[0]].isin([selected_subgroup[0]])) &
-                                             (self.merged_sc_dataset_obs[subgroup_by[1]].isin([selected_subgroup[1]])),
-                                             :].copy()
-                        else:
-                            raise ValueError(f'   subgroup_by {subgroup_by} is not valid')
+                        col_name = self.cell_type_col_name
+                        if cell_type in self.cell_subtype_used:
+                            col_name = self.subtype_col_name
+                        assert col_name in self.merged_sc_dataset_obs.columns, \
+                            f"Wrong column name for cell type or cell subtype '{col_name}', please check." \
+                            f"Available columns are: {self.merged_sc_dataset_obs.columns}"
+                        current_obs_df = self.merged_sc_dataset_obs.loc[
+                            self.merged_sc_dataset_obs[col_name] == cell_type, :].copy()
                     else:
                         current_obs_df = self.merged_sc_dataset_obs.copy()
                     selected_cell_ids = self._sc_sampling(cell_frac=rows, total_cell_number=total_cell_number,
@@ -1153,13 +1128,14 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
         """
         if sample_prefix is None:
             sample_prefix = f's_sc_{sample_type}'
-        n_cell_types = len(self.cell_type_used)
-        generated_frac_df = pd.DataFrame(index=[f'{sample_prefix}_{i}' for i in range(self.n_samples)],
-                                         columns=self.cell_type_used,
-                                         data=np.zeros((self.n_samples, n_cell_types)))
+        n_cell_types = len(self.cell_type_used) + len(self.cell_subtype_used)
+        cols = self.cell_type_used + self.cell_subtype_used
+        n_for_each_cell_type = int(self.n_samples / n_cell_types)
+        generated_frac_df = \
+            pd.DataFrame(index=[f'{sample_prefix}_{i}_{j}' for i in cols for j in range(n_for_each_cell_type)],
+                         columns=cols, data=np.zeros((self.n_samples, n_cell_types)))
         if sample_type == 'positive':
-            n_for_each_cell_type = int(self.n_samples / n_cell_types)
-            for i, cell_type in enumerate(self.cell_type_used):
+            for i, cell_type in enumerate(cols):
                 inx_start = i * n_for_each_cell_type
                 inx_end = min((i+1) * n_for_each_cell_type, self.n_samples)
                 generated_frac_df.iloc[inx_start:inx_end, i] = 1
@@ -1182,8 +1158,8 @@ class BulkGEPGeneratorSCT(BulkGEPGenerator):
     """
     generate bulk GEPs by cell proportion x single GEP of single cell type (SCT)
     """
-    def __init__(self, sct_dataset_file_path, cell_types, simu_bulk_dir, bulk_dataset_name):
-        super().__init__(simu_bulk_dir=simu_bulk_dir, cell_types=cell_types, bulk_dataset_name=bulk_dataset_name,
+    def __init__(self, sct_dataset_file_path, cell_type2subtype, simu_bulk_dir, bulk_dataset_name):
+        super().__init__(simu_bulk_dir=simu_bulk_dir, cell_type2subtype=cell_type2subtype, bulk_dataset_name=bulk_dataset_name,
                          merged_sc_dataset_file_path=None, check_basic_info=False, sc_dataset_ids=[],
                          sct_dataset_file_path=sct_dataset_file_path)
         # self.sct_dataset_file_path = sct_dataset_file_path
@@ -1424,6 +1400,7 @@ def filtering_by_gene_list_and_pca_plot(bulk_exp, tcga_exp, gene_list, result_di
     :param simu_dataset_name:
     :param h5ad_file_path: save simulated bulk GEPs depending on filtered gene list to .h5ad file if not None
     :param cell_frac_file:
+    :param figsize:
     :return:
     """
     bulk_obj = ReadExp(bulk_exp, exp_type=bulk_exp_type)
