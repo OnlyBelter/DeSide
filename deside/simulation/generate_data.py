@@ -315,7 +315,6 @@ class BulkGEPGenerator(object):
         self.sct_dataset_obs = None
         self.m_gep_ref = None  # median / mean GEP of reference dataset
         # unique expression values in scRNA-seq dataset saved in merged_7_sc_dataset_log2cpm1p.h5ad
-        self.unique_exp_value_in_s0 = None  # {'cell_type1': {'gene1': np.array([]), ...}, 'cell_type2': {}, ...}
         self.sc_dataset_gep_type = sc_dataset_gep_type
         self.tcga2cancer_type_file_path = tcga2cancer_type_file_path
         self.total_rna_coefficient = total_rna_coefficient
@@ -744,7 +743,6 @@ class BulkGEPGenerator(object):
         self.merged_sc_dataset_obs.loc[self.merged_sc_dataset_obs['dataset_id'] == 'pan_cancer_07',
                                        'sample_id'] = 'pan_cancer'
         # The unique gene expression values of each gene in different cell types (merged scRNA-seq dataset)
-        self.unique_exp_value_in_s0 = self.merged_sc_dataset.uns['unique_exp_values']
         self.merged_sc_dataset = None
         if check_zero_ratio:
             if self.sc_dataset_gep_type == 'log_space':
