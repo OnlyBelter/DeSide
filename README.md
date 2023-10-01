@@ -22,11 +22,11 @@ In this repository, we provide the code for implementing these four parts and vi
 ## Requirements
 DeSide requires Python 3.8 or higher. It has been tested on Linux and MacOS, but should work on Windows as well.
 - tensorflow>=2.8.0
-- scikit-learn==0.24.0
+- scikit-learn==1.2.0
 - anndata>=0.8.0
 - scanpy==1.8.0
-- pandas==1.2.5
-- numpy<1.22
+- pandas==2.0.3
+- numpy
 - matplotlib
 - seaborn>=0.11.2
 - bbknn==1.5.1
