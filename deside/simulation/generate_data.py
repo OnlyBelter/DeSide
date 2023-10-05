@@ -1292,10 +1292,12 @@ def get_gene_list_for_filtering(bulk_exp_file, tcga_file, result_file_path, q_co
         bulk_exp = ReadH5AD(bulk_exp_file).get_df()
         tcga_obj = ReadExp(tcga_file, exp_type='TPM')
         tcga_obj.align_with_gene_list(
-            gene_list=bulk_exp.columns.to_list(),
+            gene_list=bulk_exp.columns.to_list(), fill_not_exist=True,
         )
         tcga_obj.to_log2cpm1p()
         tcga = tcga_obj.get_exp()
+        assert (len(tcga.columns) == len(bulk_exp.columns)) and np.all(tcga.columns == bulk_exp.columns), \
+            f'Columns of bulk_exp and tcga are not the same'
         gene_list = []
         if 'high_corr_gene' in filtering_type:
             h5_obj = ReadH5AD(bulk_exp_file)
