@@ -6,7 +6,7 @@ scikit-learn==0.24.0
 anndata>=0.8.0
 scanpy==1.8.0
 pandas==1.2.5
-numpy<1.22
+numpy>=1.22
 scipy
 umap-learn==0.5.1
 matplotlib<3.7
