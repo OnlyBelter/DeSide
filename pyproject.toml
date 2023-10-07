@@ -30,7 +30,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "tensorflow<=2.10.0",
+    "tensorflow==2.11.1",
     "scikit-learn==0.24.2",  # 0.24.0
     "anndata>=0.8.0",
     "scanpy==1.8.0",
