@@ -358,7 +358,7 @@ class BulkGEPGenerator(object):
                         max_value=10000,
                         sample_prefix=sample_prefix,
                         cell_types=self.cell_type2subtype[cell_type],
-                        cell_prop_prior=cell_prop_prior
+                        cell_prop_prior=None
                     )
                     _cell_fracs = _cell_fracs * gen_cell_fracs[cell_type].values.reshape(-1, 1)
                     for subtype in self.cell_type2subtype[cell_type]:
