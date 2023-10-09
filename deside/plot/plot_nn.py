@@ -51,7 +51,8 @@ def plot_loss(history_df, output_dir=None, x_label='n_epoch', y_label='MSE', fil
 
 def plot_corr_two_columns(df: pd.DataFrame, output_dir: str, col_name1: str = 'CPE',
                           col_name2: str = 'cancer_cell', cancer_type: str = '', diagonal: bool = True,
-                          predicted_by: str = None, font_scale: float = 1.5, scale_exp=False, update_figures=False):
+                          predicted_by: str = None, font_scale: float = 1.5, scale_exp=False, update_figures=False,
+                          cell_type2subtypes: dict = None):
     """
     Plot the relation between two columns in DataFrame `df`
 
@@ -75,6 +76,8 @@ def plot_corr_two_columns(df: pd.DataFrame, output_dir: str, col_name1: str = 'C
 
     :param update_figures: if update figures in output_dir
 
+    :param cell_type2subtypes: dict, cell type to subtypes, such as {'B cells': ['B cells naive', 'B cells memory']}
+
     :return: None
     """
     check_dir(output_dir)
@@ -83,8 +86,18 @@ def plot_corr_two_columns(df: pd.DataFrame, output_dir: str, col_name1: str = 'C
         # sns.set(font_scale=font_scale)
         # plt.rcParams['font.sans-serif'] = ['Arial Unicode MS']  # show Chinese characters
         plt.figure(figsize=(8, 8))
-        df_col1 = df[col_name1].copy()
-        df_col2 = df[col_name2].copy()
+        if col_name1 in df.columns:
+            df_col1 = df[col_name1].copy()
+        elif cell_type2subtypes is not None and col_name1 in cell_type2subtypes:
+            df_col1 = df[cell_type2subtypes[col_name1]].sum(axis=1)
+        else:
+            raise ValueError('Please check column name: {}'.format(col_name1))
+        if col_name2 in df.columns:
+            df_col2 = df[col_name2].copy()
+        elif cell_type2subtypes is not None and col_name2 in cell_type2subtypes:
+            df_col2 = df[cell_type2subtypes[col_name2]].sum(axis=1)
+        else:
+            raise ValueError('Please check column name: {}'.format(col_name2))
         if np.any(df_col1 > 2) and scale_exp:
             df_col1 = df_col1 / df_col1.max() * 10
         if np.any(df_col2 > 2) and scale_exp:
@@ -98,15 +111,12 @@ def plot_corr_two_columns(df: pd.DataFrame, output_dir: str, col_name1: str = 'C
         mae = median_absolute_error(y_true=df_col1, y_pred=df_col2)
         plt.scatter(df_col1, df_col2, s=8)
         plt.xlabel('{} ({})'.format(col_name1, cancer_type))
-        # plt.xlabel('{} (头颈癌)'.format(col_name1))
-        # plt.ylabel('预测 {} 比例 (样本数={})'.format(col_name2, df.shape[0]))
         x_left, x_right = plt.xlim()
         y_bottom, y_top = plt.ylim()
         if '_true' in col_name2:
             plt.ylabel('{} prop. (n={})'.format(col_name2, df.shape[0]))
         elif predicted_by:
             plt.ylabel('Predicted {} prop. by {} (n={})'.format(col_name2, predicted_by, df.shape[0]))
-            # plt.ylabel('{}预测值 (样本数={})'.format(predicted_by, df.shape[0]))
         else:
             plt.ylabel('{} prop. (n={})'.format(col_name2, df.shape[0]))
         if 'CPE' in [col_name1, col_name2]:
@@ -140,7 +150,7 @@ def plot_corr_two_columns(df: pd.DataFrame, output_dir: str, col_name1: str = 'C
 
 def plot_predicted_result(cell_frac_result_fp, bulk_exp_fp, cancer_type,
                           model_name, result_dir, cancer_purity_fp: str = None,
-                          font_scale=2.0, update_figures=False):
+                          font_scale=2.0, update_figures=False, cell_type2subtypes=None):
     """
     Plot and evaluate predicted results of DeSide or Scaden model for TCGA data
 
@@ -161,6 +171,8 @@ def plot_predicted_result(cell_frac_result_fp, bulk_exp_fp, cancer_type,
 
     :param update_figures: whether to update figures
 
+    :param cell_type2subtypes: dict, cell type to subtypes, e.g. {'CD8 T': ['...', '...'], }
+
     :return: None
     """
     y_pred = read_df(cell_frac_result_fp)  # cell fraction, sample by cell type
@@ -172,7 +184,8 @@ def plot_predicted_result(cell_frac_result_fp, bulk_exp_fp, cancer_type,
     merged_df1 = y_pred.merge(bulk_exp_cpm.T, left_index=True, right_index=True)
     plot_corr_two_columns(df=merged_df1, col_name2='CD8 T', col_name1='CD8A',
                           predicted_by=model_name, font_scale=font_scale,
-                          output_dir=result_dir, diagonal=False, cancer_type=cancer_type, update_figures=update_figures)
+                          output_dir=result_dir, diagonal=False, cancer_type=cancer_type,
+                          update_figures=update_figures, cell_type2subtypes=cell_type2subtypes)
 
     if cancer_purity_fp is not None:
         # read cancer purity file

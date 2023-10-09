@@ -178,10 +178,10 @@ def run_step3(evaluation_dataset2path, log_file_path, result_dir, model_dir,
                                  pathway_mask=pathway_mask, method_adding_pathway=method_adding_pathway,
                                  hyper_params=hyper_params)
         print('   > Comparing cell frac between y_true and y_pred...')
-        for cell_type in generated_cell_frac.columns.to_list():
-            s_plot = ScatterPlot(x=predicted_cell_frac_file_path,
-                                 y=generated_cell_frac,
-                                 postfix=f'pred_y_y_{cell_type}')
+        s_plot = ScatterPlot(x=predicted_cell_frac_file_path,
+                             y=generated_cell_frac)
+        for cell_type in s_plot.x.columns.to_list():
+            s_plot.postfix = f'pred_y_y_{cell_type}'
             s_plot.plot(show_columns={'x': cell_type, 'y': cell_type}, fig_size=(8, 8),
                         result_file_dir=predicted_result_dir, show_mae=True,
                         show_rmse=True, show_diag=True,
@@ -201,7 +201,7 @@ def run_step4(tcga_data_dir: str, cancer_types: list, log_file_path: str, model_
               cancer_purity_file_path: str, all_cell_types: list, model_names: list,
               signature_score_method: str, one_minus_alpha: bool = False,
               update_figures: bool = False, outlier_file_path: str = None, pathway_mask: pd.DataFrame = None,
-              method_adding_pathway: str = 'add_to_end', hyper_params: dict = None):
+              method_adding_pathway: str = 'add_to_end', hyper_params: dict = None, cell_type2subtypes: dict = None):
     """
     Step4: Predicting cell fractions of TCGA
     :param tcga_data_dir: str, TCGA data directory
@@ -221,6 +221,7 @@ def run_step4(tcga_data_dir: str, cancer_types: list, log_file_path: str, model_
     :param pathway_mask: dataframe, pathway mask, genes by pathways
     :param method_adding_pathway: str, method for adding pathway, 'add_to_end' or 'convert'
     :param hyper_params: dict, hyper parameters for DNN model
+    :param cell_type2subtypes: dict, cell type to subtypes
     """
     # TCGA
     print_msg("Step 4: Predict cell fraction of TCGA...", log_file_path=log_file_path)
@@ -249,7 +250,8 @@ def run_step4(tcga_data_dir: str, cancer_types: list, log_file_path: str, model_
             # y_pred_file_path = os.path.join(current_result_dir, 'y_predicted_result.csv')
             plot_predicted_result(cell_frac_result_fp=y_pred_file_path, bulk_exp_fp=current_bulk_tpm.T,
                                   cancer_type=cancer_type, model_name=model_name, result_dir=current_result_dir,
-                                  cancer_purity_fp=cancer_purity_file_path, update_figures=update_figures)
+                                  cancer_purity_fp=cancer_purity_file_path, update_figures=update_figures,
+                                  cell_type2subtypes=cell_type2subtypes)
 
         tcga_evaluation(marker_gene_file_path=marker_gene_file_path, total_result_dir=result_dir,
                         pred_cell_frac_tcga_dir=pred_cell_frac_tcga_dir,

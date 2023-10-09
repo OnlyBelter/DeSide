@@ -24,15 +24,17 @@ class ScatterPlot(object):
         self.x = read_xy(x)
         self.y = read_xy(y)
         common_inx = [i for i in self.x.index if i in self.y.index]
+        common_col = [i for i in self.x.columns if i in self.y.columns]
         self.postfix = postfix
         self.group_info = group_info
         if group_info is not None:
             common_inx = [i for i in group_info.index if i in common_inx]
             self.group_info = self.group_info.loc[common_inx, :].copy()
         self.show_columns = None
-        self.x = self.x.loc[common_inx, :].copy()
-        self.y = self.y.loc[common_inx, :].copy()
-        assert np.all(self.x.index == self.y.index)
+        self.x = self.x.loc[common_inx, common_col].copy()
+        self.y = self.y.loc[common_inx, common_col].copy()
+        assert np.all(self.x.index == self.y.index), 'index not match'
+        assert np.all(self.x.columns == self.y.columns), 'columns not match'
 
     def plot(self, show_columns: Union[list, dict], result_file_dir: str = None,
              x_label: str = None, y_label: str = None, show_corr: bool = True, show_rmse: bool = False,
@@ -65,16 +67,16 @@ class ScatterPlot(object):
         all_y = []
         self.show_columns = show_columns
         if type(show_columns) == dict:
-            self.x = self.x[show_columns['x']]
-            self.y = self.y[show_columns['y']]
-            all_x.append(self.x)
-            all_y.append(self.y)
+            current_x = self.x[show_columns['x']]
+            current_y = self.y[show_columns['y']]
+            all_x.append(current_x)
+            all_y.append(current_y)
             if (self.group_info is not None) and (group_by in self.group_info.columns):
                 inx = self.group_info[group_by] == 1
-                plt.scatter(self.x[~inx], self.y[~inx], s=1, label='others')
-                plt.scatter(self.x[inx], self.y[inx], s=5, label=group_by, marker='x')
+                plt.scatter(current_x[~inx], current_y[~inx], s=1, label='others')
+                plt.scatter(current_x[inx], current_y[inx], s=5, label=group_by, marker='x')
             else:
-                plt.scatter(self.x, self.y, s=s, label=show_columns['x'], alpha=.4)  # only 1 vs 1 column
+                plt.scatter(current_x, current_y, s=s, label=show_columns['x'], alpha=.4)  # only 1 vs 1 column
             if show_reg_line:
                 self.fit_reg_model(ax=ax, order=order)
         else:
