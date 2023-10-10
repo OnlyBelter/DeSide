@@ -349,21 +349,21 @@ class BulkGEPGenerator(object):
             gen_cell_fracs = segment_generation_fraction(n_samples=n_cell_frac,
                                                          max_value=10000,
                                                          sample_prefix=sample_prefix,
-                                                         cell_types=self.cell_type_used,
+                                                         cell_types=cell_type_with_subtype,
                                                          cell_prop_prior=cell_prop_prior)
-            if len(cell_type_contain_subtype) > 0:
-                for cell_type in cell_type_contain_subtype:
-                    _cell_fracs = segment_generation_fraction(
-                        n_samples=n_cell_frac,
-                        max_value=10000,
-                        sample_prefix=sample_prefix,
-                        cell_types=self.cell_type2subtype[cell_type],
-                        cell_prop_prior=None
-                    )
-                    _cell_fracs = _cell_fracs * gen_cell_fracs[cell_type].values.reshape(-1, 1)
-                    for subtype in self.cell_type2subtype[cell_type]:
-                        gen_cell_fracs[subtype] = _cell_fracs[subtype]
-                    gen_cell_fracs.pop(cell_type)
+            # if len(cell_type_contain_subtype) > 0:
+            #     for cell_type in cell_type_contain_subtype:
+            #         _cell_fracs = segment_generation_fraction(
+            #             n_samples=n_cell_frac,
+            #             max_value=10000,
+            #             sample_prefix=sample_prefix,
+            #             cell_types=self.cell_type2subtype[cell_type],
+            #             cell_prop_prior=None
+            #         )
+            #         _cell_fracs = _cell_fracs * gen_cell_fracs[cell_type].values.reshape(-1, 1)
+            #         for subtype in self.cell_type2subtype[cell_type]:
+            #             gen_cell_fracs[subtype] = _cell_fracs[subtype]
+            #         gen_cell_fracs.pop(cell_type)
 
         elif sampling_method == 'seg_random':
             gen_cell_fracs = seg_random_generation_fraction(n_samples=n_cell_frac,
