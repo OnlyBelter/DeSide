@@ -215,16 +215,16 @@ class DeSide(object):
                                                               ', '.join(cell_type_provided_not_in_y) + \
                                                               ') are not in the training set.'
                 self.cell_types = cell_types
-            print('   Using cell types:', self.cell_types)
-            y = y.loc[:, self.cell_types]  # a dataframe, samples by cell types
+            # print('   Using cell types:', self.cell_types)
             if remove_cancer_cell:
                 self.cell_types = [i for i in self.cell_types if i != 'Cancer Cells']
+            y = y.loc[:, self.cell_types]  # a dataframe, samples by cell types
 
             # Save features and cell types
             pd.DataFrame(self.cell_types).to_csv(self.cell_type_file_path, sep="\t")
             pd.DataFrame(self.gene_list).to_csv(self.gene_list_file_path, sep="\t")
 
-            print(f'   Using cell types: {self.cell_types}')
+            print(f'   Use the following cell types: {self.cell_types} ' + 'during training.')
             print(f'   The shape of X is: {x.shape}, (n_sample, n_gene)')
             print(f'   The shape of y is: {y.shape}, (n_sample, n_cell_type)')
             if not fine_tune:
