@@ -210,10 +210,15 @@ class DeSide(object):
             if cell_types is None:
                 self.cell_types = y.columns.to_list()  # a list
             else:
+                cell_type_provided_not_in_y = [i for i in cell_types if i not in y.columns.to_list()]
+                assert len(cell_type_provided_not_in_y) == 0, 'Provided cell types (' + \
+                                                              ', '.join(cell_type_provided_not_in_y) + \
+                                                              ') are not in the training set.'
                 self.cell_types = cell_types
+            print('   Using cell types:', self.cell_types)
+            y = y.loc[:, self.cell_types]  # a dataframe, samples by cell types
             if remove_cancer_cell:
                 self.cell_types = [i for i in self.cell_types if i != 'Cancer Cells']
-            y = y.loc[:, y.columns.isin(self.cell_types)]  # a dataframe, samples by cell types
 
             # Save features and cell types
             pd.DataFrame(self.cell_types).to_csv(self.cell_type_file_path, sep="\t")
