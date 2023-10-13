@@ -64,19 +64,40 @@ class DeSide(object):
         batch_normalization = keras.layers.BatchNormalization
         activation = functools.partial(keras.layers.Activation, activation='relu')  # activate after BatchNormalization
 
+        p_features = None
+        pathway_profile = None
         if using_batch_normalization:
             gep = keras.Input(shape=(input_shape,), name='gep')
             gep_normalized = batch_normalization()(gep)
             features = dense(units=hidden_units[0])(gep_normalized)  # the first dense layer
             features = batch_normalization()(features)
             features = activation()(features)
-            for n_units in hidden_units[1:-1]:
+            if dropout_rates[0] > 0:
+                features = keras.layers.Dropout(dropout_rates[0])(features)
+            hid_dropout = list(zip(hidden_units[1:], dropout_rates[1:]))
+            for n_units, dropout_rate in hid_dropout:
                 features = dense(units=n_units)(features)
                 features = batch_normalization()(features)
                 features = activation()(features)
-            features = dense(units=hidden_units[-1], use_bias=True, activation='relu')(features)  # before output
-            y_pred = dense(units=output_shape, use_bias=True, activation=last_layer_activation_function)(features)
-            model = keras.Model(inputs=gep, outputs=y_pred, name='DeSide')
+                if dropout_rate > 0:
+                    features = keras.layers.Dropout(dropout_rate)(features)
+            if pathway_network:
+                assert 'architecture_for_pathway_network' in hyper_params, \
+                    'architecture_for_pathway_network is required when using pathway network.'
+                p_hidden_units = hyper_params['architecture_for_pathway_network'][0]
+                p_dropout_rates = hyper_params['architecture_for_pathway_network'][1]
+                pathway_profile = keras.Input(shape=(n_pathway,), name='pathway_profile')
+                p_features = dense(units=p_hidden_units[0])(pathway_profile)
+                p_features = batch_normalization()(p_features)
+                p_features = activation()(p_features)
+                if p_dropout_rates[0] > 0:
+                    p_features = keras.layers.Dropout(p_dropout_rates[0])(p_features)
+                for n_units, dropout_rate in zip(p_hidden_units[1:], p_dropout_rates[1:]):
+                    p_features = dense(units=n_units)(p_features)
+                    p_features = batch_normalization()(p_features)
+                    p_features = activation()(p_features)
+                    if dropout_rate > 0:
+                        p_features = keras.layers.Dropout(dropout_rate)(p_features)
         else:
             gep = keras.Input(shape=(input_shape,), name='gep')
             features = dense(units=hidden_units[0], use_bias=True, activation='relu')(gep)  # the first dense layer
@@ -101,15 +122,15 @@ class DeSide(object):
                     p_features = dense(units=n_units, use_bias=True, activation='relu')(p_features)
                     if dropout_rate > 0:
                         p_features = keras.layers.Dropout(dropout_rate)(p_features)
-
-                # Merge all available features into a single large vector via concatenation
-                x = keras.layers.concatenate([features, p_features])
-                x = dense(units=hidden_units[-1], use_bias=True, activation='relu')(x)
-                y_pred = dense(units=output_shape, use_bias=True, activation=last_layer_activation_function)(x)
-                model = keras.Model(inputs=[gep, pathway_profile], outputs=y_pred, name='DeSide')
-            else:
-                y_pred = dense(units=output_shape, use_bias=True, activation=last_layer_activation_function)(features)
-                model = keras.Model(inputs=gep, outputs=y_pred, name='DeSide')
+        if pathway_profile is not None and p_features is not None:
+            # Merge all available features into a single large vector via concatenation
+            x = keras.layers.concatenate([features, p_features])
+            x = dense(units=hidden_units[-1], use_bias=True, activation='relu')(x)
+            y_pred = dense(units=output_shape, use_bias=True, activation=last_layer_activation_function)(x)
+            model = keras.Model(inputs=[gep, pathway_profile], outputs=y_pred, name='DeSide')
+        else:
+            y_pred = dense(units=output_shape, use_bias=True, activation=last_layer_activation_function)(features)
+            model = keras.Model(inputs=gep, outputs=y_pred, name='DeSide')
         self.model = model
 
     def train_model(self, training_set_file_path: Union[str, list], hyper_params: dict,
