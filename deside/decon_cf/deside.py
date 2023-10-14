@@ -455,8 +455,8 @@ class DeSide(object):
                 self.model = keras.models.load_model(self.model_file_path)
             except ValueError:
                 custom_objects = {'loss_fn_mae_rmse': loss_fn_mae_rmse}
-                with keras.saving.custom_object_scope(custom_objects):
-                    self.model = keras.models.load_model(self.model_file_path)
+                # with keras.saving.custom_object_scope(custom_objects):
+                self.model = keras.models.load_model(self.model_file_path, custom_objects=custom_objects)
             finally:
                 print(f'   Pre-trained model loaded from {self.model_file_path}.')
         pathway_network = hyper_params['pathway_network']
