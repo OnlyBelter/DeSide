@@ -266,12 +266,13 @@ class DeSide(object):
                 raise FileNotFoundError('pre-trained model should be assigned to self.model')
             opt = keras.optimizers.Adam(learning_rate=learning_rate)
 
-            loss_function = functools.partial(loss_fn_mae_rmse, alpha=loss_function_alpha)
+            # loss_function = functools.partial(loss_fn_mae_rmse, alpha=loss_function_alpha)
+            # loss_function.get_config = lambda: {'alpha': loss_function_alpha}
             print('   The following loss function will be used:', 'mae +', loss_function_alpha, '* rmse')
             monitor_metrics = ['mae', keras.metrics.RootMeanSquaredError()]
             if metrics not in ['mae', 'rmse', 'mse']:
                 monitor_metrics.append(metrics)
-            self.model.compile(optimizer=opt, loss=loss_function, metrics=monitor_metrics)
+            self.model.compile(optimizer=opt, loss=loss_fn_mae_rmse, metrics=monitor_metrics)
             print(self.model.summary())
 
             # training model
@@ -298,9 +299,9 @@ class DeSide(object):
             hist = pd.DataFrame(history.history)
             hist['epoch'] = history.epoch
             hist.to_csv(os.path.join(self.model_dir, 'history_reg.csv'))
+            plot_loss(hist, output_dir=self.model_dir, y_label='loss_function')
 
             self.model.save(self.model_file_path)
-            plot_loss(hist, output_dir=self.model_dir, y_label=loss_function)
             key_params_file_path = os.path.join(self.model_dir, 'key_params.txt')
             print(f'   Key parameters during model training will be saved in {key_params_file_path}.')
             self.save_params(key_params_file_path)
@@ -453,8 +454,9 @@ class DeSide(object):
             try:
                 self.model = keras.models.load_model(self.model_file_path)
             except ValueError:
-                self.model = keras.models.load_model(self.model_file_path,
-                                                     custom_objects={'loss_fn_mae_rmse': loss_fn_mae_rmse})
+                custom_objects = {'loss_fn_mae_rmse': loss_fn_mae_rmse}
+                with keras.saving.custom_object_scope(custom_objects):
+                    self.model = keras.models.load_model(self.model_file_path)
             finally:
                 print(f'   Pre-trained model loaded from {self.model_file_path}.')
         pathway_network = hyper_params['pathway_network']
@@ -556,7 +558,7 @@ class DeSide(object):
         return [id2cell_type[i] for i in pred_id]
 
 
-def loss_fn_mae_rmse(y_true, y_pred, alpha=0.8):
+def loss_fn_mae_rmse(y_true, y_pred, alpha=0.5):
     """
     Customized loss function for training the model. `alpha*MAE + (1-alpha)*RMSE`
 
