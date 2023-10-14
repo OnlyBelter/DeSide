@@ -53,7 +53,7 @@ class DeSide(object):
         self.hyper_params = hyper_params
         hidden_units = hyper_params['architecture'][0]
         dropout_rates = hyper_params['architecture'][1]
-        using_batch_normalization = hyper_params['batch_normalization']
+        normalization = hyper_params['normalization']
         last_layer_activation_function = hyper_params['last_layer_activation']
         pathway_network = hyper_params['pathway_network']
         if last_layer_activation_function == 'hard_sigmoid':
@@ -61,23 +61,28 @@ class DeSide(object):
 
         # remove bias when using BatchNormalization
         dense = functools.partial(keras.layers.Dense, use_bias=False, kernel_initializer='he_normal')
-        batch_normalization = keras.layers.BatchNormalization
+        if normalization == 'batch_normalization':
+            normalization_func = keras.layers.BatchNormalization
+        elif normalization == 'layer_normalization':
+            normalization_func = keras.layers.LayerNormalization
+        else:
+            normalization_func = None
         activation = functools.partial(keras.layers.Activation, activation='relu')  # activate after BatchNormalization
 
         p_features = None
         pathway_profile = None
-        if using_batch_normalization:
+        if normalization is not None and normalization_func is not None:
             gep = keras.Input(shape=(input_shape,), name='gep')
-            gep_normalized = batch_normalization()(gep)
+            gep_normalized = normalization_func()(gep)
             features = dense(units=hidden_units[0])(gep_normalized)  # the first dense layer
-            features = batch_normalization()(features)
+            features = normalization_func()(features)
             features = activation()(features)
             if dropout_rates[0] > 0:
                 features = keras.layers.Dropout(dropout_rates[0])(features)
             hid_dropout = list(zip(hidden_units[1:], dropout_rates[1:]))
             for n_units, dropout_rate in hid_dropout:
                 features = dense(units=n_units)(features)
-                features = batch_normalization()(features)
+                features = normalization_func()(features)
                 features = activation()(features)
                 if dropout_rate > 0:
                     features = keras.layers.Dropout(dropout_rate)(features)
@@ -87,14 +92,15 @@ class DeSide(object):
                 p_hidden_units = hyper_params['architecture_for_pathway_network'][0]
                 p_dropout_rates = hyper_params['architecture_for_pathway_network'][1]
                 pathway_profile = keras.Input(shape=(n_pathway,), name='pathway_profile')
-                p_features = dense(units=p_hidden_units[0])(pathway_profile)
-                p_features = batch_normalization()(p_features)
+                pathway_normalized = normalization_func()(pathway_profile)
+                p_features = dense(units=p_hidden_units[0])(pathway_normalized)
+                p_features = normalization_func()(p_features)
                 p_features = activation()(p_features)
                 if p_dropout_rates[0] > 0:
                     p_features = keras.layers.Dropout(p_dropout_rates[0])(p_features)
                 for n_units, dropout_rate in zip(p_hidden_units[1:], p_dropout_rates[1:]):
                     p_features = dense(units=n_units)(p_features)
-                    p_features = batch_normalization()(p_features)
+                    p_features = normalization_func()(p_features)
                     p_features = activation()(p_features)
                     if dropout_rate > 0:
                         p_features = keras.layers.Dropout(dropout_rate)(p_features)
@@ -168,7 +174,7 @@ class DeSide(object):
         if not os.path.exists(self.model_file_path):
             print_msg('Start to training model...', log_file_path=self.log_file_path)
             learning_rate = hyper_params['learning_rate']
-            loss_function = hyper_params['loss_function']
+            loss_function_alpha = hyper_params['loss_function_alpha']
             batch_size = hyper_params['batch_size']
 
             # read training set
@@ -259,12 +265,13 @@ class DeSide(object):
             if self.model is None:
                 raise FileNotFoundError('pre-trained model should be assigned to self.model')
             opt = keras.optimizers.Adam(learning_rate=learning_rate)
-            _loss_function = loss_function
-            _metrics = [metrics]
-            if loss_function == 'mae+rmse':
-                _loss_function = loss_fn_mae_rmse
-                _metrics = ['mae', keras.metrics.RootMeanSquaredError()]
-            self.model.compile(optimizer=opt, loss=_loss_function, metrics=_metrics)
+
+            loss_function = functools.partial(loss_fn_mae_rmse, alpha=loss_function_alpha)
+            print('   The following loss function will be used:', 'mae +', loss_function_alpha, '* rmse')
+            monitor_metrics = ['mae', keras.metrics.RootMeanSquaredError()]
+            if metrics not in ['mae', 'rmse', 'mse']:
+                monitor_metrics.append(metrics)
+            self.model.compile(optimizer=opt, loss=loss_function, metrics=monitor_metrics)
             print(self.model.summary())
 
             # training model
