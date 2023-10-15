@@ -38,7 +38,8 @@ default_core_marker_genes = {'Cancer Cells': ['KRT19', 'KRT18', 'KRT8', 'EPCAM']
 # sorted_cell_types = ['B Cells', 'CD4 T', 'CD8 T', 'Cancer Cells', 'DC', 'Endothelial Cells',
 #                      'Fibroblasts', 'Macrophages', 'Mast Cells', 'NK', 'Neutrophils']
 sorted_cell_types = ['B Cells', 'Plasma B cells', 'Non-plasma B cells', 'CD4 T', 'CD4 T conv', 'CD4 Treg',
-                     'CD8 T', 'CD8 T effector', 'CD8 T (GZMK high)', 'Double-neg-like T', 'Cancer Cells',
+                     'CD8 T', 'CD8 T effector', 'CD8 T (GZMK high)', 'Double-neg-like T',
+                     'Cancer Cells', 'Epithelial Cells', 'Glioma Cells',
                      'DC', 'mDC', 'pDC', 'Endothelial Cells', 'Fibroblasts', 'CAFs', 'Myofibroblasts',
                      'Macrophages', 'Mast Cells', 'NK', 'Neutrophils', 'Monocytes']
 
