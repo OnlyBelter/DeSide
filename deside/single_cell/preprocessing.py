@@ -146,7 +146,8 @@ def normalize_mtx(adata, prefix=None, min_genes=200, min_cells=3, result_dir=Non
     return adata
 
 
-def get_sample_id(obs_df, n, cell_type, n_base, class_by='leiden', sep_by_patient=False):
+def get_sample_id(obs_df, n, cell_type, n_base, class_by='leiden', sep_by_patient=False,
+                  sc_dataset=None, glioma_epi_ratio=0.1):
     """
     select sample id by random sampling
     :param obs_df: adata.obs in .h5ad file
@@ -155,10 +156,20 @@ def get_sample_id(obs_df, n, cell_type, n_base, class_by='leiden', sep_by_patien
     :param n_base: the number of single cells to average
     :param class_by: leiden or cell_type, the column name of cell type (or subtype) in .h5ad file
     :param sep_by_patient: only sampling from one patient in original dataset if True
+    :param glioma_epi_ratio: the ratio of glioma cells and epithelial cells when sampling from cancer cells
+    :param sc_dataset: the single cell dataset used for sampling
     :return: a tuple of tuples  (('s1', 's2'), ('s3', 's5')), each tuple contains n_base ids for a single sample
     """
     if n_base == 0:
         return tuple()
+    if sc_dataset == 'sct_dataset' and cell_type == 'Cancer Cells':
+        all_cols = obs_df.columns.tolist()
+        if 'Epithelial Cells' in all_cols and 'Glioma Cells' in all_cols:
+            random_float = np.random.random()
+            if random_float <= glioma_epi_ratio:
+                cell_type = 'Glioma Cells'
+            else:
+                cell_type = 'Epithelial Cells'
     obs_df = obs_df.loc[obs_df[class_by] == cell_type, :].copy()
     all_samples_id = obs_df.index.to_list()
     groupby_patient_count = None

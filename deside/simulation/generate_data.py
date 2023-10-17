@@ -527,7 +527,7 @@ class BulkGEPGenerator(object):
                         cell_prop_prior=cell_prop_prior)
                     # setting step_size equals to n_cell_frac, so n_parts equals to 1
                     selected_cell_ids = self._sc_sampling(cell_frac=generated_cell_frac,
-                                                          n_threads=n_threads, obs_df=obs_df)
+                                                          n_threads=n_threads, obs_df=obs_df, sc_dataset=sc_dataset)
                     simulated_gep = self._map_cell_id2exp(selected_cell_id=selected_cell_ids,
                                                           simu_method=simu_method,
                                                           sc_dataset=sc_dataset,
@@ -757,8 +757,8 @@ class BulkGEPGenerator(object):
             self.merged_sc_dataset_obs = self.merged_sc_dataset_obs.loc[
                                          ~self.merged_sc_dataset_obs.index.isin(high_zero_ratio_cells), :].copy()
 
-    def _sc_sampling(self, cell_frac: pd.DataFrame, obs_df: pd.DataFrame,
-                     n_threads: int = 10, total_cell_number: int = None, sep_by_patient=False):
+    def _sc_sampling(self, cell_frac: pd.DataFrame, obs_df: pd.DataFrame, n_threads: int = 10,
+                     total_cell_number: int = None, sep_by_patient=False, sc_dataset=None):
         """
         Mix single cell expression profiles to simulated bulk expression profile according to `cell_frac`.
 
@@ -771,6 +771,8 @@ class BulkGEPGenerator(object):
         :param total_cell_number: N, total cell number to sample for each simulated bulk sample
 
         :param sep_by_patient: whether to separate samples by patient or not during sampling
+
+        :param sc_dataset: which single cell dataset to use for sampling
 
         :return: sampled cell_ids
         """
@@ -799,7 +801,7 @@ class BulkGEPGenerator(object):
         sampled_cell_ids = pd.concat(cell_num_flatten)
         # contains all cell types for each single simulated bulk expression profile
         # if not all_cell_num_is_one:
-        paras = [(obs_df, 1, row['cell_type'], row['n_cell'], row['class_by'], sep_by_patient)
+        paras = [(obs_df, 1, row['cell_type'], row['n_cell'], row['class_by'], sep_by_patient, sc_dataset)
                  for i, row in sampled_cell_ids.iterrows()]
         n_threads = min(multiprocessing.cpu_count()-2, n_threads)
         # https://pythonspeed.com/articles/python-multiprocessing/
@@ -1152,99 +1154,99 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
         return generated_frac_df.round(4)
 
 
-class BulkGEPGeneratorSCT(BulkGEPGenerator):
-    """
-    generate bulk GEPs by cell proportion x single GEP of single cell type (SCT)
-    """
-    def __init__(self, sct_dataset_file_path, cell_type2subtype, simu_bulk_dir, bulk_dataset_name):
-        super().__init__(simu_bulk_dir=simu_bulk_dir, cell_type2subtype=cell_type2subtype, bulk_dataset_name=bulk_dataset_name,
-                         merged_sc_dataset_file_path=None, check_basic_info=False, sc_dataset_ids=[],
-                         sct_dataset_file_path=sct_dataset_file_path)
-        # self.sct_dataset_file_path = sct_dataset_file_path
-        # self.sct_dataset_obs = None
-        # self.sct_dataset_df = None
-
-    def generate_samples(self, n_samples, latent_z_nn_file_path: str = None,
-                         ref_distribution: dict = None, sampling_method: str = 'fragment',
-                         total_cell_number: int = 1, n_threads: int = 10,
-                         log_file_path: str = None, cell_prop_file_path: str = None, add_token_cell_type: bool = False,
-                         random_n_cell_type: list = None):
-        """
-        :param n_samples: the number of GEPs to generate
-        :param latent_z_nn_file_path: neighbor information of latent z for all samples, used for QC and sampling
-        :param total_cell_number: N, the total number of cells sampled from merged single cell dataset
-                                      and averaged to simulate a single bulk RNA-seq sample
-        :param sampling_method: segment or random, method to generate cell fractions
-        :param ref_distribution: reference distribution for each cell type, seperated to 10 bins for [0, 1]
-            {'B Cells': [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1], '': [], '': [], ...}
-            only used for fragment sampling method when call function self._generate_cell_fraction
-        :param n_threads: number of threads used for parallel computing
-        :param log_file_path:
-        :param cell_prop_file_path: file path of pre-generated cell proportion, use this file if provided
-        :param add_token_cell_type: add all cell types in generated_cell_frac.csv file,
-             even if some cell types take 0% in all samples, only for keeping same format for all dataset
-        :param random_n_cell_type: a list of the number of cell types (selected randomly) used for simulating bulk GEPs
-        """
-        n_total_cpus = multiprocessing.cpu_count()
-        n_threads = min(n_total_cpus - 1, n_threads)
-        self.n_samples = n_samples
-        self.total_cell_number = total_cell_number  # set 1 for all cell types
-        # simulating bulk cell GEP by mixing GEPs of different cell types
-        min_n_cell_frac = np.min([100, n_samples])  # smaller number of samples without filtering
-        if cell_prop_file_path is not None:
-            self.generated_cell_fraction_fp = cell_prop_file_path
-        if not os.path.exists(self.generated_bulk_gep_fp):
-            self.sct_dataset_obs, self.sct_dataset_df = self._read_sct_dataset(latent_z_nn_info_file=
-                                                                              latent_z_nn_file_path)
-
-            if not os.path.exists(self.generated_cell_fraction_fp):
-                print(f'   Generate cell proportions for bulk samples in {self.bulk_dataset_name}')
-                generated_cell_frac = self._generate_cell_fraction(
-                    sampling_method=sampling_method, n_cell_frac=self.n_samples,
-                    sample_prefix=f's_{self.bulk_dataset_name}_{sampling_method}_0',
-                    ref_distribution=ref_distribution,
-                    random_n_cell_type=random_n_cell_type,
-                )
-                if add_token_cell_type:
-                    for ct in sorted_cell_types:
-                        if ct not in generated_cell_frac.columns:
-                            generated_cell_frac[ct] = 0
-                    generated_cell_frac = generated_cell_frac.loc[:, sorted_cell_types]
-                generated_cell_frac.to_csv(self.generated_cell_fraction_fp, float_format='%g')
-            else:
-                print(f'   Previous result exists: {self.generated_cell_fraction_fp}')
-
-            chunk_size = int(self.n_samples / min_n_cell_frac)
-            chunk_size = max(chunk_size, 100)
-            chunk_counter = 0
-            with pd.read_csv(self.generated_cell_fraction_fp, chunksize=chunk_size, index_col=0) as reader:
-                simu_method = 'mul'  # matrix multiplication
-                for rows in tqdm(reader):
-
-                    selected_cell_ids = self._sc_sampling(cell_frac=rows,
-                                                          n_threads=n_threads, obs_df=self.sct_dataset_obs)
-                    simulated_gep = self._map_cell_id2exp(selected_cell_id=selected_cell_ids, cell_frac=rows,
-                                                          sc_dataset='sct_dataset', simu_method=simu_method)
-
-                    simulated_gep = log2_transform(simulated_gep)
-                    self.generated_bulk_gep_counter += simulated_gep.shape[0]
-                    # generated_cell_frac = generated_cell_frac.loc[simulated_gep.index, :].copy()
-                    selected_cell_ids = selected_cell_ids.loc[simulated_gep.index, :].copy()
-                    self._save_simulated_bulk_gep(gep=simulated_gep, cell_id=selected_cell_ids)
-                    chunk_counter += 1
-
-            data_info = f'Simulated {self.generated_bulk_gep_counter} bulk cell gene expression profiles ' \
-                        f'by sampling method: {sampling_method}, simulation method: {simu_method}, log2(TPM + 1)'
-            create_h5ad_dataset(simulated_bulk_exp_file_path=self.generated_bulk_gep_csv_fp,
-                                cell_fraction_file_path=self.generated_cell_fraction_fp,
-                                dataset_info=data_info,
-                                result_file_path=self.generated_bulk_gep_fp)
-            if log_file_path is not None:
-                obj_info = self.__str__()
-                print_msg(obj_info, log_file_path=log_file_path)
-        else:
-            print(f'   Previous result existed: {self.generated_bulk_gep_fp}')
-            print(self.__str__())
+# class BulkGEPGeneratorSCT(BulkGEPGenerator):
+#     """
+#     generate bulk GEPs by cell proportion x single GEP of single cell type (SCT)
+#     """
+#     def __init__(self, sct_dataset_file_path, cell_type2subtype, simu_bulk_dir, bulk_dataset_name):
+#         super().__init__(simu_bulk_dir=simu_bulk_dir, cell_type2subtype=cell_type2subtype, bulk_dataset_name=bulk_dataset_name,
+#                          merged_sc_dataset_file_path=None, check_basic_info=False, sc_dataset_ids=[],
+#                          sct_dataset_file_path=sct_dataset_file_path)
+#         # self.sct_dataset_file_path = sct_dataset_file_path
+#         # self.sct_dataset_obs = None
+#         # self.sct_dataset_df = None
+#
+#     def generate_samples(self, n_samples, latent_z_nn_file_path: str = None,
+#                          ref_distribution: dict = None, sampling_method: str = 'fragment',
+#                          total_cell_number: int = 1, n_threads: int = 10,
+#                          log_file_path: str = None, cell_prop_file_path: str = None, add_token_cell_type: bool = False,
+#                          random_n_cell_type: list = None):
+#         """
+#         :param n_samples: the number of GEPs to generate
+#         :param latent_z_nn_file_path: neighbor information of latent z for all samples, used for QC and sampling
+#         :param total_cell_number: N, the total number of cells sampled from merged single cell dataset
+#                                       and averaged to simulate a single bulk RNA-seq sample
+#         :param sampling_method: segment or random, method to generate cell fractions
+#         :param ref_distribution: reference distribution for each cell type, seperated to 10 bins for [0, 1]
+#             {'B Cells': [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1], '': [], '': [], ...}
+#             only used for fragment sampling method when call function self._generate_cell_fraction
+#         :param n_threads: number of threads used for parallel computing
+#         :param log_file_path:
+#         :param cell_prop_file_path: file path of pre-generated cell proportion, use this file if provided
+#         :param add_token_cell_type: add all cell types in generated_cell_frac.csv file,
+#              even if some cell types take 0% in all samples, only for keeping same format for all dataset
+#         :param random_n_cell_type: a list of the number of cell types (selected randomly) used for simulating bulk GEPs
+#         """
+#         n_total_cpus = multiprocessing.cpu_count()
+#         n_threads = min(n_total_cpus - 1, n_threads)
+#         self.n_samples = n_samples
+#         self.total_cell_number = total_cell_number  # set 1 for all cell types
+#         # simulating bulk cell GEP by mixing GEPs of different cell types
+#         min_n_cell_frac = np.min([100, n_samples])  # smaller number of samples without filtering
+#         if cell_prop_file_path is not None:
+#             self.generated_cell_fraction_fp = cell_prop_file_path
+#         if not os.path.exists(self.generated_bulk_gep_fp):
+#             self.sct_dataset_obs, self.sct_dataset_df = self._read_sct_dataset(latent_z_nn_info_file=
+#                                                                               latent_z_nn_file_path)
+#
+#             if not os.path.exists(self.generated_cell_fraction_fp):
+#                 print(f'   Generate cell proportions for bulk samples in {self.bulk_dataset_name}')
+#                 generated_cell_frac = self._generate_cell_fraction(
+#                     sampling_method=sampling_method, n_cell_frac=self.n_samples,
+#                     sample_prefix=f's_{self.bulk_dataset_name}_{sampling_method}_0',
+#                     ref_distribution=ref_distribution,
+#                     random_n_cell_type=random_n_cell_type,
+#                 )
+#                 if add_token_cell_type:
+#                     for ct in sorted_cell_types:
+#                         if ct not in generated_cell_frac.columns:
+#                             generated_cell_frac[ct] = 0
+#                     generated_cell_frac = generated_cell_frac.loc[:, sorted_cell_types]
+#                 generated_cell_frac.to_csv(self.generated_cell_fraction_fp, float_format='%g')
+#             else:
+#                 print(f'   Previous result exists: {self.generated_cell_fraction_fp}')
+#
+#             chunk_size = int(self.n_samples / min_n_cell_frac)
+#             chunk_size = max(chunk_size, 100)
+#             chunk_counter = 0
+#             with pd.read_csv(self.generated_cell_fraction_fp, chunksize=chunk_size, index_col=0) as reader:
+#                 simu_method = 'mul'  # matrix multiplication
+#                 for rows in tqdm(reader):
+#
+#                     selected_cell_ids = self._sc_sampling(cell_frac=rows,
+#                                                           n_threads=n_threads, obs_df=self.sct_dataset_obs)
+#                     simulated_gep = self._map_cell_id2exp(selected_cell_id=selected_cell_ids, cell_frac=rows,
+#                                                           sc_dataset='sct_dataset', simu_method=simu_method)
+#
+#                     simulated_gep = log2_transform(simulated_gep)
+#                     self.generated_bulk_gep_counter += simulated_gep.shape[0]
+#                     # generated_cell_frac = generated_cell_frac.loc[simulated_gep.index, :].copy()
+#                     selected_cell_ids = selected_cell_ids.loc[simulated_gep.index, :].copy()
+#                     self._save_simulated_bulk_gep(gep=simulated_gep, cell_id=selected_cell_ids)
+#                     chunk_counter += 1
+#
+#             data_info = f'Simulated {self.generated_bulk_gep_counter} bulk cell gene expression profiles ' \
+#                         f'by sampling method: {sampling_method}, simulation method: {simu_method}, log2(TPM + 1)'
+#             create_h5ad_dataset(simulated_bulk_exp_file_path=self.generated_bulk_gep_csv_fp,
+#                                 cell_fraction_file_path=self.generated_cell_fraction_fp,
+#                                 dataset_info=data_info,
+#                                 result_file_path=self.generated_bulk_gep_fp)
+#             if log_file_path is not None:
+#                 obj_info = self.__str__()
+#                 print_msg(obj_info, log_file_path=log_file_path)
+#         else:
+#             print(f'   Previous result existed: {self.generated_bulk_gep_fp}')
+#             print(self.__str__())
 
 
 # for gene-level filtering
