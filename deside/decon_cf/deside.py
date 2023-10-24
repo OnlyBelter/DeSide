@@ -54,6 +54,7 @@ class DeSide(object):
         hidden_units = hyper_params['architecture'][0]
         dropout_rates = hyper_params['architecture'][1]
         normalization = hyper_params['normalization']
+        normalization_layer = hyper_params.get('normalization_layer', [1] * (len(hidden_units) + 1))
         last_layer_activation_function = hyper_params['last_layer_activation']
         pathway_network = hyper_params['pathway_network']
         if last_layer_activation_function == 'hard_sigmoid':
@@ -73,17 +74,24 @@ class DeSide(object):
         pathway_profile = None
         if normalization is not None and normalization_func is not None:
             gep = keras.Input(shape=(input_shape,), name='gep')
-            gep_normalized = normalization_func()(gep)
-            features = dense(units=hidden_units[0])(gep_normalized)  # the first dense layer
-            features = normalization_func()(features)
-            features = activation()(features)
-            if dropout_rates[0] > 0:
-                features = keras.layers.Dropout(dropout_rates[0])(features)
-            hid_dropout = list(zip(hidden_units[1:], dropout_rates[1:]))
-            for n_units, dropout_rate in hid_dropout:
-                features = dense(units=n_units)(features)
+            if normalization_layer[0] == 1:
+                gep = normalization_func()(gep)
+            if normalization_layer[1] == 1:
+                features = dense(units=hidden_units[0])(gep)  # the first dense layer
                 features = normalization_func()(features)
                 features = activation()(features)
+            else:
+                features = dense(units=hidden_units[0], use_bias=True, activation='relu')(gep)  # the first dense layer
+            if dropout_rates[0] > 0:
+                features = keras.layers.Dropout(dropout_rates[0])(features)
+            hu_dr_nl = list(zip(hidden_units[1:], dropout_rates[1:], normalization_layer[2:]))
+            for n_units, dropout_rate, norm_layer in hu_dr_nl:
+                if norm_layer == 1:
+                    features = dense(units=n_units)(features)
+                    features = normalization_func()(features)
+                    features = activation()(features)
+                else:
+                    features = dense(units=n_units, use_bias=True, activation='relu')(features)
                 if dropout_rate > 0:
                     features = keras.layers.Dropout(dropout_rate)(features)
             if pathway_network:
@@ -92,16 +100,24 @@ class DeSide(object):
                 p_hidden_units = hyper_params['architecture_for_pathway_network'][0]
                 p_dropout_rates = hyper_params['architecture_for_pathway_network'][1]
                 pathway_profile = keras.Input(shape=(n_pathway,), name='pathway_profile')
-                pathway_normalized = normalization_func()(pathway_profile)
-                p_features = dense(units=p_hidden_units[0])(pathway_normalized)
-                p_features = normalization_func()(p_features)
-                p_features = activation()(p_features)
-                if p_dropout_rates[0] > 0:
-                    p_features = keras.layers.Dropout(p_dropout_rates[0])(p_features)
-                for n_units, dropout_rate in zip(p_hidden_units[1:], p_dropout_rates[1:]):
-                    p_features = dense(units=n_units)(p_features)
+                if normalization_layer[0] == 1:
+                    pathway_profile = normalization_func()(pathway_profile)
+                if normalization_layer[1] == 1:
+                    p_features = dense(units=p_hidden_units[0])(pathway_profile)
                     p_features = normalization_func()(p_features)
                     p_features = activation()(p_features)
+                else:
+                    p_features = dense(units=p_hidden_units[0], use_bias=True, activation='relu')(pathway_profile)
+                if p_dropout_rates[0] > 0:
+                    p_features = keras.layers.Dropout(p_dropout_rates[0])(p_features)
+                p_hu_dr_nl = list(zip(p_hidden_units[1:], p_dropout_rates[1:], normalization_layer[2:]))
+                for n_units, dropout_rate, norm_layer in p_hu_dr_nl:
+                    if norm_layer == 1:
+                        p_features = dense(units=n_units)(p_features)
+                        p_features = normalization_func()(p_features)
+                        p_features = activation()(p_features)
+                    else:
+                        p_features = dense(units=n_units, use_bias=True, activation='relu')(p_features)
                     if dropout_rate > 0:
                         p_features = keras.layers.Dropout(dropout_rate)(p_features)
         else:
