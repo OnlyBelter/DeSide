@@ -224,7 +224,11 @@ class DeSide(object):
                 x_list.append(_x.copy())
                 y_list.append(_y.copy())
             x = pd.concat(x_list, join='inner', axis=0)
-            y = pd.concat(y_list)
+            y = pd.concat(y_list, join='inner', axis=0)
+            assert np.all(x.index == y.index), 'The order of samples in x and y are not the same!'
+            # remove samples with zero y when using SCT dataset
+            y = y.loc[y.sum(axis=1) > 0, :]
+            x = x.loc[y.index, :]
             if self.one_minus_alpha:
                 y = 1 - y
             del file_obj, _x, _y, x_list, y_list

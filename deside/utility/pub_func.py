@@ -654,7 +654,7 @@ def save_key_params(all_vars: dict, save_to_file_path=None):
     if not os.path.exists(k_params_path):
         key_paths = ['result_dir', 'merged_sc_dataset_file_path', 'simu_bulk_exp_dir', 'generated_sc_dataset_dir',
                      'test_set_dir', 'tcga_data_dir', 'cancer_purity_file_path', 'marker_gene_file_path',
-                     'pre_trained_model_dir', 'pred_cell_frac_tcga_dir']
+                     'pre_trained_model_dir', 'pred_cell_frac_tcga_dir', 'train_ds2path']
         model_names = ['DeSide']
         log_file_path = all_vars.get('log_file_path', '')
         hyper_params = all_vars['deside_parameters']
