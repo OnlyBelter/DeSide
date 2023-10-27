@@ -214,15 +214,21 @@ class DeSide(object):
                 training_set_file_path = [training_set_file_path]
             x_list, y_list = [], []
             print_msg('Start to reading training set...', log_file_path=self.log_file_path)
+            counter = 0
             for file_path in training_set_file_path:
                 file_obj = ReadH5AD(file_path)
                 _x = file_obj.get_df()  # bulk cell GEPs, samples by genes
+                # add unique index to x
+                _x.index = _x.index.map(lambda inx: inx + '_' + str(counter))
                 print('x shape:', _x.shape, file_path)
                 print('x head:', _x.head())
                 _y = file_obj.get_cell_fraction()  # cell fractions
+                # add unique index to y
+                _y.index = _y.index.map(lambda inx: inx + '_' + str(counter))
 
                 x_list.append(_x.copy())
                 y_list.append(_y.copy())
+                counter += 1
             x = pd.concat(x_list, join='inner', axis=0)
             y = pd.concat(y_list, join='inner', axis=0)
             assert np.all(x.index == y.index), 'The order of samples in x and y are not the same!'
