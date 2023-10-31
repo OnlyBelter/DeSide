@@ -9,8 +9,9 @@ from typing import Union
 from tqdm import tqdm
 import multiprocessing
 
-from joblib import load
+from joblib import load, dump
 from sklearn.utils import shuffle
+from sklearn.decomposition import PCA
 from ..utility import (create_h5ad_dataset, check_dir, cal_corr_gene_exp_with_cell_frac,
                        ExpObj, QueryNeighbors, log2_transform, print_msg, get_cell_num,
                        sorted_cell_types, do_pca_analysis, non_log2cpm)
@@ -433,7 +434,8 @@ class BulkGEPGenerator(object):
                      add_noise: bool = False, noise_params: tuple = (), filtering_ref_types: list = None,
                      show_filtering_info: bool = False, cell_prop_prior: dict = None,
                      high_corr_gene_list: list = None, filtering_by_gene_range: bool = False,
-                     min_percentage_within_gene_range: float = 0.95, gene_quantile_range: list = None):
+                     min_percentage_within_gene_range: float = 0.95, gene_quantile_range: list = None,
+                     filtering_in_pca_space: bool = False, pca_n_components: int = 100):
         """
         Generating simulated bulk GEPs from scGEP dataset (`S1`)
 
@@ -468,6 +470,8 @@ class BulkGEPGenerator(object):
             the percentage of genes within a specific quantile range in TCGA
         :param min_percentage_within_gene_range: the minimal percentage of genes within a specific quantile range in TCGA
         :param gene_quantile_range: the quantile range of gene expression values in TCGA for gene based filtering
+        :param filtering_in_pca_space: whether filtering GEPs in PCA space
+        :param pca_n_components: the number of components used for PCA
         """
         n_total_cpus = multiprocessing.cpu_count()
         n_threads = min(n_total_cpus - 1, n_threads)
@@ -509,6 +513,8 @@ class BulkGEPGenerator(object):
             sample_id_for_filtering = []
             tcga_gene_info = None
             exp_ref_df = None
+            pca_model = None
+            gene_list_in_pca = []
             if filtering and filtering_ref_types is not None:
                 s2c = pd.read_csv(self.tcga2cancer_type_file_path, index_col=0)  # sample id to cancer type in TCGA
                 sample_id_for_filtering = s2c.loc[s2c['cancer_type'].isin(filtering_ref_types), :].index.to_list()
@@ -533,6 +539,7 @@ class BulkGEPGenerator(object):
                                                           sc_dataset=sc_dataset,
                                                           cell_frac=generated_cell_frac,
                                                           add_noise=add_noise, noise_params=noise_params)
+                    simulated_gep_bak = simulated_gep.copy()
                     if filtering:
                         if reference_file is None or ref_exp_type is None:
                             raise ValueError('Both "reference_file" and "ref_exp_type" should not be None '
@@ -546,7 +553,7 @@ class BulkGEPGenerator(object):
                         if exp_ref_df is None:
                             exp_obj_ref = ExpObj(exp_file=reference_file, exp_type=ref_exp_type)
                             exp_obj_ref.align_with_gene_list(gene_list=gene_list_in_sc_ds, fill_not_exist=True)
-                            exp_ref_df = exp_obj_ref.get_exp()
+                            exp_ref_df = exp_obj_ref.get_exp()  # TPM
                             exp_ref_df = exp_ref_df.loc[exp_ref_df.index.isin(sample_id_for_filtering), :]
 
                     if filtering and filtering_method == 'marker_ratio':
@@ -603,9 +610,40 @@ class BulkGEPGenerator(object):
 
                     if filtering and (filtering_method == 'median_gep' or
                                       filtering_method == 'mean_gep') and (simulated_gep is not None):
+
+                        if filtering_in_pca_space:
+                            gene_list_in_pca = gene_list_in_sc_ds.copy()
+                            if pca_model is None:
+                                assert np.all(exp_ref_df.columns == gene_list_in_pca)
+                                pca_model_dir = os.path.dirname(os.path.dirname(reference_file))
+                                pca_model_dir = os.path.join(pca_model_dir, 'pca_model')
+                                check_dir(pca_model_dir)
+                                pca_model_path = os.path.join(pca_model_dir, 'tcga_pca_model_for_gep_filtering.pkl')
+                                # save gene list for PCA
+                                pd.DataFrame(gene_list_in_pca).to_csv(os.path.join(pca_model_dir,
+                                                                                   'gene_list_for_pca.csv'),
+                                                                      )
+                                if os.path.exists(pca_model_path):
+                                    pca_model = load(pca_model_path)
+                                else:
+                                    pca_model = PCA(n_components=pca_n_components, random_state=42)
+                                    exp_ref_df_log = log2_transform(exp_ref_df)  # using log2(TPM+1) for PCA
+                                    pca_model.fit(exp_ref_df_log)
+                                    dump(pca_model, pca_model_path)
+                                exp_ref_df = log2_transform(exp_ref_df)
+                                exp_ref_df = pca_model.transform(exp_ref_df)
+                                exp_ref_df = pd.DataFrame(exp_ref_df, index=range(exp_ref_df.shape[0]),
+                                                          columns=range(pca_n_components))
+                            assert np.all(simulated_gep.columns == gene_list_in_pca)
+                            simulated_gep = log2_transform(simulated_gep)
+                            simulated_gep = pca_model.transform(simulated_gep)
+                            simulated_gep = pd.DataFrame(simulated_gep, index=simulated_gep_bak.index,
+                                                         columns=range(pca_n_components))
+                        else:
+                            assert np.all(exp_ref_df.columns == simulated_gep.columns)
                         if self.m_gep_ref is None:
                             if filtering_method == 'median_gep':
-                                self.m_gep_ref = exp_ref_df.median(axis=0).values.reshape(1, -1)  # TPM
+                                self.m_gep_ref = exp_ref_df.median(axis=0).values.reshape(1, -1)  # TPM / PCs
                             elif filtering_method == 'mean_gep':
                                 self.m_gep_ref = exp_ref_df.mean(axis=0).values.reshape(1, -1)
                             else:
@@ -614,7 +652,6 @@ class BulkGEPGenerator(object):
                                                                          ord=1, axis=1)
                             self.q_dis_nn_ref_upper = np.quantile(l1_distance_with_center_ref,
                                                                   self.filtering_quantile_upper)
-                        assert np.all(exp_ref_df.columns == simulated_gep.columns)
 
                         l1_dis_ref_simu_gep = np.linalg.norm(simulated_gep.values - self.m_gep_ref, ord=1, axis=1)
                         if self.filtering_quantile_lower is not None:
@@ -631,6 +668,7 @@ class BulkGEPGenerator(object):
                             simulated_gep = simulated_gep.loc[l1_dis_ref_simu_gep <= self.q_dis_nn_ref_upper, :].copy()
 
                     if simulated_gep is not None:
+                        simulated_gep = simulated_gep_bak.loc[simulated_gep.index, :].copy()
                         if (self.generated_bulk_gep_counter + simulated_gep.shape[0]) > self.n_samples:
                             n_last_part = self.n_samples - self.generated_bulk_gep_counter
                             simulated_gep = simulated_gep.iloc[range(n_last_part)].copy()
