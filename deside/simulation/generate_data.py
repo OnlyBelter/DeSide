@@ -435,7 +435,7 @@ class BulkGEPGenerator(object):
                      show_filtering_info: bool = False, cell_prop_prior: dict = None,
                      high_corr_gene_list: list = None, filtering_by_gene_range: bool = False,
                      min_percentage_within_gene_range: float = 0.95, gene_quantile_range: list = None,
-                     filtering_in_pca_space: bool = False, pca_n_components: int = 100):
+                     filtering_in_pca_space: bool = False, pca_n_components: Union[int, float] = 0.9, norm_ord=1):
         """
         Generating simulated bulk GEPs from scGEP dataset (`S1`)
 
@@ -471,7 +471,8 @@ class BulkGEPGenerator(object):
         :param min_percentage_within_gene_range: the minimal percentage of genes within a specific quantile range in TCGA
         :param gene_quantile_range: the quantile range of gene expression values in TCGA for gene based filtering
         :param filtering_in_pca_space: whether filtering GEPs in PCA space
-        :param pca_n_components: the number of components used for PCA
+        :param pca_n_components: the number of components used for PCA, or the explained variance ratio of PCA if float
+        :param norm_ord: the order of norm used for filtering, 1 for l1 norm, 2 for l2 norm
         """
         n_total_cpus = multiprocessing.cpu_count()
         n_threads = min(n_total_cpus - 1, n_threads)
@@ -514,7 +515,7 @@ class BulkGEPGenerator(object):
             tcga_gene_info = None
             exp_ref_df = None
             pca_model = None
-            gene_list_in_pca = []
+            d = 0  # the number of PCA components that explain 90% of variance (pca_explained_variance)
             if filtering and filtering_ref_types is not None:
                 s2c = pd.read_csv(self.tcga2cancer_type_file_path, index_col=0)  # sample id to cancer type in TCGA
                 sample_id_for_filtering = s2c.loc[s2c['cancer_type'].isin(filtering_ref_types), :].index.to_list()
@@ -616,7 +617,7 @@ class BulkGEPGenerator(object):
                             if pca_model is None:
                                 assert np.all(exp_ref_df.columns == gene_list_in_pca)
                                 pca_model_dir = os.path.dirname(os.path.dirname(reference_file))
-                                pca_model_dir = os.path.join(pca_model_dir, 'pca_model')
+                                pca_model_dir = os.path.join(pca_model_dir, f'pca_model_{pca_n_components}')
                                 check_dir(pca_model_dir)
                                 pca_model_path = os.path.join(pca_model_dir, 'tcga_pca_model_for_gep_filtering.pkl')
                                 # save gene list for PCA
@@ -633,12 +634,19 @@ class BulkGEPGenerator(object):
                                 exp_ref_df = log2_transform(exp_ref_df)
                                 exp_ref_df = pca_model.transform(exp_ref_df)
                                 exp_ref_df = pd.DataFrame(exp_ref_df, index=range(exp_ref_df.shape[0]),
-                                                          columns=range(pca_n_components))
+                                                          columns=range(exp_ref_df.shape[1]))
+                                exp_ref_df.to_csv(os.path.join(pca_model_dir, 'tcga_pca_ref.csv'))
+                                cumsum = np.cumsum(pca_model.explained_variance_ratio_)
+                                d = len(cumsum)
+                                print(f'   > {d} dimensions are needed to explain '
+                                      f'{cumsum.max() * 100}% variance.')  # 1515
+                                # exp_ref_df = exp_ref_df.iloc[:, :d].copy()
                             assert np.all(simulated_gep.columns == gene_list_in_pca)
                             simulated_gep = log2_transform(simulated_gep)
                             simulated_gep = pca_model.transform(simulated_gep)
                             simulated_gep = pd.DataFrame(simulated_gep, index=simulated_gep_bak.index,
-                                                         columns=range(pca_n_components))
+                                                         columns=range(simulated_gep.shape[1]))
+                            # simulated_gep = simulated_gep.iloc[:, :d].copy()
                         else:
                             assert np.all(exp_ref_df.columns == simulated_gep.columns)
                         if self.m_gep_ref is None:
@@ -649,11 +657,11 @@ class BulkGEPGenerator(object):
                             else:
                                 raise ValueError(f'filtering_method {filtering_method} is invalid')
                             l1_distance_with_center_ref = np.linalg.norm(exp_ref_df - self.m_gep_ref,
-                                                                         ord=1, axis=1)
+                                                                         ord=norm_ord, axis=1)
                             self.q_dis_nn_ref_upper = np.quantile(l1_distance_with_center_ref,
                                                                   self.filtering_quantile_upper)
 
-                        l1_dis_ref_simu_gep = np.linalg.norm(simulated_gep.values - self.m_gep_ref, ord=1, axis=1)
+                        l1_dis_ref_simu_gep = np.linalg.norm(simulated_gep.values - self.m_gep_ref, ord=norm_ord, axis=1)
                         if self.filtering_quantile_lower is not None:
                             self.q_dis_nn_ref_lower = np.quantile(l1_distance_with_center_ref,
                                                                   self.filtering_quantile_lower)
