@@ -1090,7 +1090,7 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
     def generate_samples(self, n_sample_each_cell_type: int = 10000,
                          n_base_for_positive_samples: int = 100,
                          sample_type: str = 'positive', sep_by_patient=False,
-                         simu_method='ave'):
+                         simu_method='ave', test_set: bool = False):
         """
         :param n_sample_each_cell_type: the number of samples to generate for each cell type
 
@@ -1103,8 +1103,13 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
         :param simu_method: `ave`: averaging all GEPs, or `scale_by_mGEP`: scaling by the mean GEP of all samples in the TCGA dataset
             or `random_replacement`: replacing the gene expression value (<1) by another value within the same cell type selected randomly
 
+        :param test_set: if True, generate test set using the same cell types as training set,
+            otherwise generate data set with all cell types
+
         """
         if not os.path.exists(self.generated_bulk_gep_fp):
+            if test_set:
+                self.cell_type_used = [k for k, v in self.cell_type2subtype.items() if k == v[0]]
             self.n_samples = n_sample_each_cell_type * (len(self.cell_type_used) + len(self.cell_subtype_used))
             if not os.path.exists(self.generated_cell_fraction_fp):
                 print(f'   Generate cell proportions for single cell type (SCT) samples in {self.bulk_dataset_name}')
