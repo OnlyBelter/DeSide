@@ -304,7 +304,8 @@ def compare_y_y_pred_plot(y_true: Union[str, pd.DataFrame], y_pred: Union[str, p
 def compare_exp_and_cell_fraction(merged_file_path, result_dir,
                                   cell_types: list, clustering_ct: list = None,
                                   outlier_file_path=None, predicted_by='DeSide', font_scale=1.5,
-                                  signature_score_method: str = 'mean_exp', update_figures=False):
+                                  signature_score_method: str = 'mean_exp', update_figures=False,
+                                  cell_type2subtypes: dict = None):
     """
     Comparing the mean expression value (or gene signature score) of marker genes for each cell type
       and the predicted cell fraction
@@ -318,6 +319,7 @@ def compare_exp_and_cell_fraction(merged_file_path, result_dir,
     :param font_scale: font scaling
     :param signature_score_method:
     :param update_figures: if update figures
+    :param cell_type2subtypes: cell type to subtypes
     :return:
     """
     check_dir(result_dir)
@@ -357,6 +359,11 @@ def compare_exp_and_cell_fraction(merged_file_path, result_dir,
                     method = signature_score_method
                 col_name1 = cell_type + f'_{method}'
                 col_name2 = cell_type
+                if col_name2 not in current_df.columns:
+                    if cell_type2subtypes is not None and col_name2 in cell_type2subtypes:
+                        current_df[col_name2] = current_df[cell_type2subtypes[col_name2]].sum(axis=1)
+                    else:
+                        raise ValueError('Please check column name: {}'.format(col_name2))
                 cancer_type2corr[cancer_type][cell_type] = get_corr(current_df[col_name1], current_df[col_name2])
                 plot_corr_two_columns(df=current_df, col_name1=col_name1, col_name2=col_name2,
                                       predicted_by=predicted_by, font_scale=font_scale, scale_exp=False,

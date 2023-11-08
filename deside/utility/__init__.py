@@ -91,3 +91,12 @@ inx2single_cell_dataset_id = {
     6: 'nsclc_guo_06',
     7: 'pan_cancer_07'
 }
+
+
+cell_type2subtypes = {'B Cells': ['Non-plasma B cells', 'Plasma B cells'],
+                      'CD4 T': ['CD4 T conv', 'CD4 Treg'], 'CD8 T': ['CD8 T (GZMK high)', 'CD8 T effector'],
+                      'DC': ['mDC', 'pDC'], 'Endothelial Cells': ['Endothelial Cells'],
+                      'Cancer Cells': ['Epithelial Cells', 'Glioma Cells'],
+                      'Fibroblasts': ['CAFs', 'Myofibroblasts'], 'Macrophages': ['Macrophages'],
+                      'Mast Cells': ['Mast Cells'], 'NK': ['NK'], 'Neutrophils': ['Neutrophils'],
+                      'Double-neg-like T': ['Double-neg-like T'], 'Monocytes': ['Monocytes']}

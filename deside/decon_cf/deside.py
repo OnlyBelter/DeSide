@@ -196,7 +196,7 @@ class DeSide(object):
         :param verbose: whether to print progress during training, 0: silent, 1: progress bar, 2: one line per epoch
         :param pathway_mask: the mask of pathway genes, 1: pathway gene, 0: non-pathway gene, genes by pathways
         :param method_adding_pathway: the method to use pathway profiles, 'add_to_end' or 'convert'
-        :param input_gene_list: the gene list used as input,
+        :param input_gene_list: the gene list used as input for pathway profiles,
             if None: use all genes in training set;
             if "intersection_with_pathway_genes": use the intersection of genes in training set and genes in pathways;
             if "filtered_genes": use the genes in filtered_gene_list.
@@ -255,7 +255,7 @@ class DeSide(object):
                     x_obj.align_with_gene_list(gene_list=gep_gene_list, fill_not_exist=True)
                 elif input_gene_list == 'filtered_genes' and filtered_gene_list is not None:
                     gep_gene_list = filtered_gene_list.copy()
-                else:
+                else:  # use all genes in the training set
                     gep_gene_list = x_obj.exp.columns.to_list()
                 pathway_profile_gene_list = x_obj.exp.columns.to_list()
                 if method_adding_pathway == 'add_to_end':
