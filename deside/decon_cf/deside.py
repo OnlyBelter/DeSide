@@ -310,7 +310,8 @@ class DeSide(object):
 
             # loss_function = functools.partial(loss_fn_mae_rmse, alpha=loss_function_alpha)
             # loss_function.get_config = lambda: {'alpha': loss_function_alpha}
-            print('   The following loss function will be used:', 'mae +', loss_function_alpha, '* rmse')
+            print('   The following loss function will be used:', loss_function_alpha, '* mae +',
+                  (1 - loss_function_alpha), '* rmse')
             monitor_metrics = ['mae', keras.metrics.RootMeanSquaredError()]
             if metrics not in ['mae', 'rmse', 'mse']:
                 monitor_metrics.append(metrics)

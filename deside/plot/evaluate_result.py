@@ -491,9 +491,10 @@ def plot_pca(data: pd.DataFrame, result_fp=None, color_code=None, s=5, figsize=(
     """
     # sns.set_style('white')
     # sns.set(font_scale=1.5)
-    if data.shape[1] >= 3:
+    n_components = len([i for i in data.columns.to_list() if label_name in i])
+    if n_components >= 3:
         pc_comb = [(0, 1), (1, 2), (0, 2)]
-    elif data.shape[1] == 2:
+    elif n_components == 2:
         pc_comb = [(0, 1)]
     else:
         raise IndexError(f'data should have >= 2 columns, but {data.shape[1]} got')
