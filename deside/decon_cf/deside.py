@@ -176,7 +176,7 @@ class DeSide(object):
                     n_epoch: int = 10000, metrics: str = 'mse', n_patience: int = 100, scaling_by_constant=False,
                     remove_cancer_cell=False, fine_tune=False, one_minus_alpha: bool = False, verbose=1,
                     pathway_mask=None, method_adding_pathway='add_to_end', input_gene_list: str = None,
-                    filtered_gene_list: list = None):
+                    filtered_gene_list: list = None, group_cell_types: dict = None):
         """
         Training DeSide model
 
@@ -201,6 +201,7 @@ class DeSide(object):
             if "intersection_with_pathway_genes": use the intersection of genes in training set and genes in pathways;
             if "filtered_genes": use the genes in filtered_gene_list.
         :param filtered_gene_list: the list of genes used as input, if None, use all genes in training set
+        :param group_cell_types: group cell types into a list of cell types, e.g. {'group1': ['cell_type1', 'cell_type2']}
         """
         self.one_minus_alpha = one_minus_alpha
         if not os.path.exists(self.model_file_path):
@@ -231,6 +232,11 @@ class DeSide(object):
                 counter += 1
             x = pd.concat(x_list, join='inner', axis=0)
             y = pd.concat(y_list, join='inner', axis=0)
+            if group_cell_types is not None:
+                for g, _cell_types in group_cell_types.items():
+                    if len(_cell_types) > 1:
+                        y[g] = y[_cell_types].sum(axis=1)
+                        y = y.drop(_cell_types, axis=1)
             assert np.all(x.index == y.index), 'The order of samples in x and y are not the same!'
             # remove samples with zero y when using SCT dataset
             y = y.loc[y.sum(axis=1) > 0, :]
