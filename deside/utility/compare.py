@@ -45,7 +45,8 @@ def _read_result(file_path, cell_type_name_mapping, cell_types, algo=None):
 
 
 def read_and_merge_result(raw_result_dir: str, cell_type_name_mapping: dict, algo: str,
-                          result_file_path=None, tcga_sample2cancer_type_file_path=None) -> pd.DataFrame:
+                          result_file_path=None, tcga_sample2cancer_type_file_path=None,
+                          group_cell_types: dict = None) -> pd.DataFrame:
     """
     read and merge predicted cell fractions of each algorithm
     :param raw_result_dir:
@@ -53,9 +54,12 @@ def read_and_merge_result(raw_result_dir: str, cell_type_name_mapping: dict, alg
     :param algo: EPIC, CIBERSORT, MuSiC, DeSide and Scaden
     :param result_file_path:
     :param tcga_sample2cancer_type_file_path: the file path of sample id to cancer type mapping file in TCGA
+    :param group_cell_types: group cell types to a new cell type
     :return:
     """
     cell_types = [i for i in sorted_cell_types if i in list(cell_type_name_mapping.values())]
+    if group_cell_types is not None:
+        cell_types = list(group_cell_types.keys())
     cancer_dataset2file_path = {}
     cancer_type = ''
     ds = ''  # reference dataset
@@ -63,7 +67,8 @@ def read_and_merge_result(raw_result_dir: str, cell_type_name_mapping: dict, alg
     for root, dirs, files in os.walk(raw_result_dir):
         for file_name in files:
             if (('.txt' in file_name) or (f'.csv' in file_name)) and \
-                    ('cancer_purity' not in file_name) and ('signature_score' not in file_name):
+                    ('cancer_purity' not in file_name) and ('signature_score' not in file_name) and \
+                    ('#' not in file_name):
                 if 'CIBERSORT' in algo:
                     _, _, _, cancer_type, ds, _ = file_name.split('_')
                 elif algo == 'MuSiC':

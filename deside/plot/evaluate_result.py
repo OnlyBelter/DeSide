@@ -244,7 +244,8 @@ def compare_y_y_pred_plot(y_true: Union[str, pd.DataFrame], y_pred: Union[str, p
         else:
             y_true['1-others'] = 0
     if ('T Cells' in y_pred.columns) and ('T Cells' not in y_true.columns):
-        y_true['T Cells'] = y_true.loc[:, ['CD4 T', 'CD8 T']].sum(axis=1)
+        if 'CD4 T' in y_true.columns and 'CD8 T' in y_true.columns:
+            y_true['T Cells'] = y_true.loc[:, ['CD4 T', 'CD8 T']].sum(axis=1)
     # less cell type than show_columns for this dataset
     show_columns = [i for i in show_columns if i in y_true.columns]
     # for cell_type in show_columns:

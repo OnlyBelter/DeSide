@@ -182,10 +182,11 @@ def plot_predicted_result(cell_frac_result_fp, bulk_exp_fp, cancer_type,
 
     # plot CD8 T cell fraction against CD8A expression value
     merged_df1 = y_pred.merge(bulk_exp_cpm.T, left_index=True, right_index=True)
-    plot_corr_two_columns(df=merged_df1, col_name2='CD8 T', col_name1='CD8A',
-                          predicted_by=model_name, font_scale=font_scale,
-                          output_dir=result_dir, diagonal=False, cancer_type=cancer_type,
-                          update_figures=update_figures, cell_type2subtypes=cell_type2subtypes)
+    if 'CD8 T' in merged_df1.columns:
+        plot_corr_two_columns(df=merged_df1, col_name2='CD8 T', col_name1='CD8A',
+                              predicted_by=model_name, font_scale=font_scale,
+                              output_dir=result_dir, diagonal=False, cancer_type=cancer_type,
+                              update_figures=update_figures, cell_type2subtypes=cell_type2subtypes)
 
     if cancer_purity_fp is not None:
         # read cancer purity file
