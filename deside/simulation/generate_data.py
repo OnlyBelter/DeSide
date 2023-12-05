@@ -413,9 +413,14 @@ class BulkGEPGenerator(object):
                                                         cell_types=cell_type_with_subtype,
                                                         sample_prefix=sample_prefix,
                                                         fixed_range=sampling_range)
+        elif sampling_method == 'dirichlet':
+            _gen_cell_fracs = np.random.dirichlet(np.ones(len(cell_type_with_subtype)) / len(cell_type_with_subtype),
+                                                  size=n_cell_frac)
+            index = [sample_prefix + '_' + str(i + 1) for i in range(n_cell_frac)]
+            gen_cell_fracs = pd.DataFrame(_gen_cell_fracs, index=index, columns=cell_type_with_subtype)
         else:
             raise ValueError(
-                f'Only "segment" and "random" were supported for parameter "sampling_method", '
+                f'Only "segment", "dirichlet" and "random" were supported for parameter "sampling_method", '
                 f'{sampling_method} is invalid')
         return gen_cell_fracs
 
