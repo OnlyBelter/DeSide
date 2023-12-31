@@ -168,7 +168,7 @@ class ReadExp(object):
 
     def align_with_gene_list(self, gene_list: list = None, fill_not_exist=False, pathway_list: bool = False):
         """
-        Align the expression matrix with a gene list
+        Align the expression matrix with a gene list and rescale to TPM or log2(TPM + 1)
 
         :param gene_list: gene list
         :param fill_not_exist: fill 0 if gene not exist in the provided gene_list when True

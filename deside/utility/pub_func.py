@@ -63,9 +63,11 @@ def set_fig_style(font_family=None, font_size=None):
     fig, ax = plt.subplots()
     sns.set_style("white")
     try:
+        # need to install the package of "SciencePlots" first, see https://github.com/garrettj403/SciencePlots
         plt.style.use(['science', 'no-latex'])
     except:
-        print('No science style')
+        print('No science style, please install the package of "SciencePlots" first, '
+              'see https://github.com/garrettj403/SciencePlots')
         sns.set(palette='muted', font_scale=1.5)
 
     mpl.rcParams['figure.dpi'] = 300

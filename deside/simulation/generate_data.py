@@ -12,6 +12,7 @@ import multiprocessing
 from joblib import load, dump
 from sklearn.utils import shuffle
 from sklearn.decomposition import PCA
+from sklearn.metrics import mean_squared_error
 from ..utility import (create_h5ad_dataset, check_dir, cal_corr_gene_exp_with_cell_frac,
                        ExpObj, QueryNeighbors, log2_transform, print_msg, get_cell_num,
                        sorted_cell_types, do_pca_analysis, non_log2cpm)
@@ -462,7 +463,9 @@ class BulkGEPGenerator(object):
         :param simu_method: the method to generate simulated bulk GEPs,
             ave (average all selected single cell GEPs), mul (multiple GEP by cell fractions)
         :param filtering_method: marker_ratio (l2 distance with marker gene ratio) or
-            median_gep (`l1` distance with median expression value for each gene)
+            median_gep (`l1` distance with median expression value for each gene) or
+            linear_mmd (A. Gretton et al., J. Mach. Learn. Res. 13, 723–773 (2012)., also see:
+            https://github.com/jindongwang/transferlearning/blob/master/code/distance/mmd_numpy_sklearn.py)
         :param add_noise: whether add noise to generated bulk GEPs
         :param noise_params: parameters for noise generation, (f, max_sum),
             ref: Hao, Yuning, et al. PLoS Computational Biology, 2019
@@ -484,6 +487,9 @@ class BulkGEPGenerator(object):
         self.n_samples = n_samples
         self.total_cell_number = total_cell_number
         self.filtering_quantile_lower, self.filtering_quantile_upper = gep_filtering_quantile
+        if 'linear_mmd' in filtering_method:
+            # calculate the linear MMD, square of L2 norm
+            norm_ord = 2
         # print(f'   > filtering quantile is {self.filtering_quantile * 100}%')
         # simulating bulk cell GEP by mixing GEPs of different cell types
         if filtering:
@@ -615,8 +621,8 @@ class BulkGEPGenerator(object):
                         simulated_gep = simulated_gep.loc[valid_gep_list, :].copy()
 
                     if filtering and (filtering_method == 'median_gep' or
-                                      filtering_method == 'mean_gep') and (simulated_gep is not None):
-
+                                      filtering_method == 'mean_gep' or filtering_method == 'linear_mmd') and \
+                            (simulated_gep is not None):
                         if filtering_in_pca_space:
                             gene_list_in_pca = gene_list_in_sc_ds.copy()
                             if pca_model is None:
@@ -655,30 +661,36 @@ class BulkGEPGenerator(object):
                         else:
                             assert np.all(exp_ref_df.columns == simulated_gep.columns)
                         if self.m_gep_ref is None:
-                            if filtering_method == 'median_gep':
-                                self.m_gep_ref = exp_ref_df.median(axis=0).values.reshape(1, -1)  # TPM / PCs
-                            elif filtering_method == 'mean_gep':
+                            if ('mean_gep' in filtering_method) or ('linear_mmd' in filtering_method):
+                                # The maximum mean discrepancy (MMD) using
+                                # linear kernel is equivalent to "square of L2 norm"
                                 self.m_gep_ref = exp_ref_df.mean(axis=0).values.reshape(1, -1)
+                            elif 'median_gep' in filtering_method:
+                                self.m_gep_ref = exp_ref_df.median(axis=0).values.reshape(1, -1)  # TPM / PCs
                             else:
                                 raise ValueError(f'filtering_method {filtering_method} is invalid')
-                            l1_distance_with_center_ref = np.linalg.norm(exp_ref_df - self.m_gep_ref,
-                                                                         ord=norm_ord, axis=1)
-                            self.q_dis_nn_ref_upper = np.quantile(l1_distance_with_center_ref,
+                            distance_with_center_ref = np.linalg.norm(exp_ref_df - self.m_gep_ref,
+                                                                      ord=norm_ord, axis=1)
+                            if 'linear_mmd' in filtering_method:
+                                distance_with_center_ref = distance_with_center_ref ** 2
+                            self.q_dis_nn_ref_upper = np.quantile(distance_with_center_ref,
                                                                   self.filtering_quantile_upper)
-
-                        l1_dis_ref_simu_gep = np.linalg.norm(simulated_gep.values - self.m_gep_ref, ord=norm_ord, axis=1)
+                        dis_ref_simu_gep = np.linalg.norm(simulated_gep.values - self.m_gep_ref,
+                                                          ord=norm_ord, axis=1)
+                        if 'linear_mmd' in filtering_method:
+                            dis_ref_simu_gep = dis_ref_simu_gep ** 2
                         if self.filtering_quantile_lower is not None:
-                            self.q_dis_nn_ref_lower = np.quantile(l1_distance_with_center_ref,
+                            self.q_dis_nn_ref_lower = np.quantile(distance_with_center_ref,
                                                                   self.filtering_quantile_lower)
                             if show_filtering_info:
                                 print(f'   > Quantile distance of {self.filtering_quantile_lower * 100}% is: '
-                                      f'{self.q_dis_nn_ref_lower}, {np.sum(l1_dis_ref_simu_gep < self.q_dis_nn_ref_lower)} were removed')
+                                      f'{self.q_dis_nn_ref_lower}, {np.sum(dis_ref_simu_gep < self.q_dis_nn_ref_lower)} were removed')
                                 print(f'   > Quantile distance of {self.filtering_quantile_upper * 100}% is: '
-                                      f'{self.q_dis_nn_ref_upper}, {np.sum(l1_dis_ref_simu_gep > self.q_dis_nn_ref_upper)} were removed')
-                            simulated_gep = simulated_gep.loc[(l1_dis_ref_simu_gep <= self.q_dis_nn_ref_upper) &
-                                                              (l1_dis_ref_simu_gep >= self.q_dis_nn_ref_lower), :]
+                                      f'{self.q_dis_nn_ref_upper}, {np.sum(dis_ref_simu_gep > self.q_dis_nn_ref_upper)} were removed')
+                            simulated_gep = simulated_gep.loc[(dis_ref_simu_gep <= self.q_dis_nn_ref_upper) &
+                                                              (dis_ref_simu_gep >= self.q_dis_nn_ref_lower), :]
                         else:
-                            simulated_gep = simulated_gep.loc[l1_dis_ref_simu_gep <= self.q_dis_nn_ref_upper, :].copy()
+                            simulated_gep = simulated_gep.loc[dis_ref_simu_gep <= self.q_dis_nn_ref_upper, :].copy()
 
                     if simulated_gep is not None:
                         simulated_gep = simulated_gep_bak.loc[simulated_gep.index, :].copy()

@@ -14,8 +14,9 @@ warnings.simplefilter(action='ignore', category=UserWarning)
 
 def tcga_evaluation(marker_gene_file_path, total_result_dir, pred_cell_frac_tcga_dir,
                     cell_types, tcga_data_dir, outlier_file_path=None, pre_trained_model_dir=None,
-                    model_name: str = None, signature_score_method: str = 'mean_exp', cancer_types: list = None,
-                    update_figures=False, pathway_mask=None, group_cell_types: dict = None):
+                    model_name: str = None, signature_score_method: str = 'mean_exp',
+                    cancer_types: list = None, update_figures=False, pathway_mask=None,
+                    group_cell_types: dict = None, cell_type2subtypes: dict = None):
     """
 
     :param marker_gene_file_path:
@@ -33,6 +34,7 @@ def tcga_evaluation(marker_gene_file_path, total_result_dir, pred_cell_frac_tcga
     :param update_figures: update figures or not
     :param pathway_mask: genes by pathways, 1 for genes in the pathway, 0 for genes not in the pathway
     :param group_cell_types: a dictionary of cell types, key is the group name, value is a list of cell types
+    :param cell_type2subtypes: a dictionary of cell types, key is the cell type, value is a list of subtypes
     :return:
     """
     # marker_gene_file_path = marker_gene_file_path
@@ -64,6 +66,11 @@ def tcga_evaluation(marker_gene_file_path, total_result_dir, pred_cell_frac_tcga
 
     # calculate signature score for each cancer type
     all_signature_score = None
+    if cell_type2subtypes is None:
+        _cell_types = cell_types.copy()
+    else:
+        _cell_types = list(cell_type2subtypes.keys())
+        _cell_types += cell_type2subtypes['Fibroblasts']
     if group_cell_types is None:
         if not os.path.exists(all_signature_score_file_path):
             signature_scores = []
@@ -107,6 +114,14 @@ def tcga_evaluation(marker_gene_file_path, total_result_dir, pred_cell_frac_tcga
     else:
         print(f'   Using the previous result of merged cell fractions from: {all_pred_cell_frac_file_path}.')
     all_pred_cell_fractions_df = pd.read_csv(all_pred_cell_frac_file_path, index_col='sample_id')
+    if cell_type2subtypes is not None:
+        for cell_type in cell_type2subtypes.keys():
+            if cell_type not in all_pred_cell_fractions_df.columns:
+                subtypes = cell_type2subtypes[cell_type]
+                if np.all([subtype in all_pred_cell_fractions_df.columns for subtype in subtypes]):
+                    all_pred_cell_fractions_df[cell_type] = all_pred_cell_fractions_df.loc[:, subtypes].sum(axis=1)
+                else:
+                    print(f'   Warning: {cell_type} is not in the predicted cell fractions.')
 
     if group_cell_types is None:
         # merge two parts together
@@ -274,7 +289,8 @@ def run_step4(tcga_data_dir: str, cancer_types: list, log_file_path: str, model_
                         pre_trained_model_dir=model_dir, model_name=model_name,
                         signature_score_method=signature_score_method, cancer_types=cancer_types,
                         update_figures=update_figures, outlier_file_path=outlier_file_path,
-                        pathway_mask=pathway_mask, group_cell_types=group_cell_types)
+                        pathway_mask=pathway_mask, group_cell_types=group_cell_types,
+                        cell_type2subtypes=cell_type2subtypes)
 
         # calculate the distribution of predicted cell proportions in TCGA
         # model_name = 'DeSide'
