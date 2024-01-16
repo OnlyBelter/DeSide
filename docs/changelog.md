@@ -45,3 +45,10 @@ The record of all notable changes to this project will be documented in this fil
   - `cell_type2subtypes`: the dictionary of cell types and their subtypes
 - Update the DNN model to include pathway profiles
 - Update the documentation
+
+
+## v1.2.0
+16 Jan 2024
+- Add GEP-level filtering in the PCA space of TCGA samples
+- Add Dirichlet distribution to simulate the cellular proportions of bulk RNA-seq data
+
