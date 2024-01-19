@@ -84,13 +84,14 @@ def tcga_evaluation(marker_gene_file_path, total_result_dir, pred_cell_frac_tcga
                 if signature_score_method == 'mean_exp':
                     current_signature_score = \
                         mean_exp_of_marker_gene(marker_gene_file_path=marker_gene_file_path,
-                                                bulk_tpm_file_path=tpm_file, cell_types=cell_types,
+                                                bulk_tpm_file_path=tpm_file, cell_types=cell_types.copy(),
                                                 result_file_path=result_file_path, cancer_type=cancer_type,
-                                                gene_list_in_model=gene_list_in_model)
+                                                gene_list_in_model=gene_list_in_model,
+                                                cell_type2subtypes=cell_type2subtypes)
                 else:  # gene_signature_score
                     current_signature_score = cal_gene_signature_score(marker_gene_file_path=marker_gene_file_path,
                                                                        bulk_tpm_file_path=tpm_file,
-                                                                       cell_types=cell_types,
+                                                                       cell_types=cell_types.copy(),
                                                                        result_file_path=result_file_path,
                                                                        cancer_type=cancer_type)
                 signature_scores.append(current_signature_score)
@@ -143,7 +144,8 @@ def tcga_evaluation(marker_gene_file_path, total_result_dir, pred_cell_frac_tcga
                                           clustering_ct=cell_types_clustering, font_scale=1.5,
                                           cell_types=cell_types, outlier_file_path=outlier_file_path,
                                           result_dir=result_dir_new, update_figures=update_figures,
-                                          signature_score_method=signature_score_method)
+                                          signature_score_method=signature_score_method,
+                                          cell_type2subtypes=cell_type2subtypes)
 
     print('Plot predicted cell proportion across all cancer types...')
     cell_types2max = {'B Cells': 0.1, 'CD4 T': 0.1, 'DC': 0.1, 'CD8 T': 0.1}
@@ -285,7 +287,7 @@ def run_step4(tcga_data_dir: str, cancer_types: list, log_file_path: str, model_
 
         tcga_evaluation(marker_gene_file_path=marker_gene_file_path, total_result_dir=result_dir,
                         pred_cell_frac_tcga_dir=pred_cell_frac_tcga_dir,
-                        cell_types=all_cell_types, tcga_data_dir=tcga_data_dir,
+                        cell_types=all_cell_types.copy(), tcga_data_dir=tcga_data_dir,
                         pre_trained_model_dir=model_dir, model_name=model_name,
                         signature_score_method=signature_score_method, cancer_types=cancer_types,
                         update_figures=update_figures, outlier_file_path=outlier_file_path,

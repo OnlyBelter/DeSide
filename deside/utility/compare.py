@@ -146,7 +146,7 @@ def read_and_merge_result(raw_result_dir: str, cell_type_name_mapping: dict, alg
 
 def mean_exp_of_marker_gene(marker_gene_file_path, bulk_tpm_file_path, result_file_path: str = None,
                             cancer_type: str = None, debug=False, trans=False, cell_types: list = None,
-                            log_exp: bool = False, gene_list_in_model: list = None):
+                            log_exp: bool = False, gene_list_in_model: list = None, cell_type2subtypes: dict = None):
     """
     mean expression value of marker genes for each cell type (max expression value for B Cells and CD4 T Cells)
     :param marker_gene_file_path: file path of selected marker gene for each cell type
@@ -174,6 +174,7 @@ def mean_exp_of_marker_gene(marker_gene_file_path, bulk_tpm_file_path, result_fi
         cell_types += ['CD8 T', 'CD4 T']
     cell_type2marker = read_marker_gene(marker_gene_file_path, include_t_cell=include_t_cell,
                                         use_cancer_cell=True, corr_mean=True)
+    cell_types += list(set(cell_type2subtypes.keys()))
     cell_type2marker = {k: v for k, v in cell_type2marker.items() if k in cell_types}
     # if ('Cancer Cells' not in cell_type2marker) and ('Epithelial Cells' in cell_type2marker):
     #     cell_type2marker['Cancer Cells'] = cell_type2marker['Epithelial Cells']

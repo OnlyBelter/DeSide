@@ -333,6 +333,7 @@ def compare_exp_and_cell_fraction(merged_file_path, result_dir,
     cancer_types = list(merged_df['cancer_type'].unique())
     if 'T Cells' in cell_types and 'T Cells' not in merged_df.columns:
         merged_df['T Cells'] = merged_df.loc[:, ['CD4 T', 'CD8 T']].sum(axis=1)
+    cell_types += [i for i in cell_type2subtypes.keys() if i not in cell_types]
     if (not os.path.exists(cancer_type2corr_file_path)) or update_figures:
         if outlier_file_path is not None:
             outlier_samples = pd.read_csv(outlier_file_path, index_col=0)
@@ -365,11 +366,12 @@ def compare_exp_and_cell_fraction(merged_file_path, result_dir,
                         current_df[col_name2] = current_df[cell_type2subtypes[col_name2]].sum(axis=1)
                     else:
                         raise ValueError('Please check column name: {}'.format(col_name2))
-                cancer_type2corr[cancer_type][cell_type] = get_corr(current_df[col_name1], current_df[col_name2])
-                plot_corr_two_columns(df=current_df, col_name1=col_name1, col_name2=col_name2,
-                                      predicted_by=predicted_by, font_scale=font_scale, scale_exp=False,
-                                      output_dir=current_result_dir, diagonal=False, cancer_type=cancer_type,
-                                      update_figures=update_figures)
+                if col_name1 in current_df.columns and col_name2 in current_df.columns:
+                    cancer_type2corr[cancer_type][cell_type] = get_corr(current_df[col_name1], current_df[col_name2])
+                    plot_corr_two_columns(df=current_df, col_name1=col_name1, col_name2=col_name2,
+                                          predicted_by=predicted_by, font_scale=font_scale, scale_exp=False,
+                                          output_dir=current_result_dir, diagonal=False, cancer_type=cancer_type,
+                                          update_figures=update_figures)
 
             gc.collect()
         cancer_type2corr_df = pd.DataFrame.from_dict(cancer_type2corr, orient='index')
@@ -380,13 +382,15 @@ def compare_exp_and_cell_fraction(merged_file_path, result_dir,
         cancer_type2corr_df = pd.read_csv(cancer_type2corr_file_path, index_col=0)
     # sns.set(font_scale=1.5)
     if clustering_ct is not None:
+        clustering_ct = [ct for ct in clustering_ct if ct in cancer_type2corr_df.columns]
         c_ct = {'clustering_ct': clustering_ct}
         other_ct = [ct for ct in cell_types if ct not in (clustering_ct + ['Cancer Cells'])]
         if len(other_ct) >= 2:
             c_ct = {'clustering_ct': clustering_ct, 'other_ct': other_ct}
         for k, v in c_ct.items():
-            plot_clustermap(data=cancer_type2corr_df, columns=v,
-                            result_file_path=os.path.join(result_dir, f'cancer_type2corr_{k}.png'))
+            if np.all([i in cancer_type2corr_df.columns for i in v]):
+                plot_clustermap(data=cancer_type2corr_df, columns=v,
+                                result_file_path=os.path.join(result_dir, f'cancer_type2corr_{k}.png'))
 
 
 def plot_clustermap(data: pd.DataFrame, columns: list, result_file_path: str):
