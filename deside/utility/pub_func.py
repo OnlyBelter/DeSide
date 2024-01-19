@@ -922,7 +922,7 @@ def get_x_by_pathway_network(x: pd.DataFrame, pathway_network: bool, pathway_mas
     :param pathway_mask: the mask of pathway network
     :return: the input gene expression profile with pathway network
     """
-    if pathway_network:
+    if pathway_network and pathway_mask is not None:
         pathways = pathway_mask.columns.to_list()
         x_gep = x.loc[:, ~x.columns.isin(pathways)].copy()
         x_pathway = x.loc[:, x.columns.isin(pathways)].copy()
