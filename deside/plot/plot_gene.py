@@ -136,7 +136,10 @@ def compare_exp_between_group(exp: pd.DataFrame, group_list: tuple, max_threshol
     hue = None
     if len(sample_labels) >= 2:
         hue = 'labels'
-    ax = sns.boxplot(x="g_name", y="g_exp", palette=sns.color_palette("muted"),
+    palette = sns.color_palette("muted")
+    if len(exp_flatten['g_name'].unique()) > 10:
+        palette = sns.color_palette("tab20")
+    ax = sns.boxplot(x="g_name", y="g_exp", palette=palette,
                      hue=hue, data=exp_flatten, whis=[0, 100], hue_order=sample_labels, order=group_list)
 
     # Add in points to show each observation, http://seaborn.pydata.org/examples/horizontal_boxplot.html
