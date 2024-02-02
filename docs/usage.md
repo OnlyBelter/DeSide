@@ -75,16 +75,22 @@ This package provides functions to plot the results of DeSide.
 
 ## DeSide model
 There are two ways to use DeSide. 
-Firstly, you can use the provided pre-trained model to directly predict cell proportions, 
+Firstly, you can use the provided pre-trained model to predict cell proportions directly, 
 eliminating the need to train the model by yourself. 
 Alternatively, you can sequentially execute the `Dataset Simulation` and `Model Training` modules, training the model from scratch. 
-Subsequently, you can use the self-trained model to predict cell proportions.
+Then use the self-trained model to predict cell proportions.
 
 ### Model Prediction
 
 Using the pre-trained model or self-trained model, you can predict cell proportions in bulk gene expression profiles (bulk GEPs) by using the [`deside_model.predict`](https://deside.readthedocs.io/en/latest/func/deconvolution.html#deside.decon_cf.DeSide.predict) function.
 
 ```python
+import os
+import pandas as pd
+from deside.utility import check_dir
+from deside.decon_cf import DeSide
+from deside.utility.read_file import read_gene_set
+
 # bulk gene expression profiles (GEPs) in TPM format
 bulk_tpm_file_path = 'path/xx_TPM.csv'
 bulk_tpm = pd.read_csv(bulk_tpm_file_path, index_col=0)
@@ -93,6 +99,26 @@ bulk_tpm = pd.read_csv(bulk_tpm_file_path, index_col=0)
 result_dir = './results'
 y_pred_file_path = os.path.join(result_dir, 'y_pred.csv')
 check_dir(result_dir)
+dataset_dir = './datasets/'
+
+# hyper-parameters of the DNN model
+deside_parameters = {
+    'architecture': ([200, 2000, 2000, 2000, 50], [0.05, 0.05, 0.05, 0.2, 0]),
+    'architecture_for_pathway_network': ([50, 500, 500, 500, 50], [0, 0, 0, 0, 0]),
+    'loss_function_alpha': 0.5,  # alpha*mae + (1-alpha)*rmse, mae means mean absolute error
+    'normalization': 'layer_normalization',  # batch_normalization / layer_normalization / None
+     # 1 means to add a normalization layer, input | the first hidden layer | ... | output
+    'normalization_layer': [0, 0, 1, 1, 1, 1],  # 1 more parameter than the number of hidden layers
+    'pathway_network': True,  # using an independent pathway network
+    'last_layer_activation': 'sigmoid',  # sigmoid / softmax
+    'learning_rate': 1e-4,
+    'batch_size': 128}
+
+# read two gene sets as pathway mask
+gene_set_file_path1 = os.path.join(dataset_dir, 'gene_set', 'c2.cp.kegg.v2023.1.Hs.symbols.gmt')
+gene_set_file_path2 = os.path.join(dataset_dir, 'gene_set', 'c2.cp.reactome.v2023.1.Hs.symbols.gmt')
+all_pathway_files = [gene_set_file_path1, gene_set_file_path2]
+pathway_mask = read_gene_set(all_pathway_files)  # genes by pathways
 
 # read pre-trained DeSide model
 model_dir = './DeSide_model/'
@@ -102,7 +128,9 @@ deside_model = DeSide(model_dir=model_dir)
 deside_model.predict(input_file=bulk_tpm_file_path, 
                      output_file_path=y_pred_file_path, 
                      exp_type='TPM', transpose=True,
-                     scaling_by_sample=False, scaling_by_constant=True)
+                     scaling_by_sample=False, scaling_by_constant=True,
+                     hyper_params=deside_parameters,
+                     pathway_mask=pathway_mask)
 ```
 - A complete example in jupyter notebook can be found: [E1 - Using pre-trained model.ipynb](https://github.com/OnlyBelter/DeSide_mini_example/blob/main/E1%20-%20Using%20pre-trained%20model.ipynb).
 
@@ -110,25 +138,60 @@ deside_model.predict(input_file=bulk_tpm_file_path,
 
 Training a model using the provided training set.
 ```python
+import os
+import pandas as pd
+from deside.decon_cf import DeSide
+from deside.utility import check_dir, sorted_cell_types
+from deside.utility.read_file import read_gene_set
+
 # create output directory
 result_dir = './results'
 check_dir(result_dir)
+dataset_dir = './datasets/'
 
 # using dataset D1 as the training set
 training_set2file_path = {
-    'D1': './datasets/simulated_bulk_cell_dataset/simu_bulk_exp_Mixed_N100K_D1.h5ad',
+    'D1': './datasets/simulated_bulk_cell_dataset/D1/simu_bulk_exp_Mixed_N100K_D1.h5ad',
 }
 
-all_cell_types = sorted_cell_types
+cell_type2subtypes = {'B Cells': ['Non-plasma B cells', 'Plasma B cells'],
+                      'CD4 T': ['CD4 T'], 'CD8 T': ['CD8 T (GZMK high)', 'CD8 T effector'],
+                      'DC': ['DC'], 'Endothelial Cells': ['Endothelial Cells'],
+                      'Cancer Cells': ['Cancer Cells'],
+                      'Fibroblasts': ['CAFs', 'Myofibroblasts'], 'Macrophages': ['Macrophages'],
+                      'Mast Cells': ['Mast Cells'], 'NK': ['NK'], 'Neutrophils': ['Neutrophils'],
+                      'Double-neg-like T': ['Double-neg-like T'], 'Monocytes': ['Monocytes']}
+all_cell_types = sorted([i for v in cell_type2subtypes.values() for i in v])
+all_cell_types = [i for i in sorted_cell_types if i in all_cell_types]
 
-# set hyper-parameters of the DNN model
-deside_parameters = {'architecture': ([100, 1000, 1000, 1000, 50],
-                                      [0, 0, 0, 0.2, 0]),
-                     'loss_function': 'mae+rmse',
-                     'batch_normalization': False,
-                     'last_layer_activation': 'sigmoid',
-                     'learning_rate': 2e-5,
-                     'batch_size': 128}
+# set hyper-parameters of the DNN model and other parameters for training
+# hyper-parameters of the DNN model
+deside_parameters = {
+    'architecture': ([200, 2000, 2000, 2000, 50], [0.05, 0.05, 0.05, 0.2, 0]),
+    'architecture_for_pathway_network': ([50, 500, 500, 500, 50], [0, 0, 0, 0, 0]),
+    'loss_function_alpha': 0.5,  # alpha*mae + (1-alpha)*rmse, mae means mean absolute error
+    'normalization': 'layer_normalization',  # batch_normalization / layer_normalization / None
+     # 1 means to add a normalization layer, input | the first hidden layer | ... | output
+    'normalization_layer': [0, 0, 1, 1, 1, 1],  # 1 more parameter than the number of hidden layers
+    'pathway_network': True,  # using an independent pathway network
+    'last_layer_activation': 'sigmoid',  # sigmoid / softmax
+    'learning_rate': 1e-4,
+    'batch_size': 128}
+
+# read two gene sets as pathway mask
+gene_set_file_path1 = os.path.join(dataset_dir, 'gene_set', 'c2.cp.kegg.v2023.1.Hs.symbols.gmt')
+gene_set_file_path2 = os.path.join(dataset_dir, 'gene_set', 'c2.cp.reactome.v2023.1.Hs.symbols.gmt')
+all_pathway_files = [gene_set_file_path1, gene_set_file_path2]
+pathway_mask = read_gene_set(all_pathway_files)  # genes by pathways
+
+# filtered gene list (gene-level filtering, filtered by correlation coefficients and quantiles)
+filtered_gene_list = None  # for other datasets
+if list(training_set2file_path.keys())[0] == 'D1':
+    filtered_gene_file_path = os.path.join(dataset_dir, 'simulated_bulk_cell_dataset/D1/gene_list_filtered_by_high_corr_gene_and_quantile_range.csv')
+    filtered_gene_list = pd.read_csv(filtered_gene_file_path, index_col=0).index.to_list()
+
+# input gene list type for pathway profiles
+input_gene_list = 'filtered_genes'
 
 # remove cancer cell during training process
 remove_cancer_cell = True
@@ -144,7 +207,9 @@ deside_obj.train_model(training_set_file_path=[training_set2file_path['D1']],
                        hyper_params=deside_parameters, cell_types=all_cell_types,
                        scaling_by_constant=True, scaling_by_sample=False,
                        remove_cancer_cell=remove_cancer_cell,
-                       n_patience=100, n_epoch=3000, verbose=0)
+                       n_patience=100, n_epoch=3000, verbose=0,
+                        pathway_mask=pathway_mask, method_adding_pathway='add_to_end', 
+                        filtered_gene_list=filtered_gene_list, input_gene_list=input_gene_list)
 ```
 - A complete example in jupyter notebook can be found: [E2 - Training a model from scratch.ipynb](https://github.com/OnlyBelter/DeSide_mini_example/blob/main/E2%20-%20Training%20a%20model%20from%20scratch.ipynb)
 
@@ -155,49 +220,88 @@ deside_obj.train_model(training_set_file_path=[training_set2file_path['D1']],
 In this module, you can synthesize bulk tumors based on the dataset `S1`.
 
 ```python
+import os
+import pandas as pd
+from deside.utility.read_file import ReadH5AD, ReadExp
+from deside.utility import check_dir, sorted_cell_types
+from deside.simulation import (BulkGEPGenerator, get_gene_list_for_filtering, 
+                               filtering_by_gene_list_and_pca_plot)
+
 # the list of single cell RNA-seq datasets
 sc_dataset_ids = ['hnscc_cillo_01', 'pdac_pengj_02', 'hnscc_puram_03',
-                  'pdac_steele_04', 'luad_kim_05', 'nsclc_guo_06', 'pan_cancer_07']
+                  'pdac_steele_04', 'luad_kim_05', 'nsclc_guo_06', 
+                  'pan_cancer_07', 'prad_cheng_08', 'prad_dong_09', 
+                  'hcc_sun_10', 'gbm_neftel_11', 'gbm_abdelfattah_12']
 
 # the list of cancer types in the TCGA dataset
 cancer_types = ['ACC', 'BLCA', 'BRCA', 'GBM', 'HNSC', 'LGG', 'LIHC', 'LUAD', 'PAAD', 'PRAD',
                 'CESC', 'COAD', 'KICH', 'KIRC', 'KIRP', 'LUSC', 'READ', 'THCA', 'UCEC']
 
+cancer_types_for_filtering = cancer_types.copy()
+
+# coefficient to correct the difference of total RNA abundance in different cell types
+# There is no effect to the final results if all the coefficients are set to 1
+alpha_total_rna_coefficient = {'B Cells': 1.0, 'CD4 T': 1.0, 'CD8 T': 1.0, 'DC': 1.0,
+                               'Endothelial Cells': 1.0, 'Cancer Cells': 1.0, 'Fibroblasts': 1.0,
+                               'Macrophages': 1.0, 'Mast Cells': 1.0, 'NK': 1.0, 'Neutrophils': 1.0,
+                               'Double-neg-like T': 1.0, 'Monocytes': 1.0}
+
+# cell types and the corresponding subtypes
+cell_type2subtypes = {'B Cells': ['Non-plasma B cells', 'Plasma B cells'],
+                      'CD4 T': ['CD4 T'], 'CD8 T': ['CD8 T (GZMK high)', 'CD8 T effector'],
+                      'DC': ['DC'], 'Endothelial Cells': ['Endothelial Cells'],
+                      'Cancer Cells': ['Cancer Cells'],
+                      'Fibroblasts': ['CAFs', 'Myofibroblasts'], 'Macrophages': ['Macrophages'],
+                      'Mast Cells': ['Mast Cells'], 'NK': ['NK'], 'Neutrophils': ['Neutrophils'],
+                      'Double-neg-like T': ['Double-neg-like T'], 'Monocytes': ['Monocytes']}
+
 # the list of cell types
-all_cell_types = sorted_cell_types
+all_cell_types = sorted([i for v in cell_type2subtypes.values() for i in v])
+all_cell_types = [i for i in sorted_cell_types if i in all_cell_types]
 
 # parameters
 # for gene-level filtering
 gene_list_type = 'high_corr_gene_and_quantile_range'
-gene_quantile_range = [0.05, 0.5, 0.95]  # gene-level filtering
+gene_quantile_range = [0.005, 0.5, 0.995]  # gene-level filtering
 
 # for GEP-level filtering
 gep_filtering_quantile = (0.0, 0.95)  # GEP-level filtering, L1-norm threshold
+filtering_in_pca_space = True
+pca_n_components = 0.9
 n_base = 100  # averaging 100 GEPs sampled from S1 to synthesize 1 bulk GEP, used by S1 generation
 
 cell_prop_prior = None
 dataset2parameters = {
     'Mixed_N10K_segment': {
         'sc_dataset_ids': sc_dataset_ids,
-        'cell_types': all_cell_types,
-        'n_samples': 10000,
+        'cell_type2subtype': cell_type2subtypes,
+        'n_samples': 8000,
         'sampling_method': 'segment', # or `random` used by Scaden
         'filtering': True,
     }
 }
 
 # skipped steps here ...
-
+simu_bulk_exp_dir = './datasets/simulated_bulk_cell_dataset'
+sct_dataset_file_path = 'path/to/simu_bulk_exp_SCT_N10K_S1_16sct.h5ad'
+tcga2cancer_type_file_path = 'path/to/tcga_sample_id2cancer_type.csv'
+tcga_merged_tpm_file_path = 'path/to/merged_tpm.csv'
+high_corr_gene_file_path = 'path/to/gene_list_filtered_by_high_corr_gene.csv'
+high_corr_gene_list = pd.read_csv(high_corr_gene_file_path)
+high_corr_gene_list = high_corr_gene_list['gene_name'].to_list()
 for dataset_name, params in dataset2parameters.items():
     # skipped steps here ...
     bulk_generator = BulkGEPGenerator(simu_bulk_dir=simu_bulk_exp_dir,
                                       merged_sc_dataset_file_path=None,
-                                      cell_types=params['cell_types'],
+                                      cell_type2subtype=params['cell_type2subtype'],
                                       sc_dataset_ids=params['sc_dataset_ids'],
                                       bulk_dataset_name=dataset_name,
                                       sct_dataset_file_path=sct_dataset_file_path,
                                       check_basic_info=False,
-                                      tcga2cancer_type_file_path=tcga2cancer_type_file_path)
+                                      tcga2cancer_type_file_path=tcga2cancer_type_file_path,
+                                      total_rna_coefficient=alpha_total_rna_coefficient,
+                                      cell_type_col_name='cell_type',
+                                      subtype_col_name='cell_type')
     # GEP-filtering will be performed during this generation process
     generated_bulk_gep_fp = bulk_generator.generated_bulk_gep_fp
     dataset2path[dataset_name] = generated_bulk_gep_fp
@@ -214,7 +318,9 @@ for dataset_name, params in dataset2parameters.items():
                                     log_file_path=log_file_path,
                                     show_filtering_info=False,
                                     filtering_method='median_gep',
-                                    cell_prop_prior=cell_prop_prior)
+                                    cell_prop_prior=cell_prop_prior,
+                                    filtering_in_pca_space=filtering_in_pca_space,
+                                    norm_ord=1, pca_n_components=pca_n_components)
 
     # gene-level filtering that depends on the high correlation genes and quantile range (each dataset itself)
     if params['filtering']:
@@ -268,4 +374,6 @@ for dataset_name, params in dataset2parameters.items():
 If you want to use other scRNA-seq datasets to simulate GEPs, you can follow our workflow to preprocess single cell datasets and merge them together. The Python package `Scanpy` was used heavily in our workflow.
 
 - Preprocessing a single dataset: [03deal_with_Puram et al Cell.ipynb](https://github.com/OnlyBelter/DeSide_mini_example/blob/main/single_cell_dataset_integration/03deal_with_Puram%20et%20al%20Cell.ipynb).
-- Merging multiple datasets together: [08filter_and_merge_01_06.py](https://github.com/OnlyBelter/DeSide_mini_example/blob/main/single_cell_dataset_integration/08filter_and_merge_01_06.py).
+- Merging multiple datasets together (part 1): [Merge_12_scRNA-seq_datasets_part1.ipynb](https://github.com/OnlyBelter/DeSide_mini_example/blob/main/single_cell_dataset_integration/Merge_12_scRNA-seq_datasets_part1.ipynb).
+- Merging multiple datasets together (part 2-round1): [Merge_12_scRNA-seq_datasets_part2_first_round.ipynb](https://github.com/OnlyBelter/DeSide_mini_example/blob/main/single_cell_dataset_integration/Merge_12_scRNA-seq_datasets_part2_first_round.ipynb)
+- Merging multiple datasets together (part 2-round2): [Merge_12_scRNA-seq_datasets_part2_second_round.ipynb](https://github.com/OnlyBelter/DeSide_mini_example/blob/main/single_cell_dataset_integration/Merge_12_scRNA-seq_datasets_part2_second_round.ipynb)
