@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.abspath(r'..'))
 # -- Project information -----------------------------------------------------
 
 project = 'DeSide'
-copyright = '2023, iSynBio & HKBU'
+copyright = '2024, iSynBio & HKBU'
 author = 'Xin Xiong & Yerong Liu'
 
 # The full version, including alpha/beta/rc tags
