@@ -16,7 +16,7 @@ What is DeSide?
 DeSide is a deep-learning and single-cell-based deconvolution method for solid tumors.
 It enables the inference of cellular proportions of different cell types from bulk RNA-seq data.
 DeSide was developed by Xin Xiong and Yerong Liu under the guidance and collaboration of
-the `Li(X) Lab <http://isynbio.siat.ac.cn/Li(x)lab/>`_ at the Institute for Synthetic Biology Research (iSynBio), Chinese Academy of Sciences,
+the `Li(X) Lab <https://isynbio.siat.ac.cn/Li(x)lab/>`_ at the Institute for Synthetic Biology Research (iSynBio), Chinese Academy of Sciences,
 and the `Tian Lab <https://physics.hkbu.edu.hk/people/tian-liang>`_ at Hong Kong Baptist University (HKBU).
 
 Contents
