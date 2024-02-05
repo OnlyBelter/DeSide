@@ -52,3 +52,6 @@ The record of all notable changes to this project will be documented in this fil
 - Add GEP-level filtering in the PCA space of TCGA samples
 - Add Dirichlet distribution to simulate the cellular proportions of bulk RNA-seq data
 
+## v1.2.2 (revision)
+3 Feb 2024
+- Update the documentation

@@ -3,7 +3,7 @@ import json
 import functools
 import numpy as np
 import pandas as pd
-from typing import Union
+from typing import Union, Dict
 import tensorflow as tf
 from tensorflow import keras
 from ..utility.read_file import ReadH5AD, ReadExp
