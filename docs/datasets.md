@@ -45,7 +45,7 @@ Datasets used in DeSide
 
 
 ## Download
-- TCGA (DA): [merged_tpm.csv.zip](https://doi.org/10.6084/m9.figshare.23047547.v1)
+- TCGA (DA): [merged_tpm.csv.zip](https://doi.org/10.6084/m9.figshare.23047547.v2)
 - merged_12_sc_datasets (S0): [merged_12_sc_datasets_231003.h5ad](https://doi.org/10.6084/m9.figshare.23283908.v2)
 - SCT_POS_N10K (S1): [simu_bulk_exp_SCT_N10K_S1_16sct.h5ad](https://doi.org/10.6084/m9.figshare.23043560.v2)
 - Mixed_N100K_random (D0): [simu_bulk_exp_Mixed_N100K_random_log2cpm1p.h5ad](https://doi.org/10.6084/m9.figshare.23283932.v2)
