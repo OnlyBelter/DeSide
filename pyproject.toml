@@ -39,7 +39,7 @@ dependencies = [
     "scipy",
     "umap-learn==0.5.1",  # the version needs to be fixed for reproducibility
     "matplotlib<3.7",
-    "seaborn==0.11.2",
+    "seaborn==0.12.0",
     "bbknn==1.5.1",
     "SciencePlots",
     "tables==3.6.1",

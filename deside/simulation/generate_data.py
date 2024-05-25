@@ -1139,39 +1139,48 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
             # DC has 543 cells, larger chunk_size can cause error if set 'replace=False' and 'n_base=1' while sampling
             chunk_size = int(n_sample_each_cell_type / 10)
             chunk_counter = 0
+            # read existed GEPs
+            existed_gep_ids = pd.Index([])
+            if os.path.exists(self.generated_bulk_gep_csv_fp):
+                existed_gep_ids = pd.read_csv(self.generated_bulk_gep_csv_fp, index_col=0, usecols=[0]).index
             with pd.read_csv(self.generated_cell_fraction_fp, chunksize=chunk_size, index_col=0) as reader:
                 simu_method = simu_method  # average single cell GEPs for both positive and negative sampling
                 for rows in tqdm(reader):
-                    if sample_type == 'positive' and n_base_for_positive_samples > 1:
-                        total_cell_number = n_base_for_positive_samples
-                    else:  # negative sampling (multiple cell types are used) or positive sampling with n_base=1
-                        total_cell_number = 0  # assign 1 for the cell types with non-zero cell fractions
-                    if sample_type == 'positive':
-                        # change subgroup for each chunk based on cell_type2subgroup_id
-                        all_cell_types = rows.columns[np.argmax(rows.values, axis=1)].unique()
-                        if len(all_cell_types) > 1:
-                            raise ValueError(f'   More than one cell types are selected: {all_cell_types}')
-                        cell_type = all_cell_types[0]
-                        col_name = self.cell_type_col_name
-                        if cell_type in self.cell_subtype_used:
-                            col_name = self.subtype_col_name
-                        assert col_name in self.merged_sc_dataset_obs.columns, \
-                            f"Wrong column name for cell type or cell subtype '{col_name}', please check." \
-                            f"Available columns are: {self.merged_sc_dataset_obs.columns}"
-                        current_obs_df = self.merged_sc_dataset_obs.loc[
-                            self.merged_sc_dataset_obs[col_name] == cell_type, :].copy()
+                    rows = rows.loc[~rows.index.isin(existed_gep_ids), :].copy()  # filter existed samples
+                    if rows.shape[0] > 0:
+                        if sample_type == 'positive' and n_base_for_positive_samples > 1:
+                            total_cell_number = n_base_for_positive_samples
+                        else:  # negative sampling (multiple cell types are used) or positive sampling with n_base=1
+                            total_cell_number = 0  # assign 1 for the cell types with non-zero cell fractions
+                        if sample_type == 'positive':
+                            # change subgroup for each chunk based on cell_type2subgroup_id
+                            all_cell_types = rows.columns[np.argmax(rows.values, axis=1)].unique()
+                            if len(all_cell_types) > 1:
+                                raise ValueError(f'   More than one cell types are selected: {all_cell_types}')
+                            cell_type = all_cell_types[0]
+                            col_name = self.cell_type_col_name
+                            if cell_type in self.cell_subtype_used:
+                                col_name = self.subtype_col_name
+                            assert col_name in self.merged_sc_dataset_obs.columns, \
+                                f"Wrong column name for cell type or cell subtype '{col_name}', please check." \
+                                f"Available columns are: {self.merged_sc_dataset_obs.columns}"
+                            current_obs_df = self.merged_sc_dataset_obs.loc[
+                                self.merged_sc_dataset_obs[col_name] == cell_type, :].copy()
+                        else:
+                            current_obs_df = self.merged_sc_dataset_obs.copy()
+                        selected_cell_ids = self._sc_sampling(cell_frac=rows, total_cell_number=total_cell_number,
+                                                              obs_df=current_obs_df,
+                                                              sep_by_patient=sep_by_patient)
+                        simulated_gep = self._map_cell_id2exp(selected_cell_id=selected_cell_ids, simu_method=simu_method,
+                                                              cell_frac=rows, sc_dataset='merged_sc_dataset', gep_type='SCT')
+                        simulated_gep = log2_transform(simulated_gep)
+                        self.generated_bulk_gep_counter += simulated_gep.shape[0]
+                        # generated_cell_frac = generated_cell_frac.loc[simulated_gep.index, :].copy()
+                        selected_cell_ids = selected_cell_ids.loc[simulated_gep.index, :].copy()
+                        self._save_simulated_bulk_gep(gep=simulated_gep, cell_id=selected_cell_ids)
                     else:
-                        current_obs_df = self.merged_sc_dataset_obs.copy()
-                    selected_cell_ids = self._sc_sampling(cell_frac=rows, total_cell_number=total_cell_number,
-                                                          obs_df=current_obs_df,
-                                                          sep_by_patient=sep_by_patient)
-                    simulated_gep = self._map_cell_id2exp(selected_cell_id=selected_cell_ids, simu_method=simu_method,
-                                                          cell_frac=rows, sc_dataset='merged_sc_dataset', gep_type='SCT')
-                    simulated_gep = log2_transform(simulated_gep)
-                    self.generated_bulk_gep_counter += simulated_gep.shape[0]
-                    # generated_cell_frac = generated_cell_frac.loc[simulated_gep.index, :].copy()
-                    selected_cell_ids = selected_cell_ids.loc[simulated_gep.index, :].copy()
-                    self._save_simulated_bulk_gep(gep=simulated_gep, cell_id=selected_cell_ids)
+                        print(f'   Previous result exists: {self.generated_bulk_gep_fp}, '
+                              f'will skip this chunk {chunk_counter}')
                     chunk_counter += 1
 
             data_info = f'Simulated {self.generated_bulk_gep_counter} gene expression profiles ' \
