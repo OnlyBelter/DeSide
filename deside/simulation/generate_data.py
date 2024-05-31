@@ -787,6 +787,8 @@ class BulkGEPGenerator(object):
         if self.merged_sc_dataset is None:
             self.read_merged_single_cell_dataset()
         self.cell_type_in_sc = list(self.merged_sc_dataset.obs[self.cell_type_col_name].unique())
+        # remove nan in the cell type list
+        self.cell_type_in_sc = [i for i in self.cell_type_in_sc if type(i) == str]
         if self.subtype_col_name is not None:
             self.cell_subtype_in_sc = list(self.merged_sc_dataset.obs[self.subtype_col_name].unique())
         self.dataset_in_sc = list(self.merged_sc_dataset.obs['dataset_id'].unique())
