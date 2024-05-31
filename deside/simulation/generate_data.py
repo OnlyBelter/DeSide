@@ -1053,7 +1053,7 @@ class BulkGEPGenerator(object):
             valid_sub_cell_types = ', '.join(self.cell_subtype_in_sc)
             raise ValueError(f'   Invalid sub cell types: {invalid_sub_cell_types}, '
                              f'only the following sub cell types existed in single cell dataset: {valid_sub_cell_types}')
-        else:
+        elif self.cell_subtype_used:
             used_sub_cell_types = ', '.join(self.cell_subtype_used)
             print(f'   The following sub cell types will be used: {used_sub_cell_types}')
 
