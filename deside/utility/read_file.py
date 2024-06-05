@@ -86,12 +86,12 @@ class ReadExp(object):
       which comes from bulk RNA-seq analysis. (Luecken, M. D. & Theis, F. J., Mol. Syst. Biol. 15, e8746 (2019))
 
     :param exp_file: file path or DataFrame, samples by genes
+
     :param exp_type: TPM / CPM, log_space, non_log
+
     :param transpose: transpose if exp_file formed as genes (index) by samples (columns)
     """
     def __init__(self, exp_file, exp_type='TPM', transpose: bool = False):
-        """
-        """
         assert exp_type in ['TPM', 'CPM', 'log_space', 'non_log']
         self.file_type = exp_type
         self.exp = read_df(exp_file)

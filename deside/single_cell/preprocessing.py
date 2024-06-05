@@ -147,7 +147,7 @@ def normalize_mtx(adata, prefix=None, min_genes=200, min_cells=3, result_dir=Non
 
 
 def get_sample_id(obs_df, n, cell_type, n_base, class_by='leiden', sep_by_patient=False,
-                  sc_dataset=None, glioma_epi_ratio=0.1):
+                  sc_dataset=None, minimum_n_base=1, glioma_epi_ratio=0.1):
     """
     select sample id by random sampling
     :param obs_df: adata.obs in .h5ad file
@@ -158,6 +158,7 @@ def get_sample_id(obs_df, n, cell_type, n_base, class_by='leiden', sep_by_patien
     :param sep_by_patient: only sampling from one patient in original dataset if True
     :param glioma_epi_ratio: the ratio of glioma cells and epithelial cells when sampling from cancer cells
     :param sc_dataset: the single cell dataset used for sampling
+    :param minimum_n_base: the minimum number of cells to average for each SCT sample
     :return: a tuple of tuples  (('s1', 's2'), ('s3', 's5')), each tuple contains n_base ids for a single sample
     """
     if n_base == 0:
@@ -182,9 +183,13 @@ def get_sample_id(obs_df, n, cell_type, n_base, class_by='leiden', sep_by_patien
         if (groupby_patient_count is not None) and (groupby_patient_count.shape[0] > 1):
             selected_patient_id = groupby_patient_count.sample(1).index.to_list()[0]
             all_samples_id = obs_df.loc[obs_df['sample_id'] == selected_patient_id, :].index.to_list()
-        if len(all_samples_id) < n_base:
-            print(cell_type, len(all_samples_id), n_base)
-        _s = np.random.choice(all_samples_id, n_base, replace=False)
+        if minimum_n_base <= len(all_samples_id) <= n_base:
+            # print(cell_type, len(all_samples_id), n_base)
+            _s = tuple(all_samples_id)
+        elif len(all_samples_id) < minimum_n_base:
+            raise ValueError(f'The number of cells in {cell_type} is less than minimum_n_base {minimum_n_base}')
+        else:
+            _s = np.random.choice(all_samples_id, n_base, replace=False)
         _s = tuple(sorted(_s))
         if _s not in selected_samples:
             selected_samples[_s] = 1

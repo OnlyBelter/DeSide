@@ -526,6 +526,7 @@ class BulkGEPGenerator(object):
             tcga_gene_info = None
             exp_ref_df = None
             pca_model = None
+            gene_list_in_pca = None
             d = 0  # the number of PCA components that explain 90% of variance (pca_explained_variance)
             if filtering and filtering_ref_types is not None:
                 s2c = pd.read_csv(self.tcga2cancer_type_file_path, index_col=0)  # sample id to cancer type in TCGA
@@ -551,7 +552,7 @@ class BulkGEPGenerator(object):
                                                           sc_dataset=sc_dataset,
                                                           cell_frac=generated_cell_frac,
                                                           add_noise=add_noise, noise_params=noise_params)
-                    simulated_gep_bak = simulated_gep.copy()
+                    simulated_gep_bak = simulated_gep.copy()  # TPM
                     if filtering:
                         if reference_file is None or ref_exp_type is None:
                             raise ValueError('Both "reference_file" and "ref_exp_type" should not be None '
@@ -564,7 +565,7 @@ class BulkGEPGenerator(object):
                             simulated_gep = non_log2cpm(simulated_gep)
                         if exp_ref_df is None:
                             exp_obj_ref = ExpObj(exp_file=reference_file, exp_type=ref_exp_type)
-                            exp_obj_ref.align_with_gene_list(gene_list=gene_list_in_sc_ds, fill_not_exist=True)
+                            # exp_obj_ref.align_with_gene_list(gene_list=gene_list_in_sc_ds, fill_not_exist=True)
                             exp_ref_df = exp_obj_ref.get_exp()  # TPM
                             exp_ref_df = exp_ref_df.loc[exp_ref_df.index.isin(sample_id_for_filtering), :]
 
@@ -624,42 +625,59 @@ class BulkGEPGenerator(object):
                                       filtering_method == 'mean_gep' or filtering_method == 'linear_mmd') and \
                             (simulated_gep is not None):
                         if filtering_in_pca_space:
-                            gene_list_in_pca = gene_list_in_sc_ds.copy()
+                            # TODO, this gene list should be the same as the gene list in PCA model, not the gene list in sc_ds
+                            if gene_list_in_pca is None:
+                                gene_list_in_pca = []
+                            pca_model_dir = os.path.dirname(os.path.dirname(reference_file))
+                            pca_model_dir = os.path.join(pca_model_dir, f'pca_model_{pca_n_components}')
+                            check_dir(pca_model_dir)
+                            pca_model_path = os.path.join(pca_model_dir, 'tcga_pca_model_for_gep_filtering.pkl')
+                            gene_list_in_pca_file_path = os.path.join(pca_model_dir, 'gene_list_for_pca.csv')
                             if pca_model is None:
-                                assert np.all(exp_ref_df.columns == gene_list_in_pca)
-                                pca_model_dir = os.path.dirname(os.path.dirname(reference_file))
-                                pca_model_dir = os.path.join(pca_model_dir, f'pca_model_{pca_n_components}')
-                                check_dir(pca_model_dir)
-                                pca_model_path = os.path.join(pca_model_dir, 'tcga_pca_model_for_gep_filtering.pkl')
-                                # save gene list for PCA
-                                pd.DataFrame(gene_list_in_pca).to_csv(os.path.join(pca_model_dir,
-                                                                                   'gene_list_for_pca.csv'),
-                                                                      )
-                                if os.path.exists(pca_model_path):
+                                if os.path.exists(pca_model_path) and os.path.exists(gene_list_in_pca_file_path):
                                     pca_model = load(pca_model_path)
+                                    gene_list_in_pca = pd.read_csv(gene_list_in_pca_file_path,
+                                                                   index_col='0').index.to_list()
+                                    print(f'   > PCA model was loaded from {pca_model_path}, '
+                                          f'and gene list was loaded from {gene_list_in_pca_file_path}')
+                                    # align reference GEPs with the gene list in the PCA model
+                                    exp_obj_ref = ReadExp(exp_file=exp_ref_df, exp_type=ref_exp_type)
+                                    exp_obj_ref.align_with_gene_list(gene_list=gene_list_in_pca, fill_not_exist=True)
+                                    exp_ref_df = exp_obj_ref.get_exp()  # TPM
                                 else:
                                     pca_model = PCA(n_components=pca_n_components, random_state=42)
+                                    # using the intersection of gene list in sc_ds and gene list in TCGA
+                                    gene_list_in_pca = list(set(gene_list_in_sc_ds) & set(exp_ref_df.columns))
+                                    exp_ref_df = exp_ref_df.loc[:, gene_list_in_pca].copy()
+                                    exp_ref_df = non_log2cpm(exp_ref_df)  # TPM
                                     exp_ref_df_log = log2_transform(exp_ref_df)  # using log2(TPM+1) for PCA
                                     pca_model.fit(exp_ref_df_log)
                                     dump(pca_model, pca_model_path)
+                                    # save the gene list for PCA
+                                    pd.DataFrame(gene_list_in_pca).to_csv(gene_list_in_pca_file_path)
+                                assert np.all(exp_ref_df.columns == gene_list_in_pca)
                                 exp_ref_df = log2_transform(exp_ref_df)
                                 exp_ref_df = pca_model.transform(exp_ref_df)
                                 exp_ref_df = pd.DataFrame(exp_ref_df, index=range(exp_ref_df.shape[0]),
                                                           columns=range(exp_ref_df.shape[1]))
-                                exp_ref_df.to_csv(os.path.join(pca_model_dir, 'tcga_pca_ref.csv'))
+                                if not os.path.exists(os.path.join(pca_model_dir, 'tcga_pca_ref.csv')):
+                                    exp_ref_df.to_csv(os.path.join(pca_model_dir, 'tcga_pca_ref.csv'))
                                 cumsum = np.cumsum(pca_model.explained_variance_ratio_)
                                 d = len(cumsum)
                                 print(f'   > {d} dimensions are needed to explain '
                                       f'{cumsum.max() * 100}% variance.')  # 1515
                                 # exp_ref_df = exp_ref_df.iloc[:, :d].copy()
+                            # align simulated GEP with the gene list in the PCA model
+                            simulated_gep_obj = ReadExp(exp_file=simulated_gep, exp_type='TPM')
+                            simulated_gep_obj.align_with_gene_list(gene_list=gene_list_in_pca, fill_not_exist=True)
+                            simulated_gep = simulated_gep_obj.get_exp()  # TPM
                             assert np.all(simulated_gep.columns == gene_list_in_pca)
                             simulated_gep = log2_transform(simulated_gep)
                             simulated_gep = pca_model.transform(simulated_gep)
                             simulated_gep = pd.DataFrame(simulated_gep, index=simulated_gep_bak.index,
                                                          columns=range(simulated_gep.shape[1]))
                             # simulated_gep = simulated_gep.iloc[:, :d].copy()
-                        else:
-                            assert np.all(exp_ref_df.columns == simulated_gep.columns)
+                        assert np.all(exp_ref_df.columns == simulated_gep.columns)
                         if self.m_gep_ref is None:
                             if ('mean_gep' in filtering_method) or ('linear_mmd' in filtering_method):
                                 # The maximum mean discrepancy (MMD) using
@@ -823,7 +841,8 @@ class BulkGEPGenerator(object):
                                          ~self.merged_sc_dataset_obs.index.isin(high_zero_ratio_cells), :].copy()
 
     def _sc_sampling(self, cell_frac: pd.DataFrame, obs_df: pd.DataFrame, n_threads: int = 10,
-                     total_cell_number: int = None, sep_by_patient=False, sc_dataset=None):
+                     total_cell_number: int = None, sep_by_patient=False, sc_dataset=None,
+                     minimum_n_base: int =1):
         """
         Mix single cell expression profiles to simulated bulk expression profile according to `cell_frac`.
 
@@ -866,7 +885,8 @@ class BulkGEPGenerator(object):
         sampled_cell_ids = pd.concat(cell_num_flatten)
         # contains all cell types for each single simulated bulk expression profile
         # if not all_cell_num_is_one:
-        paras = [(obs_df, 1, row['cell_type'], row['n_cell'], row['class_by'], sep_by_patient, sc_dataset)
+        paras = [(obs_df, 1, row['cell_type'], row['n_cell'], row['class_by'],
+                  sep_by_patient, sc_dataset, minimum_n_base)
                  for i, row in sampled_cell_ids.iterrows()]
         n_threads = min(multiprocessing.cpu_count()-2, n_threads)
         # https://pythonspeed.com/articles/python-multiprocessing/
@@ -911,7 +931,7 @@ class BulkGEPGenerator(object):
         else:  # generated single cell dataset
             sc_ds_df = self.generated_sc_dataset_df
         simulated_exp = {}
-        if gep_type == 'SCT':  # each sample id only contains single cell type
+        if gep_type == 'SCT':  # each sample id only contains a single cell type
             selected_cell_id = selected_cell_id.loc[selected_cell_id['n_cell'] > 1, :].copy()
             # n_non_zero = 1000
             n_genes = sc_ds_df.shape[1]
@@ -1010,7 +1030,7 @@ class BulkGEPGenerator(object):
                 gen_bulk_gep = pd.read_csv(self.generated_bulk_gep_csv_fp, index_col=0, usecols=[0, 1])
                 gen_bulk_gep = gen_bulk_gep[~gen_bulk_gep.index.duplicated(keep='first')].copy()
                 common_inx = [i for i in gen_cell_frac.index if i in gen_bulk_gep.index]
-                if (len(common_inx) == gen_bulk_gep.shape[0]) and (len(common_inx) == gen_cell_frac.shape[0]):
+                if common_inx and (len(common_inx) == gen_bulk_gep.shape[0]) and (len(common_inx) == gen_cell_frac.shape[0]):
                     self.generated_bulk_gep_counter = len(common_inx)
                     if 'seg_random' in gen_cell_frac.iloc[-1].name:
                         n_round = int(gen_cell_frac.iloc[-1].name.split('_')[3])
@@ -1109,7 +1129,8 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
     def generate_samples(self, n_sample_each_cell_type: int = 10000,
                          n_base_for_positive_samples: int = 100,
                          sample_type: str = 'positive', sep_by_patient=False,
-                         simu_method='ave', test_set: bool = False):
+                         simu_method='ave', test_set: bool = False,
+                         minimum_n_base: int = 1, ref_gene_list_file_path: str = None):
         """
         :param n_sample_each_cell_type: the number of samples to generate for each cell type
 
@@ -1117,13 +1138,19 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
 
         :param sample_type: positive means only 1 cell type is used, negative means more than 1 cell types are used
 
-        :param sep_by_patient: only sampling from one patient in original dataset if True
+        :param sep_by_patient: only sampling from one patient in the original dataset if True
 
         :param simu_method: `ave`: averaging all GEPs, or `scale_by_mGEP`: scaling by the mean GEP of all samples in the TCGA dataset
             or `random_replacement`: replacing the gene expression value (<1) by another value within the same cell type selected randomly
 
-        :param test_set: if True, generate test set using the same cell types as training set,
+        :param test_set: if True, generate a test set using the same cell types as the training set,
             otherwise generate data set with all cell types
+
+        :param minimum_n_base: the minimum number of single cells to average for each bulk sample
+
+        :param ref_gene_list_file_path: the file path of a reference gene list,
+            the list of genes used for filtering the single cell dataset for generating SCT dataset,
+            especially for using a customized scRNA-seq dataset
 
         """
         if not os.path.exists(self.generated_bulk_gep_fp):
@@ -1145,6 +1172,14 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
             existed_gep_ids = pd.Index([])
             if os.path.exists(self.generated_bulk_gep_csv_fp):
                 existed_gep_ids = pd.read_csv(self.generated_bulk_gep_csv_fp, index_col=0, usecols=[0]).index
+            if ref_gene_list_file_path is not None:
+                ref_gene_list = pd.read_csv(ref_gene_list_file_path, index_col=0).index.to_list()
+                sc_df_obj = ReadExp(self.merged_sc_dataset_df, exp_type='TPM')
+                sc_df_obj.align_with_gene_list(ref_gene_list)
+                # self.merged_sc_dataset_df = self.merged_sc_dataset_df.loc[:, ref_gene_list]
+                self.merged_sc_dataset_df = sc_df_obj.get_exp()  # TPM
+                print(f'   The number of genes in the reference gene list: {self.merged_sc_dataset_df.shape[1]} ',
+                      f'will be used. The file path is: {ref_gene_list_file_path}')
             with pd.read_csv(self.generated_cell_fraction_fp, chunksize=chunk_size, index_col=0) as reader:
                 simu_method = simu_method  # average single cell GEPs for both positive and negative sampling
                 for rows in tqdm(reader):
@@ -1168,11 +1203,20 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
                                 f"Available columns are: {self.merged_sc_dataset_obs.columns}"
                             current_obs_df = self.merged_sc_dataset_obs.loc[
                                 self.merged_sc_dataset_obs[col_name] == cell_type, :].copy()
+                            if current_obs_df.shape[0] < minimum_n_base:
+                                raise ValueError(f'   The number of single cells for cell type {cell_type} '
+                                                 f'is less than {minimum_n_base}, please check or remove '
+                                                 f'cell type {cell_type} to continue.')
+                            elif current_obs_df.shape[0] <= n_base_for_positive_samples:
+                                print(f'Warning: the number of cells in {cell_type} is '
+                                      f'less than n_base {n_base_for_positive_samples},',
+                                      f'all samples (n={current_obs_df.shape[0]}) will be used.')
                         else:
                             current_obs_df = self.merged_sc_dataset_obs.copy()
                         selected_cell_ids = self._sc_sampling(cell_frac=rows, total_cell_number=total_cell_number,
                                                               obs_df=current_obs_df,
-                                                              sep_by_patient=sep_by_patient)
+                                                              sep_by_patient=sep_by_patient,
+                                                              minimum_n_base=minimum_n_base)
                         simulated_gep = self._map_cell_id2exp(selected_cell_id=selected_cell_ids, simu_method=simu_method,
                                                               cell_frac=rows, sc_dataset='merged_sc_dataset', gep_type='SCT')
                         simulated_gep = log2_transform(simulated_gep)

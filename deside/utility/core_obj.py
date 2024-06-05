@@ -9,6 +9,7 @@ from .pub_func import default_core_marker_genes, aggregate_marker_gene_exp, read
 class ExpObj(ReadExp):
     """
     An object to save gene expression profiles
+    exp_file: a file path of gene expression profiles or a DataFrame
     """
     def __init__(self, exp_file, exp_type: str, transpose: bool = False):
         super().__init__(exp_file, exp_type=exp_type, transpose=transpose)
