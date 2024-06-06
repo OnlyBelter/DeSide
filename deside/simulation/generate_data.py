@@ -1394,7 +1394,7 @@ def get_gene_list_for_filtering(bulk_exp_file, tcga_file, result_file_path, q_co
                                 corr_result_fp: str = None, quantile_range: list = None):
     """
     Gene-level filtering based on the filtering type
-    :param bulk_exp_file:
+    :param bulk_exp_file: simulated bulk expression file, log2(TPM + 1)
     :param tcga_file:
     :param filtering_type: high_corr_gene, quantile_range, all_genes, high_corr_gene_and_quantile_range
       - high_corr_gene: expression values with high correlation with the cell proportions of any cell types
@@ -1402,7 +1402,7 @@ def get_gene_list_for_filtering(bulk_exp_file, tcga_file, result_file_path, q_co
     :param corr_result_fp:
     :param quantile_range: median gene expression (quantile_range[1], expected as 0.5) of simulated bulk cell GEPs that
         is less than quantile_range[0] or greater than quantile_range[2] of the quantile expression value
-        of corresponding gene in TCGA dataset will be removed
+        of the corresponding gene in TCGA dataset will be removed
     :param result_file_path:
     :param q_col_name:
     :param corr_threshold: correlation threshold for gene filtering
@@ -1414,13 +1414,14 @@ def get_gene_list_for_filtering(bulk_exp_file, tcga_file, result_file_path, q_co
         f'filtering_type: {filtering_type} is not supported, only support high_corr_gene, quantile_range, all_genes, ' \
         f'high_corr_gene_and_quantile_range'
     if not os.path.exists(result_file_path):
-        bulk_exp = ReadH5AD(bulk_exp_file).get_df()
+        bulk_exp = ReadH5AD(bulk_exp_file).get_df(convert_to_tpm=True)
         tcga_obj = ReadExp(tcga_file, exp_type='TPM')
-        tcga_obj.align_with_gene_list(
-            gene_list=bulk_exp.columns.to_list(), fill_not_exist=True,
-        )
+        tcga_obj.align_with_gene_list(gene_list=bulk_exp.columns.to_list())  # common genes will be kept
         tcga_obj.to_log2cpm1p()
         tcga = tcga_obj.get_exp()
+        bulk_exp = bulk_exp.loc[:, tcga.columns].copy()
+        bulk_exp = non_log2cpm(bulk_exp)
+        bulk_exp = log2_transform(bulk_exp)
         assert (len(tcga.columns) == len(bulk_exp.columns)) and np.all(tcga.columns == bulk_exp.columns), \
             f'Columns of bulk_exp and tcga are not the same'
         gene_list = []
@@ -1440,7 +1441,7 @@ def get_gene_list_for_filtering(bulk_exp_file, tcga_file, result_file_path, q_co
                                                                     quantile_range=quantile_range,
                                                                     q_col_name=q_col_name)
             print(f'{len(gene_list_qr)} genes are selected by quantile range')
-            if len(gene_list) > 0:  # if there is high correlation gene, then filter by high correlation gene
+            if len(gene_list) > 0:  # if high-correlation genes exist, then filter by high-correlation genes
                 gene_list = [gene for gene in gene_list if gene in gene_list_qr]
                 print(f'{len(gene_list)} genes are selected by both high correlation and quantile range')
             else:
