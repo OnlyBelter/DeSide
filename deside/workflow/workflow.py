@@ -70,7 +70,8 @@ def tcga_evaluation(marker_gene_file_path, total_result_dir, pred_cell_frac_tcga
         _cell_types = cell_types.copy()
     else:
         _cell_types = list(cell_type2subtypes.keys())
-        _cell_types += cell_type2subtypes['Fibroblasts']
+        if cell_type2subtypes.get('Fibroblasts', None) is not None:
+            _cell_types += cell_type2subtypes['Fibroblasts']
     if group_cell_types is None:
         if not os.path.exists(all_signature_score_file_path):
             signature_scores = []
