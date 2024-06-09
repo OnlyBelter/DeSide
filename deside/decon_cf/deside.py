@@ -281,10 +281,11 @@ class DeSide(object):
 
             self.gene_list = x.columns.to_list()  # a list of all gene names
 
-            # filtering cell types in cell fraction file, for example removing the cell fraction of cancer cell
+            # filtering cell types in cell fraction file, for example, removing the cell fraction of cancer cell
             if cell_types is None:
                 self.cell_types = y.columns.to_list()  # a list
             else:
+                assert len(cell_types) > 0, 'cell_types should not be empty.'
                 cell_type_provided_not_in_y = [i for i in cell_types if i not in y.columns.to_list()]
                 assert len(cell_type_provided_not_in_y) == 0, 'Provided cell types (' + \
                                                               ', '.join(cell_type_provided_not_in_y) + \
