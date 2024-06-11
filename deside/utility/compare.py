@@ -58,6 +58,9 @@ def read_and_merge_result(raw_result_dir: str, cell_type_name_mapping: dict, alg
     :return:
     """
     cell_types = [i for i in sorted_cell_types if i in list(cell_type_name_mapping.values())]
+    ct_not_in_sorted_ct = [i for i in list(cell_type_name_mapping.values()) if i not in sorted_cell_types]
+    if len(ct_not_in_sorted_ct) > 0:
+        cell_types += ct_not_in_sorted_ct
     if group_cell_types is not None:
         cell_types = list(group_cell_types.keys())
     cancer_dataset2file_path = {}

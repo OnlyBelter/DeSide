@@ -26,7 +26,7 @@ def tcga_evaluation(marker_gene_file_path, total_result_dir, pred_cell_frac_tcga
     :param tcga_data_dir:
     :param outlier_file_path:
     :param pre_trained_model_dir: the directory of pre-trained model
-    :param model_name: model name
+    :param model_name: the model name
     :param signature_score_method:
         mean_exp (the mean or max expression of corresponding marker genes for each cell type) or
         gene_signature_score (Combes et al., 2022, Cell 185, 184-203)
@@ -60,20 +60,20 @@ def tcga_evaluation(marker_gene_file_path, total_result_dir, pred_cell_frac_tcga
             gene_list_in_model_fp = os.path.join(pre_trained_model_dir, 'genes.txt')
     else:  # Scaden
         gene_list_in_model_fp = os.path.join(pre_trained_model_dir, model_name, 'm256', 'genes.txt')
-    gene_list_in_model = list(pd.read_csv(gene_list_in_model_fp, index_col=0, sep='\t')['0'])
-    bulk_tpm = pd.read_csv(os.path.join(tcga_data_dir, 'merged_tpm.csv'), index_col=0)
-    sample2cancer_type = pd.read_csv(os.path.join(tcga_data_dir, 'tcga_sample_id2cancer_type.csv'), index_col=0)
 
-    # calculate signature score for each cancer type
+    # calculate the signature score for each cancer type
     all_signature_score = None
-    if cell_type2subtypes is None:
-        _cell_types = cell_types.copy()
-    else:
-        _cell_types = list(cell_type2subtypes.keys())
-        if cell_type2subtypes.get('Fibroblasts', None) is not None:
-            _cell_types += cell_type2subtypes['Fibroblasts']
+    # if cell_type2subtypes is None:
+    #     _cell_types = cell_types.copy()
+    # else:
+    #     _cell_types = list(cell_type2subtypes.keys())
+    #     if cell_type2subtypes.get('Fibroblasts', None) is not None:
+    #         _cell_types += cell_type2subtypes['Fibroblasts']
     if group_cell_types is None:
         if not os.path.exists(all_signature_score_file_path):
+            bulk_tpm = pd.read_csv(os.path.join(tcga_data_dir, 'merged_tpm.csv'), index_col=0)
+            sample2cancer_type = pd.read_csv(os.path.join(tcga_data_dir, 'tcga_sample_id2cancer_type.csv'), index_col=0)
+            gene_list_in_model = list(pd.read_csv(gene_list_in_model_fp, index_col=0, sep='\t')['0'])
             signature_scores = []
             for cancer_type in cancer_types:
                 print('----------------------------------------------------')
@@ -105,7 +105,7 @@ def tcga_evaluation(marker_gene_file_path, total_result_dir, pred_cell_frac_tcga
                   f'{all_signature_score_file_path}')
             all_signature_score = pd.read_csv(all_signature_score_file_path, index_col=0)
 
-    # combine all predicted cell fraction for each cancer type together
+    # combine all predicted cell fractions for each cancer type together
     if not os.path.exists(all_pred_cell_frac_file_path):
         print(f'   Merge all predicted result by {model_name}...')
         _cell_type_name_mapping = dict(zip(cell_types, cell_types))
@@ -233,7 +233,8 @@ def run_step4(tcga_data_dir: str, cancer_types: list, log_file_path: str, model_
               signature_score_method: str, one_minus_alpha: bool = False,
               update_figures: bool = False, outlier_file_path: str = None, pathway_mask: pd.DataFrame = None,
               method_adding_pathway: str = 'add_to_end', hyper_params: dict = None, cell_type2subtypes: dict = None,
-              group_cell_types: dict = None):
+              group_cell_types: dict = None, sample2cancer_type_file_path: str = None,
+              bulk_tpm_file_path: str = None):
     """
     Step4: Predicting cell fractions of TCGA
     :param tcga_data_dir: str, TCGA data directory
@@ -255,13 +256,21 @@ def run_step4(tcga_data_dir: str, cancer_types: list, log_file_path: str, model_
     :param hyper_params: dict, hyper parameters for DNN model
     :param cell_type2subtypes: dict, cell type to subtypes
     :param group_cell_types: dict, group cell types
+    :param sample2cancer_type_file_path: str, sample to cancer type file path
+    :param bulk_tpm_file_path: str, bulk tpm file path
     """
     # TCGA
     print_msg("Step 4: Predict cell fraction of TCGA...", log_file_path=log_file_path)
     # model_name = 'DeSide'
     for model_name in model_names:
-        bulk_tpm = pd.read_csv(os.path.join(tcga_data_dir, 'merged_tpm.csv'), index_col=0)
-        sample2cancer_type = pd.read_csv(os.path.join(tcga_data_dir, 'tcga_sample_id2cancer_type.csv'), index_col=0)
+        if bulk_tpm_file_path is None:
+            bulk_tpm = pd.read_csv(os.path.join(tcga_data_dir, 'merged_tpm.csv'), index_col=0)
+        else:
+            bulk_tpm = pd.read_csv(bulk_tpm_file_path, index_col=0)
+        if sample2cancer_type_file_path is None:
+            sample2cancer_type = pd.read_csv(os.path.join(tcga_data_dir, 'tcga_sample_id2cancer_type.csv'), index_col=0)
+        else:
+            sample2cancer_type = pd.read_csv(sample2cancer_type_file_path, index_col=0)
         for cancer_type in cancer_types:
             current_sample_ids = sample2cancer_type.loc[sample2cancer_type['cancer_type'] == cancer_type, :].copy()
             current_bulk_tpm = bulk_tpm.loc[bulk_tpm.index.isin(current_sample_ids.index.to_list()), :].copy()

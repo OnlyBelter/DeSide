@@ -722,21 +722,39 @@ def compare_y_y_pred_plot_cpe(y_true: pd.Series, y_pred: pd.Series, inx=tuple(),
     return corr, rmse, ccc
 
 
-def plot_pred_cell_prop_with_cpe(cpe_file_path, pred_cell_prop_file_path, result_dir, save_metrics: bool = True):
-    all_cancer_types = sorted([i for i in cancer_types if i != 'PAAD'])
-    fig, axes = plt.subplots(6, 3, sharex='all', sharey='all', figsize=(5, 6))
+def plot_pred_cell_prop_with_cpe(cpe_file_path, pred_cell_prop_file_path, result_dir, save_metrics: bool = True,
+                                 all_cancer_types: list = None):
+    if all_cancer_types is None:
+        all_cancer_types = sorted([i for i in cancer_types if i != 'PAAD'])
+    else:
+        all_cancer_types = sorted([i for i in all_cancer_types if i != 'PAAD'])
+    if len(all_cancer_types) == 18:
+        n_rows = 6
+        n_cols = 3
+        figure_size = (5, 6)
+    elif 18 < len(all_cancer_types) <= 20:  # larger than 18
+        n_rows = 5
+        n_cols = 4
+        figure_size = (6, 6)
+    else:
+        raise ValueError('Please check the number of cancer types, the expected number is 18~20.')
+    fig, axes = plt.subplots(nrows=n_rows, ncols=n_cols, sharex='all', sharey='all', figsize=figure_size)
     pred_cell_prop = pd.read_csv(pred_cell_prop_file_path, index_col='sample_id')
     cpe = read_cancer_purity(cpe_file_path, sample_names=pred_cell_prop.index)
     pred_cell_prop = pred_cell_prop.merge(cpe['CPE'], left_index=True, right_index=True)
     metrics_value = {}
-    for j in range(3):
-        for i in range(6):
-            current_cancer_type = all_cancer_types[i + j * 6]
-            current_data = pred_cell_prop.loc[pred_cell_prop['cancer_type'] == current_cancer_type, :]
-            corr, rmse, ccc = compare_y_y_pred_plot_cpe(y_pred=current_data['Cancer Cells'], y_true=current_data['CPE'],
-                                                        show_metrics=True, ax=axes[i, j], cancer_type=current_cancer_type,
-                                                        inx=(i, j))
-            metrics_value[current_cancer_type] = {'corr': corr, 'rmse': rmse, 'ccc': ccc}
+    for j in range(n_cols):
+        for i in range(n_rows):
+            inx = i + j * n_rows
+            if inx < len(all_cancer_types):
+                current_cancer_type = all_cancer_types[inx]
+                current_data = pred_cell_prop.loc[pred_cell_prop['cancer_type'] == current_cancer_type, :]
+                corr, rmse, ccc = compare_y_y_pred_plot_cpe(y_pred=current_data['Cancer Cells'],
+                                                            y_true=current_data['CPE'],
+                                                            show_metrics=True, ax=axes[i, j],
+                                                            cancer_type=current_cancer_type,
+                                                            inx=(i, j))
+                metrics_value[current_cancer_type] = {'corr': corr, 'rmse': rmse, 'ccc': ccc}
 
     # add a big axis, hide frame
     fig.add_subplot(111, frameon=False)
