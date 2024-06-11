@@ -16,7 +16,8 @@ def tcga_evaluation(marker_gene_file_path, total_result_dir, pred_cell_frac_tcga
                     cell_types, tcga_data_dir, outlier_file_path=None, pre_trained_model_dir=None,
                     model_name: str = None, signature_score_method: str = 'mean_exp',
                     cancer_types: list = None, update_figures=False, pathway_mask=None,
-                    group_cell_types: dict = None, cell_type2subtypes: dict = None):
+                    group_cell_types: dict = None, cell_type2subtypes: dict = None,
+                    bulk_tpm: pd.DataFrame = None, sample2cancer_type: pd.DataFrame = None):
     """
 
     :param marker_gene_file_path:
@@ -71,8 +72,10 @@ def tcga_evaluation(marker_gene_file_path, total_result_dir, pred_cell_frac_tcga
     #         _cell_types += cell_type2subtypes['Fibroblasts']
     if group_cell_types is None:
         if not os.path.exists(all_signature_score_file_path):
-            bulk_tpm = pd.read_csv(os.path.join(tcga_data_dir, 'merged_tpm.csv'), index_col=0)
-            sample2cancer_type = pd.read_csv(os.path.join(tcga_data_dir, 'tcga_sample_id2cancer_type.csv'), index_col=0)
+            if bulk_tpm is None:
+                bulk_tpm = pd.read_csv(os.path.join(tcga_data_dir, 'merged_tpm.csv'), index_col=0)
+            if sample2cancer_type is None:
+                sample2cancer_type = pd.read_csv(os.path.join(tcga_data_dir, 'tcga_sample_id2cancer_type.csv'), index_col=0)
             gene_list_in_model = list(pd.read_csv(gene_list_in_model_fp, index_col=0, sep='\t')['0'])
             signature_scores = []
             for cancer_type in cancer_types:
@@ -302,7 +305,7 @@ def run_step4(tcga_data_dir: str, cancer_types: list, log_file_path: str, model_
                         signature_score_method=signature_score_method, cancer_types=cancer_types,
                         update_figures=update_figures, outlier_file_path=outlier_file_path,
                         pathway_mask=pathway_mask, group_cell_types=group_cell_types,
-                        cell_type2subtypes=cell_type2subtypes)
+                        cell_type2subtypes=cell_type2subtypes, bulk_tpm=bulk_tpm, sample2cancer_type=sample2cancer_type)
 
         # calculate the distribution of predicted cell proportions in TCGA
         # model_name = 'DeSide'
