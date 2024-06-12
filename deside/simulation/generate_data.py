@@ -25,10 +25,10 @@ def segment_generation_fraction(n_samples: int = None, max_value: int = 10000,
                                 cell_types: list = None, sample_prefix: str = None,
                                 cell_prop_prior: dict = None) -> pd.DataFrame:
     """
-    Generate cell fraction by fixing a specific percentage (gradient) range (i.e. from 1% to 100%)
+    Generate cell fractions by fixing a specific percentage (gradient) range (i.e., from 1% to 100%)
         for each specific cell type, and n samples for each gradient of each cell type
 
-    :param n_samples: the number of samples need to generate in total
+    :param n_samples: the number of samples needs to generate in total
 
     :param max_value: cell proportion will be sampled from U(0, max_value), and then scaled to [0, 1]
 
@@ -37,7 +37,7 @@ def segment_generation_fraction(n_samples: int = None, max_value: int = 10000,
 
     :param sample_prefix: only for naming
 
-    :param cell_prop_prior: the prior range of cell proportion for each cell type, {'cell_type': (0, 0.1), '': (0, 0.2), ...}
+    :param cell_prop_prior: the prior range of cell proportions for each cell type, {'cell_type': (0, 0.1), '': (0, 0.2), ...}
 
     :return: generated cell fraction, sample by cell type
     """
@@ -69,10 +69,15 @@ def segment_generation_fraction(n_samples: int = None, max_value: int = 10000,
         cell_type2frag = dict(zip(cell_types, frag_for_one_sample))
         if cell_prop_prior is not None:
             for cell_type, frag in cell_type2frag.items():
-                # check if the cell fraction is in the prior range
-                if (frag < cell_prop_prior[cell_type][0]) or (frag > cell_prop_prior[cell_type][1]):
-                    current_sample_valid = False
-                    break
+                if cell_type in cell_prop_prior:
+                    # check if the cell fraction is in the prior range
+                    if (frag < cell_prop_prior[cell_type][0]) or (frag > cell_prop_prior[cell_type][1]):
+                        current_sample_valid = False
+                        break
+                else:
+                    Warning(
+                        f'The prior range for cell type {cell_type} is not provided '
+                        f'and will be ignored during the check.')
         if current_sample_valid:
             all_samples_tmp.append(cell_type2frag)
 
