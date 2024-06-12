@@ -41,7 +41,7 @@ sorted_cell_types = ['B Cells', 'Plasma B cells', 'Non-plasma B cells', 'CD4 T',
                      'CD8 T', 'CD8 T effector', 'CD8 T (GZMK high)', 'Double-neg-like T',
                      'Cancer Cells', 'Epithelial Cells', 'Glioma Cells',
                      'DC', 'mDC', 'pDC', 'Endothelial Cells', 'Fibroblasts', 'CAFs', 'Myofibroblasts',
-                     'Macrophages', 'Mast Cells', 'NK', 'Neutrophils', 'Monocytes']
+                     'Macrophages', 'Mast Cells', 'NK', 'Neutrophils', 'Monocytes', 'T Cells']
 
 
 def get_inx2cell_type(cell_type_list: list = None) -> dict:
