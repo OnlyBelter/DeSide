@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 from scipy.sparse import csr_matrix
 from sklearn.decomposition import PCA
 from anndata import AnnData, read_h5ad
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 import gzip
 import shutil
 
@@ -280,7 +280,7 @@ def cal_relative_error(y_true, y_pred, max_error=None, min_error=None):
 def calculate_rmse(y_true: pd.DataFrame, y_pred: pd.DataFrame):
     """
     https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_squared_error.html
-    calculate the RMSE of each cell types by columns
+    calculate the RMSE of each cell type by columns
     :param y_true: a dataFrame
         shape: number of samples x number of cell types
     :param y_pred: a dataFrame
@@ -291,6 +291,22 @@ def calculate_rmse(y_true: pd.DataFrame, y_pred: pd.DataFrame):
     else:  # multiple cell types
         multioutput = 'raw_values'
     return mean_squared_error(y_true=y_true, y_pred=y_pred, multioutput=multioutput, squared=False)
+
+
+def calculate_mae(y_true: pd.DataFrame, y_pred: pd.DataFrame):
+    """
+    https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_absolute_error.html
+    calculate the MAE of each cell type by columns
+    :param y_true: a dataFrame
+        shape: number of samples x number of cell types
+    :param y_pred: a dataFrame
+    :return:
+    """
+    if y_true.shape[1] == 1:  # only one feature
+        multioutput = 'uniform_average'
+    else:  # multiple cell types
+        multioutput = 'raw_values'
+    return mean_absolute_error(y_true=y_true, y_pred=y_pred, multioutput=multioutput)
 
 
 def calculate_r2(y_true, y_pred):
@@ -545,7 +561,7 @@ def non_log2cpm(exp_df, sum_exp=1e6) -> pd.DataFrame:
 
 def get_corr(df_col1, df_col2, return_p_value=False) -> Union[float, tuple]:
     """
-    calculate the correlation between two columns of dataframe
+    calculate the Pearson correlation between two columns of dataframe
     :param df_col1: series, column1
     :param df_col2: series, column2
     :param return_p_value: if return p-value
@@ -558,6 +574,21 @@ def get_corr(df_col1, df_col2, return_p_value=False) -> Union[float, tuple]:
     else:
         return corr
     # return correlation[0, 1]
+
+
+def get_corr_spearman(df_col1, df_col2, return_p_value=False) -> Union[float, tuple]:
+    """
+    calculate the Spearman correlation between two columns of dataframe
+    :param df_col1: series, column1
+    :param df_col2: series, column2
+    :param return_p_value: if return p-value
+    :return:
+    """
+    corr, p_value = stats.spearmanr(df_col1, df_col2)
+    if return_p_value:
+        return corr, p_value
+    else:
+        return corr
 
 
 def get_sep(file_path, comment: str = None):
@@ -750,7 +781,7 @@ def cal_corr_gene_exp_with_cell_frac(gene_exp: pd.DataFrame, cell_frac: pd.DataF
         return corr_df
 
 
-def read_df(df_file: Union[str, pd.DataFrame, np.ndarray]) -> Union[pd.DataFrame, np.ndarray]:
+def read_df(df_file: Union[str, pd.DataFrame, np.ndarray], index_col: str = None) -> Union[pd.DataFrame, np.ndarray]:
     """
     check the type of df_file
     - if df_file is a file path, read this file
@@ -758,7 +789,10 @@ def read_df(df_file: Union[str, pd.DataFrame, np.ndarray]) -> Union[pd.DataFrame
     """
     if type(df_file) == str:  # the file path of current file
         sep = get_sep(df_file)  # separated by '\t' or ','
-        df = pd.read_csv(df_file, index_col=0, sep=sep)
+        if index_col is None:
+            df = pd.read_csv(df_file, index_col=0, sep=sep)
+        else:
+            df = pd.read_csv(df_file, index_col=index_col, sep=sep)
     elif type(df_file) == pd.DataFrame:
         return df_file  # return DataFrame directly
     elif type(df_file) == np.ndarray:

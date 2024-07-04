@@ -30,7 +30,7 @@ def parse_result_from_cibersort(result_file_path):
     return result.loc[:, cell_types]
 
 
-def _read_result(file_path, cell_type_name_mapping, cell_types, algo=None):
+def _read_result(file_path, cell_type_name_mapping, cell_types, algo=None, file_index_col: str = None):
     """
     read a single result file from different algorithms for performance comparison ()
     :param file_path:
@@ -38,9 +38,12 @@ def _read_result(file_path, cell_type_name_mapping, cell_types, algo=None):
     :param algo: the name of each algorithm, CIBERSORT, MuSiC, EPIC, Scaden, Scaden-web and DeSide
     :return:
     """
-    predicted_result = read_df(file_path)
+    predicted_result = read_df(file_path, index_col=file_index_col)
     predicted_result.rename(columns=cell_type_name_mapping, inplace=True)
-    predicted_result.index = predicted_result.index.map(lambda x: x.replace('.', '-'))
+    try:
+        predicted_result.index = predicted_result.index.map(lambda x: x.replace('.', '-'))
+    except AttributeError:
+        pass
     return predicted_result.loc[:, cell_types]
 
 
@@ -74,8 +77,9 @@ def read_and_merge_result(raw_result_dir: str, cell_type_name_mapping: dict, alg
                     ('#' not in file_name):
                 if 'CIBERSORT' in algo:
                     _, _, _, cancer_type, ds, _ = file_name.split('_')
-                elif algo == 'MuSiC':
-                    cancer_type, ds, _ = file_name.split('_')
+                elif 'MuSiC' in algo:
+                    cancer_type = 'all'
+                    _, ds = algo.split('_')
                     ds = ds.replace('LUAD1', 'LUAD')
                 elif 'EPIC' in algo:
                     if 'NOref' in file_name:
@@ -86,19 +90,21 @@ def read_and_merge_result(raw_result_dir: str, cell_type_name_mapping: dict, alg
                         ds = '46sig'
                     else:  # EPIC_self_ref
                         ds = 'self'
-                elif algo == 'Scaden_ascites':
+                elif 'Scaden' in algo:
                     cancer_type = file_name.split('_')[-1].replace('.txt', '')
-                    ds = 'Ascites'
-                elif algo == 'Scaden_simu_bulk':
-                    cancer_type = file_name.split('_')[-1].replace('.txt', '')
-                    ds = 'simu_bulk_2ds'
+                    if 'ascites' in algo:
+                        ds = 'Ascites'
+                    if 'simu_bulk' in algo:
+                        ds = 'simu_bulk_2ds'
+                    if 'D1D2' in algo:
+                        ds = 'D1D2'
                 elif 'DeSide' in algo:
                     cancer_type = root.split(os.path.sep)[-1]
                     if '/' in cancer_type:
                         cancer_type = cancer_type.split('/')[-1]
-                    ds = 'simu_bulk_2ds'
+                    ds = 'D1D2'
                     if algo == 'DeSide_softmax':
-                        ds = 'simu_bulk_2ds_softmax'
+                        ds = 'D1D2_softmax'
                 elif algo == 'Kassandra_self':
                     cancer_type = 'all'
                     ds = 'self'
@@ -122,8 +128,11 @@ def read_and_merge_result(raw_result_dir: str, cell_type_name_mapping: dict, alg
             ref_dataset = ref_dataset.replace('DeSide_', '')
         if ref_dataset == 'ref':
             ref_dataset = 'Mixed_ref'
+        index_col = None
+        if 'MuSiC' in algo:
+            index_col = 'sample_id'
         current_result = _read_result(file_path, cell_type_name_mapping=cell_type_name_mapping,
-                                      cell_types=cell_types, algo=algo)
+                                      cell_types=cell_types, algo=algo, file_index_col=index_col)
         if algo == 'Kassandra_self':
             current_result = current_result / 100
         for row in current_result.iterrows():
@@ -131,12 +140,13 @@ def read_and_merge_result(raw_result_dir: str, cell_type_name_mapping: dict, alg
             sample2cell_frac[counter] = [sample_id, cancer_type, ref_dataset] + list(row[1].values)
             counter += 1
     merged_result = pd.DataFrame.from_dict(sample2cell_frac, orient='index', columns=columns)
-    if algo == 'Kassandra_self':
+    if algo == 'Kassandra_self' or 'MuSiC' in algo:
+        # print(merged_result)
         tcga_sample2cancer_type = pd.read_csv(tcga_sample2cancer_type_file_path, index_col=0)
         tcga_sample2cancer_type.index = tcga_sample2cancer_type.index.map(lambda x: x.replace('.', '-'))
         tcga_sample2cancer_type = tcga_sample2cancer_type.to_dict()['cancer_type']
         merged_result.drop(columns=['cancer_type'], inplace=True)
-        merged_result['cancer_type'] = merged_result['sample_id'].map(lambda x: tcga_sample2cancer_type[x])
+        merged_result['cancer_type'] = merged_result['sample_id'].map(lambda x: tcga_sample2cancer_type.get(x, x))
         merged_result = merged_result.loc[:, columns].copy()
     if result_file_path:
         if os.path.exists(result_file_path):

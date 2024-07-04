@@ -669,7 +669,7 @@ def compare_mean_exp_with_cell_frac_across_algo(cancer_type: str, algo2merged_fp
 
 def compare_y_y_pred_plot_cpe(y_true: pd.Series, y_pred: pd.Series, inx=tuple(), cancer_type='',
                               show_metrics: bool = False, ax=None, show_ylabel: bool = True,
-                              fontsize: int = 6):
+                              fontsize: int = 6, show_xlabel: bool = False):
     """
     Plot y against y_pred to visualize the performance of prediction result
 
@@ -689,6 +689,8 @@ def compare_y_y_pred_plot_cpe(y_true: pd.Series, y_pred: pd.Series, inx=tuple(),
 
     :param fontsize: fontsize of the text
 
+    :param show_xlabel: show xlabel or not
+
     :return: None
     """
     # Use the pyplot interface to change just one subplot...
@@ -707,7 +709,7 @@ def compare_y_y_pred_plot_cpe(y_true: pd.Series, y_pred: pd.Series, inx=tuple(),
     corr = 0
     rmse = 0
     ccc = 0
-    if show_metrics:  # show metrics in test set
+    if show_metrics:  # show metrics inA test set
         corr = get_corr(y_pred, y_true)
         rmse = calculate_rmse(y_true=pd.DataFrame(y_true), y_pred=pd.DataFrame(y_pred))
         ccc = get_ccc(y_pred.values, y_true.values)
@@ -716,6 +718,8 @@ def compare_y_y_pred_plot_cpe(y_true: pd.Series, y_pred: pd.Series, inx=tuple(),
         plt.text(0.3 * x_max, 0.0 * y_max, 'CCC = {:.3f}'.format(ccc), fontsize=fontsize)
     if inx and show_ylabel:
         plt.ylabel(f'{cancer_type} ({y_true.shape[0]})', fontsize=fontsize)
+    if inx and show_xlabel:
+        plt.xlabel(f'{cancer_type} \n ({y_true.shape[0]})', fontsize=fontsize)
     # if inx and inx[0] == 8:
     #     plt.xlabel(f'{algo}', fontsize=6)
     # plt.legend()
@@ -723,7 +727,17 @@ def compare_y_y_pred_plot_cpe(y_true: pd.Series, y_pred: pd.Series, inx=tuple(),
 
 
 def plot_pred_cell_prop_with_cpe(cpe_file_path, pred_cell_prop_file_path, result_dir, save_metrics: bool = True,
-                                 all_cancer_types: list = None):
+                                 all_cancer_types: list = None, algo='DeSide', dataset='D1D2'):
+    """
+    plot predicted cancer cell proportions against CPE
+    :param cpe_file_path: the CPE file path
+    :param pred_cell_prop_file_path: predicted cell proportion file path
+    :param result_dir: where to save results
+    :param save_metrics: save metrics or not
+    :param all_cancer_types: all cancer types
+    :param algo: the prediction algorithm, only for naming files
+    :param dataset: D1D2 or other datasets, only for naming files
+    """
     if all_cancer_types is None:
         all_cancer_types = sorted([i for i in cancer_types if i != 'PAAD'])
     else:
@@ -760,11 +774,11 @@ def plot_pred_cell_prop_with_cpe(cpe_file_path, pred_cell_prop_file_path, result
     fig.add_subplot(111, frameon=False)
     # hide tick and tick label of the big axis
     plt.tick_params(labelcolor='none', which='both', top=False, bottom=False, left=False, right=False)
-    plt.xlabel('Predicted cancer cell proportions by DeSide', labelpad=5)
+    plt.xlabel(f'Predicted cancer cell proportions by {algo}_{dataset}', labelpad=5)
     plt.ylabel("CPE", labelpad=15)
 
     plt.tight_layout(h_pad=0.02, w_pad=0.15)
-    plt.savefig(os.path.join(result_dir, 'pred_cancer_cell_prop_vs_cpe-deside.png'), dpi=300)
+    plt.savefig(os.path.join(result_dir, f'pred_cancer_cell_prop_vs_cpe-{algo}_{dataset}.png'), dpi=300)
     if save_metrics:
         metrics_value_df = pd.DataFrame.from_dict(metrics_value, orient='index')
-        metrics_value_df.to_csv(os.path.join(result_dir, 'pred_cancer_cell_prop_vs_cpe-deside-metrics.csv'))
+        metrics_value_df.to_csv(os.path.join(result_dir, f'pred_cancer_cell_prop_vs_cpe-{algo}_{dataset}-metrics.csv'))

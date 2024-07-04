@@ -5,13 +5,13 @@ from .pub_func import filter_gene_by_variance
 from .pub_func import read_exp_from_hcluster
 from .pub_func import read_cancer_purity
 from .pub_func import cal_relative_error
-from .pub_func import calculate_rmse, calculate_r2
+from .pub_func import calculate_rmse, calculate_r2, calculate_mae
 from .pub_func import check_dir, parse_log_file, write_to_log
 from .pub_func import correct_gene_list
 from .pub_func import extract_gz_file
 from .pub_func import read_data_from_h5ad, create_h5ad_dataset
 from .pub_func import log_exp2cpm, ciber_exp, non_log2log_cpm, non_log2cpm
-from .pub_func import get_corr, get_sep
+from .pub_func import get_corr, get_sep, get_corr_spearman
 from .pub_func import read_marker_gene
 from .pub_func import cal_exp_by_gene_list
 from .pub_func import print_msg, save_key_params
