@@ -6,8 +6,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "DeSide"
-version = "1.2.2"
-description = "A DEep-learning and SIngle-cell based DEconvolution method for solid tumors"
+version = "1.3"
+description = "A unified DEep-learning and SIngle-cell based DEconvolution method for solid tumors"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.8"
