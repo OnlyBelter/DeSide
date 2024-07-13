@@ -55,3 +55,8 @@ The record of all notable changes to this project will be documented in this fil
 ## v1.2.2 (revision)
 3 Feb 2024
 - Update the documentation
+
+## v1.3.1 (revision)
+13 Jul 2024
+- Update Figure 1ab
+- Update workflow and plot functions during the revision
