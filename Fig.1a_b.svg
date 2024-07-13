@@ -4,29 +4,14 @@
 <svg
    version="1.1"
    id="svg2072"
-   width="826.56"
-   height="1169.2799"
-   viewBox="0 0 826.56 1169.2799"
-   sodipodi:docname="Fig. 1ab_update copy.svg"
-   inkscape:version="1.2.1 (9c6d41e4, 2022-07-14)"
-   inkscape:export-filename="Fig. 1ab_update.png"
-   inkscape:export-xdpi="300"
-   inkscape:export-ydpi="300"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   width="645.72644"
+   height="424.24142"
+   viewBox="0 0 645.72644 424.24142"
    xmlns:xlink="http://www.w3.org/1999/xlink"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
   <defs
      id="defs2076">
-    <clipPath
-       clipPathUnits="userSpaceOnUse"
-       id="clipPath2088">
-      <path
-         d="M 0,0 H 2584 V 3655 H 0 Z"
-         clip-rule="evenodd"
-         id="path2086" />
-    </clipPath>
     <clipPath
        clipPathUnits="userSpaceOnUse"
        id="clipPath2100">
@@ -52,29 +37,6 @@
     </mask>
     <clipPath
        clipPathUnits="userSpaceOnUse"
-       id="clipPath1926">
-      <path
-         d="M 81.25,115.625 H 2503.125 V 3537.5 H 81.25 Z"
-         clip-rule="evenodd"
-         id="path1924" />
-    </clipPath>
-    <mask
-       maskUnits="userSpaceOnUse"
-       x="0"
-       y="0"
-       width="1"
-       height="1"
-       id="mask2550">
-      <image
-         width="1"
-         height="1"
-         style="image-rendering:optimizeSpeed"
-         preserveAspectRatio="none"
-         xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADoAAAAuCAAAAABcl1V5AAAAAXNCSVQI5gpbmQAAACZJREFUSInty7ENAAAEADD8/zM/sEm7N6NjqbZRVVVVVVVVfVsPBn/sAVnZ8HCMAAAAAElFTkSuQmCC"
-         id="image2552" />
-    </mask>
-    <clipPath
-       clipPathUnits="userSpaceOnUse"
        id="clipPath3353">
       <path
          d="M 81.25,115.625 H 2503.125 V 3537.5 H 81.25 Z"
@@ -97,69 +59,9 @@
          id="image3997" />
     </mask>
   </defs>
-  <sodipodi:namedview
-     id="namedview2074"
-     pagecolor="#ffffff"
-     bordercolor="#000000"
-     borderopacity="0.25"
-     inkscape:showpageshadow="2"
-     inkscape:pageopacity="1"
-     inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1"
-     showgrid="false"
-     inkscape:zoom="2.0153513"
-     inkscape:cx="329.71919"
-     inkscape:cy="270.42432"
-     inkscape:window-width="2560"
-     inkscape:window-height="1286"
-     inkscape:window-x="0"
-     inkscape:window-y="25"
-     inkscape:window-maximized="1"
-     inkscape:current-layer="layer3"
-     showguides="true">
-    <inkscape:page
-       x="0"
-       y="0"
-       id="page2078"
-       width="826.56"
-       height="1169.2799" />
-    <sodipodi:guide
-       position="77.320789,1023.7095"
-       orientation="1,0"
-       id="guide2449"
-       inkscape:locked="false" />
-    <sodipodi:guide
-       position="318.35431,1115.2849"
-       orientation="0,-1"
-       id="guide2451"
-       inkscape:locked="false" />
-    <sodipodi:guide
-       position="339.9523,928.67834"
-       orientation="0,-1"
-       id="guide2453"
-       inkscape:locked="false" />
-    <sodipodi:guide
-       position="445.57989,1020.9187"
-       orientation="0,-1"
-       id="guide38365"
-       inkscape:locked="false" />
-  </sodipodi:namedview>
   <g
      id="g2080"
-     inkscape:groupmode="layer"
-     inkscape:label="Page 1"
-     transform="matrix(0.31999998,0,0,0.31999998,0,-1.7434668e-5)">
-    <g
-       id="g2082"
-       style="display:inline">
-      <g
-         id="g2084"
-         clip-path="url(#clipPath2088)">
-        <g
-           id="g2090"
-           transform="scale(3.125)" />
-      </g>
-    </g>
+     transform="matrix(0.31999998,0,0,0.31999998,-77.852707,-53.792205)">
     <g
        id="g2094"
        style="display:none">
@@ -176,7 +78,6 @@
              id="text2106"><tspan
                x="0 5.7773438 10.226562 14.675781 18.675781 23.125 25.789062 28.011719 33.789062 38.238281 40.015625 41.792969"
                y="0"
-               sodipodi:role="line"
                id="tspan2104">Cancer Cells</tspan></text>
         </g>
         <g
@@ -197,7 +98,6 @@
              id="text2116"><tspan
                x="0 5.7773438 11.554688 16.003906 18.082031"
                y="0"
-               sodipodi:role="line"
                id="tspan2114">CD4 T</tspan></text>
         </g>
         <g
@@ -234,7 +134,6 @@
              id="text2134"><tspan
                x="0 6.2288971 12.457794 15.569504 21.169495 26.769485 34.857758 42.94603 50.416336 54.146011 59.746002 65.974899 72.203796"
                y="0"
-               sodipodi:role="line"
                id="tspan2132">12 scRNA-seq </tspan></text>
           <text
              xml:space="preserve"
@@ -243,7 +142,6 @@
              id="text2138"><tspan
                x="0 8.0882721 14.317169 17.428879 23.657776 29.257767 35.486664 38.598373"
                y="0"
-               sodipodi:role="line"
                id="tspan2136">Datasets</tspan></text>
         </g>
         <g
@@ -268,7 +166,6 @@
              id="text2150"><tspan
                x="0 7.4703064 13.699203 19.928101 29.257782 35.486679 41.715576 44.827286 47.938995 55.409302 61.638199 70.96788 77.196777 79.685059 82.17334 88.402237"
                y="0"
-               sodipodi:role="line"
                id="tspan2148">Segment Sampling</tspan></text>
         </g>
         <g
@@ -301,7 +198,6 @@
              id="text2166"><tspan
                x="0 7.4703064 13.699203 16.187485 22.416382 28.645279 34.24527 40.474167 46.703064 49.814774 55.414764 61.014755 64.126465 72.838181 80.308487 87.778793"
                y="0"
-               sodipodi:role="line"
                id="tspan2164">Balanced sctGEPs</tspan></text>
           <text
              xml:space="preserve"
@@ -310,7 +206,6 @@
              id="text2170"><tspan
                x="0 3.7296753 11.199982 17.428879"
                y="0"
-               sodipodi:role="line"
                id="tspan2168">(S1)</tspan></text>
         </g>
         <g
@@ -339,7 +234,6 @@
              id="text2184"><tspan
                x="0 8.0882721 14.317169 16.80545 19.293732 22.405441 29.875748 33.605423 39.83432 46.063217 49.174927"
                y="0"
-               sodipodi:role="line"
                id="tspan2182">Cell Prop. </tspan></text>
           <text
              xml:space="preserve"
@@ -348,7 +242,6 @@
              id="text2188"><tspan
                x="0 9.3296814 15.558578 18.670288 22.399963 24.888245"
                y="0"
-               sodipodi:role="line"
                id="tspan2186">Matrix</tspan></text>
           <text
              xml:space="preserve"
@@ -357,7 +250,6 @@
              id="text2192"><tspan
                x="0 3.7296753 11.199982"
                y="0"
-               sodipodi:role="line"
                id="tspan2190">(P)</tspan></text>
         </g>
         <g
@@ -386,7 +278,6 @@
              id="text2206"><tspan
                x="0 6.8414001 9.3296814 11.817963 14.929672 21.158569 24.888245 31.117142 37.346039"
                y="0"
-               sodipodi:role="line"
                id="tspan2204">Filtered </tspan></text>
           <text
              xml:space="preserve"
@@ -395,7 +286,6 @@
              id="text2210"><tspan
                x="0 7.4703064 13.699203 16.187485"
                y="0"
-               sodipodi:role="line"
                id="tspan2208">Bulk</tspan></text>
           <text
              xml:space="preserve"
@@ -404,7 +294,6 @@
              id="text2214"><tspan
                x="0 8.7117157 16.182022 23.652328 29.252319"
                y="0"
-               sodipodi:role="line"
                id="tspan2212">GEPs </tspan></text>
           <text
              xml:space="preserve"
@@ -413,7 +302,6 @@
              id="text2218"><tspan
                x="0 3.7296753 11.817947 18.046844"
                y="0"
-               sodipodi:role="line"
                id="tspan2216">(D1)</tspan></text>
         </g>
         <g
@@ -438,7 +326,6 @@
              id="text2230"><tspan
                x="0 6.8414001 14.929672 23.641388 30.493729 33.605438 41.69371 47.922607 51.034317 57.263214 62.863205 69.092102"
                y="0"
-               sodipodi:role="line"
                id="tspan2228">TCGA Dataset</tspan></text>
           <text
              xml:space="preserve"
@@ -447,7 +334,6 @@
              id="text2234"><tspan
                x="0 3.7296753 9.9585724 16.187469 19.299179 24.89917 31.128067 37.356964 42.956955 49.185852 52.915527 56.027237 59.138947 64.738937 70.967834 77.196732 82.796722"
                y="0"
-               sodipodi:role="line"
                id="tspan2232">(19 cancer types)</tspan></text>
         </g>
         <g
@@ -472,7 +358,6 @@
              id="text2246"><tspan
                x="0 7.7783203 14.448242 21.118164"
                y="0"
-               sodipodi:role="line"
                id="tspan2244">GEPs</tspan></text>
           <text
              xml:space="preserve"
@@ -481,7 +366,6 @@
              id="text2250"><tspan
                x="0 2.7783203 5.5566406 11.118164 16.679688 22.241211 27.802734 30.581055 36.142578 41.142578 46.704102 50.03418 55.595703 60.595703 65.595703 67.817383 73.378906 78.94043 81.71875 87.280273 90.610352 96.171875 98.950195 101.17188 103.39355 108.95508"
                y="0"
-               sodipodi:role="line"
                id="tspan2248">: gene expression profiles</tspan></text>
         </g>
         <g
@@ -510,7 +394,6 @@
              id="text2264"><tspan
                x="0 3.1117096 9.3406067 12.452316 18.681213 24.91011 28.639786 34.868683 37.980392 44.20929 50.438187 53.549896 59.149887 64.749878 72.83815 80.926422 88.396729 92.126404 97.726395 103.95529"
                y="0"
-               sodipodi:role="line"
                id="tspan2262">Integrated scRNA-seq</tspan></text>
           <text
              xml:space="preserve"
@@ -519,7 +402,6 @@
              id="text2268"><tspan
                x="0 6.2288971 12.457794 15.569504 21.798401 27.398392 33.627289 36.738998 39.850708 43.580383 51.05069 57.279587"
                y="0"
-               sodipodi:role="line"
                id="tspan2266">dataset (S0)</tspan></text>
           <path
              d="m 244.78,264 h 85 v -45 h -85 v 45"
@@ -536,7 +418,6 @@
              id="text2276"><tspan
                x="0 7.4703064 9.9585876 16.187485 22.416382 24.904663 31.13356 34.24527 42.333542 48.562439 51.05072"
                y="0"
-               sodipodi:role="line"
                id="tspan2274">Single Cell</tspan></text>
           <text
              xml:space="preserve"
@@ -545,7 +426,6 @@
              id="text2280"><tspan
                x="0 8.0882721 14.317169 17.428879 23.657776 29.257767 35.486664"
                y="0"
-               sodipodi:role="line"
                id="tspan2278">Dataset</tspan></text>
           <text
              xml:space="preserve"
@@ -554,7 +434,6 @@
              id="text2284"><tspan
                x="0 3.1117096 9.3406067 12.452316 18.681213 24.91011 28.639786 34.868683 37.980392 40.468674 46.697571"
                y="0"
-               sodipodi:role="line"
                id="tspan2282">Integration</tspan></text>
           <path
              d="m 614.5,275 h 73 v -45 h -73 v 45"
@@ -571,7 +450,6 @@
              id="text2292"><tspan
                x="0 7.4703064 13.699203 16.187485 21.787476 24.696838 31.12262 37.351517 46.681198 52.910095"
                y="0"
-               sodipodi:role="line"
                id="tspan2290">Bulk Tumor</tspan></text>
           <text
              xml:space="preserve"
@@ -580,7 +458,6 @@
              id="text2296"><tspan
                x="0 7.4703064 13.070297 19.299194 22.410904 28.639801 34.868698 40.468689 42.95697"
                y="0"
-               sodipodi:role="line"
                id="tspan2294">Synthesis</tspan></text>
           <text
              xml:space="preserve"
@@ -589,7 +466,6 @@
              id="text2300"><tspan
                x="0 3.7296753 10.155457 13.885132 20.114029 22.60231 28.831207 31.319489 37.548386 43.777283 46.888992 54.359299 60.588196 63.699905"
                y="0"
-               sodipodi:role="line"
                id="tspan2298">(Training Set)</tspan></text>
           <path
              d="m 230,473 h 77 v -35 h -77 v 35"
@@ -606,7 +482,6 @@
              id="text2308"><tspan
                x="0 8.0882721 14.317169 16.80545 19.293732 22.405441 29.875748 33.605423 39.83432 46.063217 52.292114 56.02179 59.133499 61.62178 67.850677"
                y="0"
-               sodipodi:role="line"
                id="tspan2306">Cell Proportion</tspan></text>
           <text
              xml:space="preserve"
@@ -615,7 +490,6 @@
              id="text2312"><tspan
                x="0 8.7117157 14.940613 21.16951 27.398407 31.128082 37.356979 40.468689 42.95697 49.185867"
                y="0"
-               sodipodi:role="line"
                id="tspan2310">Generation</tspan></text>
         </g>
         <g
@@ -640,7 +514,6 @@
              id="text2324"><tspan
                x="0 7.4703064 13.699203 16.187485 21.787476 24.899185 33.610901 41.081207 48.551514"
                y="0"
-               sodipodi:role="line"
                id="tspan2322">Bulk GEPs</tspan></text>
           <text
              xml:space="preserve"
@@ -649,7 +522,6 @@
              id="text2328"><tspan
                x="0 3.7296753 11.817947 18.046844"
                y="0"
-               sodipodi:role="line"
                id="tspan2326">(D2/</tspan></text>
           <text
              xml:space="preserve"
@@ -658,7 +530,6 @@
              id="text2332"><tspan
                x="0 8.0882721"
                y="0"
-               sodipodi:role="line"
                id="tspan2330">D0</tspan></text>
           <text
              xml:space="preserve"
@@ -695,7 +566,6 @@
              id="text2350"><tspan
                x="0 6.2288971 14.317169 20.546066 23.657776 30.499176 32.987457 35.475739 38.587448 44.816345 48.546021 51.034302 57.263199"
                y="0"
-               sodipodi:role="line"
                id="tspan2348">Two Filtering</tspan></text>
           <text
              xml:space="preserve"
@@ -704,7 +574,6 @@
              id="text2354"><tspan
                x="0 7.4703064 10.582016 16.810913 23.03981"
                y="0"
-               sodipodi:role="line"
                id="tspan2352">Steps</tspan></text>
           <text
              xml:space="preserve"
@@ -713,7 +582,6 @@
              id="text2358"><tspan
                x="0 4.6661072 9.3322144 11.663223 15.858215 20.524323 22.388306 24.252289 26.583298 28.914307 33.109299 37.775406 42.441513"
                y="0"
-               sodipodi:role="line"
                id="tspan2356">16 cell types</tspan></text>
           <text
              xml:space="preserve"
@@ -722,7 +590,6 @@
              id="text2362"><tspan
                x="0 2.7939301 7.4600372 9.7910461 13.986038 18.652145 23.318253 25.649261 29.844254 34.510361 39.176468 43.37146 45.702469 47.566452 52.232559 56.427551 58.291534 62.957642 67.623749 72.289856 76.955963 79.749893"
                y="0"
-               sodipodi:role="line"
                id="tspan2360">(6 subtypes included) </tspan></text>
         </g>
         <g
@@ -747,7 +614,6 @@
              id="text2374"><tspan
                x="0 4.6661072 9.3322144 11.663223 16.32933 20.995438 25.661545 27.992554 34.518555 40.114609 45.710663 49.905655 52.236664 56.902771 61.568878 64.362808 66.693817 69.024826 73.219818 77.885925"
                y="0"
-               sodipodi:role="line"
                id="tspan2372">10,000 GEPs per type</tspan></text>
           <text
              xml:space="preserve"
@@ -756,7 +622,6 @@
              id="text2378"><tspan
                x="0 6.526001 11.192108 13.523117 18.189224 22.855331"
                y="0"
-               sodipodi:role="line"
                id="tspan2376">Output</tspan></text>
           <path
              d="m 155.5,50 h 77 V 20 h -77 v 30"
@@ -773,7 +638,6 @@
              id="text2386"><tspan
                x="0 8.0882721 16.176544 24.264816 27.376526 36.706207 42.935104 49.164001 55.392899"
                y="0"
-               sodipodi:role="line"
                id="tspan2384">DNN Model</tspan></text>
         </g>
         <g
@@ -814,7 +678,6 @@
              id="text2406"><tspan
                x="0 7.4703064 13.699203 16.187485 21.787476"
                y="0"
-               sodipodi:role="line"
                id="tspan2404">Bulk </tspan></text>
           <text
              xml:space="preserve"
@@ -823,7 +686,6 @@
              id="text2410"><tspan
                x="0 8.7117157 16.182022 23.652328"
                y="0"
-               sodipodi:role="line"
                id="tspan2408">GEPs</tspan></text>
           <text
              xml:space="preserve"
@@ -832,7 +694,6 @@
              id="text2414"><tspan
                x="0 3.7296753 11.817947 18.046844 24.587463 32.675735 38.904633"
                y="0"
-               sodipodi:role="line"
                id="tspan2412">(D1+D2)</tspan></text>
         </g>
         <g
@@ -861,7 +722,6 @@
              id="text2428"><tspan
                x="0 2.3310089 6.9971161 11.663223 16.32933"
                y="0"
-               sodipodi:role="line"
                id="tspan2426">Input</tspan></text>
           <text
              xml:space="preserve"
@@ -870,7 +730,6 @@
              id="text2432"><tspan
                x="0 5.5960541 8.3899841 13.056091 17.722198 19.586182 23.781174 26.112183 30.77829"
                y="0"
-               sodipodi:role="line"
                id="tspan2430">Predicted</tspan></text>
           <text
              xml:space="preserve"
@@ -879,7 +738,6 @@
              id="text2436"><tspan
                x="0 4.1949921 8.8610992 10.725082 12.589066 14.920074 19.586182 22.380112 27.046219 31.712326 36.378433 39.172363 41.503372 43.367355 48.033463 52.69957"
                y="0"
-               sodipodi:role="line"
                id="tspan2434">cell proportions</tspan></text>
           <text
              xml:space="preserve"
@@ -888,7 +746,6 @@
              id="text2440"><tspan
                x="0 5.5960541 10.262161 17.251083 21.917191 23.781174 28.447281"
                y="0"
-               sodipodi:role="line"
                id="tspan2438">Sampled</tspan></text>
           <text
              xml:space="preserve"
@@ -897,7 +754,6 @@
              id="text2444"><tspan
                x="0 4.1949921 8.8610992 10.725082 12.589066 14.920074 19.586182 22.380112 27.046219 31.712326 36.378433 39.172363 41.503372 43.367355 48.033463 52.69957"
                y="0"
-               sodipodi:role="line"
                id="tspan2442">cell proportions</tspan></text>
         </g>
         <g
@@ -1030,7 +886,6 @@
              id="text2510"><tspan
                x="0 5.3359375 7.1132812 11.5625 15.5625 22.226562 26.675781 28.898438 34.234375 36.457031 42.234375 46.683594 48.460938 50.238281"
                y="0"
-               sodipodi:role="line"
                id="tspan2508">Plasma B Cells</tspan></text>
         </g>
         <g
@@ -1055,7 +910,6 @@
              id="text2522"><tspan
                x="0 5.7773438"
                y="0"
-               sodipodi:role="line"
                id="tspan2520">NK</tspan></text>
         </g>
         <g
@@ -1176,7 +1030,6 @@
              id="text2582"><tspan
                x="0 5.7773438 10.226562 14.675781 16.898438 19.5625 24.011719 28.460938 32.910156 34.6875 36.464844"
                y="0"
-               sodipodi:role="line"
                id="tspan2580">Neutrophils</tspan></text>
         </g>
         <g
@@ -1217,7 +1070,6 @@
              id="text2602"><tspan
                x="0 4.6661072 9.3322144 13.527206"
                y="0"
-               sodipodi:role="line"
                id="tspan2600">Loss</tspan></text>
         </g>
         <g
@@ -1250,7 +1102,6 @@
              id="text2618"><tspan
                x="0 2.7939301 7.4600372 12.126144 14.457153 19.12326 20.987244 25.653351 32.642273 37.30838 41.974487 44.305496 48.500488"
                y="0"
-               sodipodi:role="line"
                id="tspan2616">(15 elements)</tspan></text>
         </g>
         <g
@@ -1327,7 +1178,6 @@
              id="text2656"><tspan
                x="0 7.4703064 13.699203 16.810913 23.03981 31.128082 37.356979"
                y="0"
-               sodipodi:role="line"
                id="tspan2654">Pathway</tspan></text>
           <text
              xml:space="preserve"
@@ -1336,7 +1186,6 @@
              id="text2660"><tspan
                x="0 6.2288971 9.9585724 16.187469 19.299179 21.78746 24.275742 30.504639"
                y="0"
-               sodipodi:role="line"
                id="tspan2658">profiles</tspan></text>
         </g>
         <g
@@ -1361,7 +1210,6 @@
              id="text2672"><tspan
                x="0 7.4703064 13.699203 16.810913 23.03981 31.128082 37.356979 42.95697 46.06868 54.156952 60.385849 63.497559 71.585831 77.814728 81.544403"
                y="0"
-               sodipodi:role="line"
                id="tspan2670">Pathway Network</tspan></text>
           <text
              xml:space="preserve"
@@ -1369,7 +1217,6 @@
              style="font-variant:normal;font-weight:normal;font-size:11.2px;font-family:Arial;-inkscape-font-specification:ArialMT;writing-mode:lr-tb;fill:#3885f0;fill-opacity:1;fill-rule:nonzero;stroke:none"
              id="text2676"><tspan
                x="0 0 13.070282 15.558563 21.78746 27.387451 33.616348 37.346024 40.457733 49.787415 56.016312 63.486618"
-               sodipodi:role="line"
                id="tspan2674"
                y="0">(7layer MLP)</tspan></text>
         </g>
@@ -1407,7 +1254,6 @@
              id="text2694"><tspan
                x="0 8.7117157 16.182022 23.449982 26.561691 34.649963 40.87886 43.99057 52.078842 58.307739 62.037415"
                y="0"
-               sodipodi:role="line"
                id="tspan2692">GEP Network</tspan></text>
           <text
              xml:space="preserve"
@@ -1416,7 +1262,6 @@
              id="text2698"><tspan
                x="0 0 0 9.9585724 13.070282 15.558563 21.78746 27.387451 33.616348 37.346024 40.457733 49.787415 56.016312 63.486618"
                y="0"
-               sodipodi:role="line"
                id="tspan2696">(7- layer MLP)</tspan></text>
         </g>
         <g
@@ -1441,7 +1286,6 @@
              id="text2710"><tspan
                x="0 4.1949921 8.8610992 13.527206 17.722198 22.388306 24.719315"
                y="0"
-               sodipodi:role="line"
                id="tspan2708">concat.</tspan></text>
         </g>
         <g
@@ -1487,7 +1331,6 @@
              id="text2734"><tspan
                x="0 4.1949921 6.0589752 10.725082 17.714005 22.380112 24.244095 28.910202 31.704132 34.498062"
                y="0"
-               sodipodi:role="line"
                id="tspan2732">sigmoid(·)</tspan></text>
           <text
              xml:space="preserve"
@@ -1504,7 +1347,6 @@
              id="text2742"><tspan
                x="0 6.526001 12.122055 17.718109 20.512039 22.843048 24.707031 26.571014 28.902023 33.56813 36.362061 38.226044 42.892151 47.558258 49.889267 52.220276 56.415268 60.61026 65.276367 67.607376 72.273483 76.93959 79.270599 81.134583 85.329575 87.660583 91.855576 96.050568 98.381577 100.561 105.68594 111.74492 118.27092"
                y="0"
-               sodipodi:role="line"
                id="tspan2740">GEP-filtering: synthetic vs. TCGA</tspan></text>
           <text
              xml:space="preserve"
@@ -1513,7 +1355,6 @@
              id="text2746"><tspan
                x="0 6.526001 11.192108 15.858215 20.524323 23.318253 25.649261 27.513245 29.377228 31.708237 36.374344 39.168274 41.032257 45.698364 50.364471 52.69548 55.026489 59.221481 61.085464 65.751572 70.417679 75.083786 77.414795 82.080902 84.874832 89.540939 91.871948 96.06694 100.26193 104.92804 107.72197 112.38808 114.71909 118.91408 123.10907 125.44008 127.77109 131.96608 136.63219 138.49617 140.36015 142.69116 147.35727 150.1512 154.81731 159.48341"
                y="0"
-               sodipodi:role="line"
                id="tspan2744">Gene-filtering: signature score vs. cell prop.</tspan></text>
           <text
              xml:space="preserve"
@@ -1522,7 +1363,6 @@
              id="text2750"><tspan
                x="0 5.7773438 11.554688 16.003906 18.082031 22.96875 25.632812 31.855469 36.742188 43.40625 48.742188 50.964844 55.414062 57.191406 61.640625 66.089844"
                y="0"
-               sodipodi:role="line"
                id="tspan2748">CD8 T(GZMK high)</tspan></text>
           <text
              xml:space="preserve"
@@ -1531,7 +1371,6 @@
              id="text2754"><tspan
                x="0 5.7773438 10.226562 14.675781 17.339844 22.675781 24.453125 28.902344 32.902344 39.566406 44.015625 46.238281 51.574219 53.796875 59.574219 64.023438 65.800781 67.578125"
                y="0"
-               sodipodi:role="line"
                id="tspan2752">Non-Plasma B Cells</tspan></text>
           <text
              xml:space="preserve"
@@ -1540,7 +1379,6 @@
              id="text2758"><tspan
                x="0 5.7773438 11.554688 16.003906 18.082031 22.824219 25.046875 29.496094 31.574219 33.796875 38.246094 42.246094 44.46875 48.917969"
                y="0"
-               sodipodi:role="line"
                id="tspan2756">CD8 T effector</tspan></text>
           <text
              xml:space="preserve"
@@ -1549,7 +1387,6 @@
              id="text2762"><tspan
                x="0 4.8996277 9.5657349 14.231842 18.897949 24.494003 26.825012 31.020004 35.686111 37.550095 39.414078"
                y="0"
-               sodipodi:role="line"
                id="tspan2760">~320K cells</tspan></text>
         </g>
         <g
@@ -1614,7 +1451,6 @@
              id="text2794"><tspan
                x="0 7.4703064 13.699203 19.928101 28.016373 30.504654 36.733551 42.962448 49.191345 55.420242"
                y="0"
-               sodipodi:role="line"
                id="tspan2792">Knowledge-</tspan></text>
           <text
              xml:space="preserve"
@@ -1623,7 +1459,6 @@
              id="text2798"><tspan
                x="0 6.2288971 12.457794 18.057785 24.286682"
                y="0"
-               sodipodi:role="line"
                id="tspan2796">based</tspan></text>
           <text
              xml:space="preserve"
@@ -1632,7 +1467,6 @@
              id="text2802"><tspan
                x="0 6.2288971 12.457794 18.686691 24.915588 28.027298 33.627289 39.856186 42.967896 48.567886"
                y="0"
-               sodipodi:role="line"
                id="tspan2800">gene sets </tspan></text>
         </g>
         <g
@@ -1657,7 +1491,6 @@
              id="text2814"><tspan
                x="0 8.0882721 14.317169 20.546066 26.774963 33.00386 42.333542 45.445251 52.915558 59.144455 68.474136 74.703033 77.191315 79.679596 85.908493"
                y="0"
-               sodipodi:role="line"
                id="tspan2812">Random Sampling</tspan></text>
         </g>
         <g
@@ -1690,7 +1523,6 @@
              id="text2830"><tspan
                x="0 6.526001 12.122055"
                y="0"
-               sodipodi:role="line"
                id="tspan2828">GEP</tspan></text>
           <text
              xml:space="preserve"
@@ -1699,7 +1531,6 @@
              id="text2834"><tspan
                x="0 5.5960541 10.262161 17.251083 21.917191 23.781174 25.645157 30.311264"
                y="0"
-               sodipodi:role="line"
                id="tspan2832">Sampling</tspan></text>
         </g>
         <g
@@ -1732,7 +1563,6 @@
              id="text2850"><tspan
                x="0 5.5960541 10.262161 12.59317 14.924179 17.255188 21.45018 26.116287 30.782394 34.977386 37.308395 40.102325 44.768433 46.632416 51.298523"
                y="0"
-               sodipodi:role="line"
                id="tspan2848">Soft constraint</tspan></text>
           <path
              d="m 416,123 h 55 v 10 h -55 z"
@@ -1853,7 +1683,6 @@
              id="text2910"><tspan
                x="0 6.0589752 10.725082 12.589066 14.453049 16.784058 22.380112 25.174042 29.840149 34.506256"
                y="0"
-               sodipodi:role="line"
                id="tspan2908">Cell Prop.</tspan></text>
           <text
              xml:space="preserve"
@@ -1862,7 +1691,6 @@
              id="text2914"><tspan
                x="0 5.5960541 10.262161 17.251083 21.917191 23.781174 25.645157 30.311264"
                y="0"
-               sodipodi:role="line"
                id="tspan2912">Sampling</tspan></text>
         </g>
         <g
@@ -1895,7 +1723,6 @@
              id="text2930"><tspan
                x="0 5.5960541 10.262161 12.59317 16.788162 21.454269 23.785278 28.451385 30.630814 32.961823 37.62793 41.822922 44.153931 46.48494 50.679932 55.346039 58.139969 60.933899 65.600006 69.794998 72.126007 73.98999 78.656097"
                y="0"
-               sodipodi:role="line"
                id="tspan2928">Batch effect correction</tspan></text>
           <text
              xml:space="preserve"
@@ -1904,7 +1731,6 @@
              id="text2934"><tspan
                x="0 6.0589752 7.9229584 12.589066 16.784058 19.115067 23.781174 26.575104 28.439087 33.105194"
                y="0"
-               sodipodi:role="line"
                id="tspan2932">Clustering</tspan></text>
           <text
              xml:space="preserve"
@@ -1913,7 +1739,6 @@
              id="text2938"><tspan
                x="0 6.0589752 10.725082 13.056091 17.722198 22.388306 26.583298"
                y="0"
-               sodipodi:role="line"
                id="tspan2936">De novo</tspan></text>
           <text
              xml:space="preserve"
@@ -1922,7 +1747,6 @@
              id="text2942"><tspan
                x="0 4.6661072 9.3322144 13.998322 18.664429 20.995438 25.661545 27.992554 29.856537 34.522644"
                y="0"
-               sodipodi:role="line"
                id="tspan2940">annotation</tspan></text>
         </g>
         <g
@@ -1955,7 +1779,6 @@
              id="text2958"><tspan
                x="0 6.0589752 10.725082 13.056091 17.722198 20.516129 25.182236 29.848343 34.043335 38.709442 41.040451 47.566452 53.162506 58.75856"
                y="0"
-               sodipodi:role="line"
                id="tspan2956">Reference GEPs</tspan></text>
         </g>
         <g
@@ -2005,7 +1828,6 @@
              id="text3359"><tspan
                x="0 5.7773438 10.226562 14.675781 18.675781 23.125 25.789062 28.011719 33.789062 38.238281 40.015625 41.792969"
                y="0"
-               sodipodi:role="line"
                id="tspan3357">Cancer Cells</tspan></text>
         </g>
         <g
@@ -2026,7 +1848,6 @@
              id="text3369"><tspan
                x="0 5.7773438 11.554688 16.003906 18.082031"
                y="0"
-               sodipodi:role="line"
                id="tspan3367">CD4 T</tspan></text>
         </g>
         <g
@@ -2063,7 +1884,6 @@
              id="text3387"><tspan
                x="0 6.2288971 12.457794 15.569504 21.169495 26.769485 34.857758 42.94603 50.416336 54.146011 59.746002 65.974899 72.203796"
                y="0"
-               sodipodi:role="line"
                id="tspan3385">12 scRNA-seq </tspan></text>
           <text
              xml:space="preserve"
@@ -2072,7 +1892,6 @@
              id="text3391"><tspan
                x="0 8.0882721 14.317169 17.428879 23.657776 29.257767 35.486664 38.598373"
                y="0"
-               sodipodi:role="line"
                id="tspan3389">Datasets</tspan></text>
         </g>
         <g
@@ -2097,7 +1916,6 @@
              id="text3403"><tspan
                x="0 7.4703064 13.699203 19.928101 29.257782 35.486679 41.715576 44.827286 47.938995 55.409302 61.638199 70.96788 77.196777 79.685059 82.17334 88.402237"
                y="0"
-               sodipodi:role="line"
                id="tspan3401">Segment Sampling</tspan></text>
         </g>
         <g
@@ -2130,7 +1948,6 @@
              id="text3419"><tspan
                x="0 7.4703064 13.699203 16.187485 22.416382 28.645279 34.24527 40.474167 46.703064 49.814774 55.414764 61.014755 64.126465 72.838181 80.308487 87.778793"
                y="0"
-               sodipodi:role="line"
                id="tspan3417">Balanced sctGEPs</tspan></text>
           <text
              xml:space="preserve"
@@ -2139,7 +1956,6 @@
              id="text3423"><tspan
                x="0 3.7296753 11.199982 17.428879"
                y="0"
-               sodipodi:role="line"
                id="tspan3421">(S1)</tspan></text>
         </g>
         <g
@@ -2168,7 +1984,6 @@
              id="text3437"><tspan
                x="0 8.0882721 14.317169 16.80545 19.293732 22.405441 29.875748 33.605423 39.83432 46.063217 49.174927"
                y="0"
-               sodipodi:role="line"
                id="tspan3435">Cell Prop. </tspan></text>
           <text
              xml:space="preserve"
@@ -2177,7 +1992,6 @@
              id="text3441"><tspan
                x="0 9.3296814 15.558578 18.670288 22.399963 24.888245"
                y="0"
-               sodipodi:role="line"
                id="tspan3439">Matrix</tspan></text>
           <text
              xml:space="preserve"
@@ -2186,7 +2000,6 @@
              id="text3445"><tspan
                x="0 3.7296753 11.199982"
                y="0"
-               sodipodi:role="line"
                id="tspan3443">(P)</tspan></text>
         </g>
         <g
@@ -2215,7 +2028,6 @@
              id="text3459"><tspan
                x="0 6.8414001 9.3296814 11.817963 14.929672 21.158569 24.888245 31.117142 37.346039"
                y="0"
-               sodipodi:role="line"
                id="tspan3457">Filtered </tspan></text>
           <text
              xml:space="preserve"
@@ -2224,7 +2036,6 @@
              id="text3463"><tspan
                x="0 7.4703064 13.699203 16.187485"
                y="0"
-               sodipodi:role="line"
                id="tspan3461">Bulk</tspan></text>
           <text
              xml:space="preserve"
@@ -2233,7 +2044,6 @@
              id="text3467"><tspan
                x="0 8.7117157 16.182022 23.652328 29.252319"
                y="0"
-               sodipodi:role="line"
                id="tspan3465">GEPs </tspan></text>
           <text
              xml:space="preserve"
@@ -2242,7 +2052,6 @@
              id="text3471"><tspan
                x="0 3.7296753 11.817947 18.046844"
                y="0"
-               sodipodi:role="line"
                id="tspan3469">(D1)</tspan></text>
         </g>
         <g
@@ -2267,7 +2076,6 @@
              id="text3483"><tspan
                x="0 6.8414001 14.929672 23.641388 30.493729 33.605438 41.69371 47.922607 51.034317 57.263214 62.863205 69.092102"
                y="0"
-               sodipodi:role="line"
                id="tspan3481">TCGA Dataset</tspan></text>
           <text
              xml:space="preserve"
@@ -2276,7 +2084,6 @@
              id="text3487"><tspan
                x="0 3.7296753 9.9585724 16.187469 19.299179 24.89917 31.128067 37.356964 42.956955 49.185852 52.915527 56.027237 59.138947 64.738937 70.967834 77.196732 82.796722"
                y="0"
-               sodipodi:role="line"
                id="tspan3485">(19 cancer types)</tspan></text>
         </g>
         <g
@@ -2301,7 +2108,6 @@
              id="text3499"><tspan
                x="0 7.7783203 14.448242 21.118164"
                y="0"
-               sodipodi:role="line"
                id="tspan3497">GEPs</tspan></text>
           <text
              xml:space="preserve"
@@ -2310,7 +2116,6 @@
              id="text3503"><tspan
                x="0 2.7783203 5.5566406 11.118164 16.679688 22.241211 27.802734 30.581055 36.142578 41.142578 46.704102 50.03418 55.595703 60.595703 65.595703 67.817383 73.378906 78.94043 81.71875 87.280273 90.610352 96.171875 98.950195 101.17188 103.39355 108.95508"
                y="0"
-               sodipodi:role="line"
                id="tspan3501">: gene expression profiles</tspan></text>
         </g>
         <g
@@ -2339,7 +2144,6 @@
              id="text3517"><tspan
                x="0 3.1117096 9.3406067 12.452316 18.681213 24.91011 28.639786 34.868683 37.980392 44.20929 50.438187 53.549896 59.149887 64.749878 72.83815 80.926422 88.396729 92.126404 97.726395 103.95529"
                y="0"
-               sodipodi:role="line"
                id="tspan3515">Integrated scRNA-seq</tspan></text>
           <text
              xml:space="preserve"
@@ -2348,7 +2152,6 @@
              id="text3521"><tspan
                x="0 6.2288971 12.457794 15.569504 21.798401 27.398392 33.627289 36.738998 39.850708 43.580383 51.05069 57.279587"
                y="0"
-               sodipodi:role="line"
                id="tspan3519">dataset (S0)</tspan></text>
           <path
              d="m 256.78,264 h 85 v -45 h -85 v 45"
@@ -2365,7 +2168,6 @@
              id="text3529"><tspan
                x="0 7.4703064 9.9585876 16.187485 22.416382 24.904663 31.13356 34.24527 42.333542 48.562439 51.05072"
                y="0"
-               sodipodi:role="line"
                id="tspan3527">Single Cell</tspan></text>
           <text
              xml:space="preserve"
@@ -2374,7 +2176,6 @@
              id="text3533"><tspan
                x="0 8.0882721 14.317169 17.428879 23.657776 29.257767 35.486664"
                y="0"
-               sodipodi:role="line"
                id="tspan3531">Dataset</tspan></text>
           <text
              xml:space="preserve"
@@ -2383,7 +2184,6 @@
              id="text3537"><tspan
                x="0 3.1117096 9.3406067 12.452316 18.681213 24.91011 28.639786 34.868683 37.980392 40.468674 46.697571"
                y="0"
-               sodipodi:role="line"
                id="tspan3535">Integration</tspan></text>
           <path
              d="m 626.5,275 h 73 v -45 h -73 v 45"
@@ -2400,7 +2200,6 @@
              id="text3545"><tspan
                x="0 7.4703064 13.699203 16.187485 21.787476 24.696838 31.12262 37.351517 46.681198 52.910095"
                y="0"
-               sodipodi:role="line"
                id="tspan3543">Bulk Tumor</tspan></text>
           <text
              xml:space="preserve"
@@ -2409,7 +2208,6 @@
              id="text3549"><tspan
                x="0 7.4703064 13.070297 19.299194 22.410904 28.639801 34.868698 40.468689 42.95697"
                y="0"
-               sodipodi:role="line"
                id="tspan3547">Synthesis</tspan></text>
           <text
              xml:space="preserve"
@@ -2418,7 +2216,6 @@
              id="text3553"><tspan
                x="0 3.7296753 10.155457 13.885132 20.114029 22.60231 28.831207 31.319489 37.548386 43.777283 46.888992 54.359299 60.588196 63.699905"
                y="0"
-               sodipodi:role="line"
                id="tspan3551">(Training Set)</tspan></text>
           <path
              d="m 242,473 h 77 v -35 h -77 v 35"
@@ -2435,7 +2232,6 @@
              id="text3561"><tspan
                x="0 8.0882721 14.317169 16.80545 19.293732 22.405441 29.875748 33.605423 39.83432 46.063217 52.292114 56.02179 59.133499 61.62178 67.850677"
                y="0"
-               sodipodi:role="line"
                id="tspan3559">Cell Proportion</tspan></text>
           <text
              xml:space="preserve"
@@ -2444,7 +2240,6 @@
              id="text3565"><tspan
                x="0 8.7117157 14.940613 21.16951 27.398407 31.128082 37.356979 40.468689 42.95697 49.185867"
                y="0"
-               sodipodi:role="line"
                id="tspan3563">Generation</tspan></text>
         </g>
         <g
@@ -2469,7 +2264,6 @@
              id="text3577"><tspan
                x="0 7.4703064 13.699203 16.187485 21.787476 24.899185 33.610901 41.081207 48.551514"
                y="0"
-               sodipodi:role="line"
                id="tspan3575">Bulk GEPs</tspan></text>
           <text
              xml:space="preserve"
@@ -2478,7 +2272,6 @@
              id="text3581"><tspan
                x="0 3.7296753 11.817947 18.046844"
                y="0"
-               sodipodi:role="line"
                id="tspan3579">(D2/</tspan></text>
           <text
              xml:space="preserve"
@@ -2487,7 +2280,6 @@
              id="text3585"><tspan
                x="0 8.0882721"
                y="0"
-               sodipodi:role="line"
                id="tspan3583">D0</tspan></text>
           <text
              xml:space="preserve"
@@ -2524,7 +2316,6 @@
              id="text3603"><tspan
                x="0 6.2288971 14.317169 20.546066 23.657776 30.499176 32.987457 35.475739 38.587448 44.816345 48.546021 51.034302 57.263199"
                y="0"
-               sodipodi:role="line"
                id="tspan3601">Two Filtering</tspan></text>
           <text
              xml:space="preserve"
@@ -2533,7 +2324,6 @@
              id="text3607"><tspan
                x="0 7.4703064 10.582016 16.810913 23.03981"
                y="0"
-               sodipodi:role="line"
                id="tspan3605">Steps</tspan></text>
           <text
              xml:space="preserve"
@@ -2542,7 +2332,6 @@
              id="text3611"><tspan
                x="0 4.6661072 9.3322144 11.663223 15.858215 20.524323 22.388306 24.252289 26.583298 28.914307 33.109299 37.775406 42.441513"
                y="0"
-               sodipodi:role="line"
                id="tspan3609">16 cell types</tspan></text>
           <text
              xml:space="preserve"
@@ -2551,7 +2340,6 @@
              id="text3615"><tspan
                x="0 2.7939301 7.4600372 9.7910461 13.986038 18.652145 23.318253 25.649261 29.844254 34.510361 39.176468 43.37146 45.702469 47.566452 52.232559 56.427551 58.291534 62.957642 67.623749 72.289856 76.955963 79.749893"
                y="0"
-               sodipodi:role="line"
                id="tspan3613">(6 subtypes included) </tspan></text>
         </g>
         <g
@@ -2576,7 +2364,6 @@
              id="text3627"><tspan
                x="0 4.6661072 9.3322144 11.663223 16.32933 20.995438 25.661545 27.992554 34.518555 40.114609 45.710663 49.905655 52.236664 56.902771 61.568878 64.362808 66.693817 69.024826 73.219818 77.885925"
                y="0"
-               sodipodi:role="line"
                id="tspan3625">10,000 GEPs per type</tspan></text>
           <text
              xml:space="preserve"
@@ -2585,7 +2372,6 @@
              id="text3631"><tspan
                x="0 6.526001 11.192108 13.523117 18.189224 22.855331"
                y="0"
-               sodipodi:role="line"
                id="tspan3629">Output</tspan></text>
           <path
              d="m 155.5,50 h 77 V 20 h -77 v 30"
@@ -2602,7 +2388,6 @@
              id="text3639"><tspan
                x="0 8.0882721 16.176544 24.264816 27.376526 36.706207 42.935104 49.164001 55.392899"
                y="0"
-               sodipodi:role="line"
                id="tspan3637">DNN Model</tspan></text>
         </g>
         <g
@@ -2643,7 +2428,6 @@
              id="text3659"><tspan
                x="0 7.4703064 13.699203 16.187485 21.787476"
                y="0"
-               sodipodi:role="line"
                id="tspan3657">Bulk </tspan></text>
           <text
              xml:space="preserve"
@@ -2652,7 +2436,6 @@
              id="text3663"><tspan
                x="0 8.7117157 16.182022 23.652328"
                y="0"
-               sodipodi:role="line"
                id="tspan3661">GEPs</tspan></text>
           <text
              xml:space="preserve"
@@ -2661,7 +2444,6 @@
              id="text3667"><tspan
                x="0 3.7296753 11.817947 18.046844 24.587463 32.675735 38.904633"
                y="0"
-               sodipodi:role="line"
                id="tspan3665">(D1+D2)</tspan></text>
         </g>
         <g
@@ -2690,7 +2472,6 @@
              id="text3681"><tspan
                x="0 2.3310089 6.9971161 11.663223 16.32933"
                y="0"
-               sodipodi:role="line"
                id="tspan3679">Input</tspan></text>
           <text
              xml:space="preserve"
@@ -2699,7 +2480,6 @@
              id="text3685"><tspan
                x="0 5.5960541 8.3899841 13.056091 17.722198 19.586182 23.781174 26.112183 30.77829"
                y="0"
-               sodipodi:role="line"
                id="tspan3683">Predicted</tspan></text>
           <text
              xml:space="preserve"
@@ -2708,7 +2488,6 @@
              id="text3689"><tspan
                x="0 4.1949921 8.8610992 10.725082 12.589066 14.920074 19.586182 22.380112 27.046219 31.712326 36.378433 39.172363 41.503372 43.367355 48.033463 52.69957"
                y="0"
-               sodipodi:role="line"
                id="tspan3687">cell proportions</tspan></text>
           <text
              xml:space="preserve"
@@ -2717,7 +2496,6 @@
              id="text3693"><tspan
                x="0 5.5960541 10.262161 17.251083 21.917191 23.781174 28.447281"
                y="0"
-               sodipodi:role="line"
                id="tspan3691">Sampled</tspan></text>
           <text
              xml:space="preserve"
@@ -2726,7 +2504,6 @@
              id="text3697"><tspan
                x="0 4.1949921 8.8610992 10.725082 12.589066 14.920074 19.586182 22.380112 27.046219 31.712326 36.378433 39.172363 41.503372 43.367355 48.033463 52.69957"
                y="0"
-               sodipodi:role="line"
                id="tspan3695">cell proportions</tspan></text>
         </g>
         <g
@@ -2859,7 +2636,6 @@
              id="text3763"><tspan
                x="0 5.3359375 7.1132812 11.5625 15.5625 22.226562 26.675781 28.898438 34.234375 36.457031 42.234375 46.683594 48.460938 50.238281"
                y="0"
-               sodipodi:role="line"
                id="tspan3761">Plasma B Cells</tspan></text>
         </g>
         <g
@@ -2884,7 +2660,6 @@
              id="text3775"><tspan
                x="0 5.7773438"
                y="0"
-               sodipodi:role="line"
                id="tspan3773">NK</tspan></text>
         </g>
         <g
@@ -3005,7 +2780,6 @@
              id="text3835"><tspan
                x="0 5.7773438 10.226562 14.675781 16.898438 19.5625 24.011719 28.460938 32.910156 34.6875 36.464844"
                y="0"
-               sodipodi:role="line"
                id="tspan3833">Neutrophils</tspan></text>
         </g>
         <g
@@ -3046,7 +2820,6 @@
              id="text3855"><tspan
                x="0 4.6661072 9.3322144 13.527206"
                y="0"
-               sodipodi:role="line"
                id="tspan3853">Loss</tspan></text>
         </g>
         <g
@@ -3079,7 +2852,6 @@
              id="text3871"><tspan
                x="0 2.7939301 7.4600372 12.126144 14.457153 19.12326 20.987244 25.653351 32.642273 37.30838 41.974487 44.305496 48.500488"
                y="0"
-               sodipodi:role="line"
                id="tspan3869">(15 elements)</tspan></text>
         </g>
         <g
@@ -3192,7 +2964,6 @@
              id="text3927"><tspan
                x="0 7.4703064 13.699203 16.810913 23.03981 31.128082 37.356979"
                y="0"
-               sodipodi:role="line"
                id="tspan3925">Pathway</tspan></text>
           <text
              xml:space="preserve"
@@ -3201,7 +2972,6 @@
              id="text3931"><tspan
                x="0 6.2288971 9.9585724 16.187469 19.299179 21.78746 24.275742 30.504639"
                y="0"
-               sodipodi:role="line"
                id="tspan3929">profiles</tspan></text>
         </g>
         <g
@@ -3226,7 +2996,6 @@
              id="text3943"><tspan
                x="0 7.4703064 13.699203 16.810913 23.03981 31.128082 37.356979 42.95697 46.06868 54.156952 60.385849 63.497559 71.585831 77.814728 81.544403"
                y="0"
-               sodipodi:role="line"
                id="tspan3941">Pathway Network</tspan></text>
           <text
              xml:space="preserve"
@@ -3235,7 +3004,6 @@
              id="text3947"><tspan
                x="0 3.7296753 9.9585724 13.688248 16.176529 22.405426 28.005417 34.234314 37.963989 41.075699 50.40538 56.634277 64.104584"
                y="0"
-               sodipodi:role="line"
                id="tspan3945">(7-layer MLP)</tspan></text>
         </g>
         <g
@@ -3272,7 +3040,6 @@
              id="text3965"><tspan
                x="0 8.7117157 16.182022 23.449982 26.561691 34.649963 40.87886 43.99057 52.078842 58.307739 62.037415"
                y="0"
-               sodipodi:role="line"
                id="tspan3963">GEP Network</tspan></text>
           <text
              xml:space="preserve"
@@ -3281,7 +3048,6 @@
              id="text3969"><tspan
                x="0 3.7296753 9.9585724 13.688248 16.176529 22.405426 28.005417 34.234314 37.963989 41.075699 50.40538 56.634277 64.104584"
                y="0"
-               sodipodi:role="line"
                id="tspan3967">(7-layer MLP)</tspan></text>
         </g>
         <g
@@ -3306,7 +3072,6 @@
              id="text3981"><tspan
                x="0 4.1949921 8.8610992 13.527206 17.722198 22.388306 24.719315"
                y="0"
-               sodipodi:role="line"
                id="tspan3979">concat.</tspan></text>
         </g>
         <g
@@ -3352,7 +3117,6 @@
              id="text4005"><tspan
                x="0 4.1949921 6.0589752 10.725082 17.714005 22.380112 24.244095 28.910202 31.704132 34.498062"
                y="0"
-               sodipodi:role="line"
                id="tspan4003">sigmoid(·)</tspan></text>
           <text
              xml:space="preserve"
@@ -3369,7 +3133,6 @@
              id="text4013"><tspan
                x="0 6.526001 12.122055 17.718109 20.512039 22.843048 24.707031 26.571014 28.902023 33.56813 36.362061 38.226044 42.892151 47.558258 49.889267 52.220276 56.415268 60.61026 65.276367 67.607376 72.273483 76.93959 79.270599 81.134583 85.329575 87.660583 91.855576 96.050568 98.381577 100.561 105.68594 111.74492 118.27092"
                y="0"
-               sodipodi:role="line"
                id="tspan4011">GEP-filtering: synthetic vs. TCGA</tspan></text>
           <text
              xml:space="preserve"
@@ -3378,7 +3141,6 @@
              id="text4017"><tspan
                x="0 6.526001 11.192108 15.858215 20.524323 23.318253 25.649261 27.513245 29.377228 31.708237 36.374344 39.168274 41.032257 45.698364 50.364471 52.69548 55.026489 59.221481 61.085464 65.751572 70.417679 75.083786 77.414795 82.080902 84.874832 89.540939 91.871948 96.06694 100.26193 104.92804 107.72197 112.38808 114.71909 118.91408 123.10907 125.44008 127.77109 131.96608 136.63219 138.49617 140.36015 142.69116 147.35727 150.1512 154.81731 159.48341"
                y="0"
-               sodipodi:role="line"
                id="tspan4015">Gene-filtering: signature score vs. cell prop.</tspan></text>
           <text
              xml:space="preserve"
@@ -3387,7 +3149,6 @@
              id="text4021"><tspan
                x="0 5.7773438 11.554688 16.003906 18.082031 22.96875 25.632812 31.855469 36.742188 43.40625 48.742188 50.964844 55.414062 57.191406 61.640625 66.089844"
                y="0"
-               sodipodi:role="line"
                id="tspan4019">CD8 T(GZMK high)</tspan></text>
           <text
              xml:space="preserve"
@@ -3396,7 +3157,6 @@
              id="text4025"><tspan
                x="0 5.7773438 10.226562 14.675781 17.339844 22.675781 24.453125 28.902344 32.902344 39.566406 44.015625 46.238281 51.574219 53.796875 59.574219 64.023438 65.800781 67.578125"
                y="0"
-               sodipodi:role="line"
                id="tspan4023">Non-Plasma B Cells</tspan></text>
           <text
              xml:space="preserve"
@@ -3405,7 +3165,6 @@
              id="text4029"><tspan
                x="0 5.7773438 11.554688 16.003906 18.082031 22.824219 25.046875 29.496094 31.574219 33.796875 38.246094 42.246094 44.46875 48.917969"
                y="0"
-               sodipodi:role="line"
                id="tspan4027">CD8 T effector</tspan></text>
           <text
              xml:space="preserve"
@@ -3414,7 +3173,6 @@
              id="text4033"><tspan
                x="0 4.8996277 9.5657349 14.231842 18.897949 24.494003 26.825012 31.020004 35.686111 37.550095 39.414078"
                y="0"
-               sodipodi:role="line"
                id="tspan4031">~320K cells</tspan></text>
         </g>
         <g
@@ -3479,7 +3237,6 @@
              id="text4065"><tspan
                x="0 7.4703064 13.699203 19.928101 28.016373 30.504654 36.733551 42.962448 49.191345 55.420242"
                y="0"
-               sodipodi:role="line"
                id="tspan4063">Knowledge-</tspan></text>
           <text
              xml:space="preserve"
@@ -3488,7 +3245,6 @@
              id="text4069"><tspan
                x="0 6.2288971 12.457794 18.057785 24.286682"
                y="0"
-               sodipodi:role="line"
                id="tspan4067">based</tspan></text>
           <text
              xml:space="preserve"
@@ -3497,7 +3253,6 @@
              id="text4073"><tspan
                x="0 6.2288971 12.457794 18.686691 24.915588 28.027298 33.627289 39.856186 42.967896 48.567886"
                y="0"
-               sodipodi:role="line"
                id="tspan4071">gene sets </tspan></text>
         </g>
         <g
@@ -3522,7 +3277,6 @@
              id="text4085"><tspan
                x="0 8.0882721 14.317169 20.546066 26.774963 33.00386 42.333542 45.445251 52.915558 59.144455 68.474136 74.703033 77.191315 79.679596 85.908493"
                y="0"
-               sodipodi:role="line"
                id="tspan4083">Random Sampling</tspan></text>
         </g>
         <g
@@ -3555,7 +3309,6 @@
              id="text4101"><tspan
                x="0 6.526001 12.122055"
                y="0"
-               sodipodi:role="line"
                id="tspan4099">GEP</tspan></text>
           <text
              xml:space="preserve"
@@ -3564,7 +3317,6 @@
              id="text4105"><tspan
                x="0 5.5960541 10.262161 17.251083 21.917191 23.781174 25.645157 30.311264"
                y="0"
-               sodipodi:role="line"
                id="tspan4103">Sampling</tspan></text>
         </g>
         <g
@@ -3597,7 +3349,6 @@
              id="text4121"><tspan
                x="0 5.5960541 10.262161 12.59317 14.924179 17.255188 21.45018 26.116287 30.782394 34.977386 37.308395 40.102325 44.768433 46.632416 51.298523"
                y="0"
-               sodipodi:role="line"
                id="tspan4119">Soft constraint</tspan></text>
           <path
              d="m 428,123 h 55 v 10 h -55 z"
@@ -3718,7 +3469,6 @@
              id="text4181"><tspan
                x="0 6.0589752 10.725082 12.589066 14.453049 16.784058 22.380112 25.174042 29.840149 34.506256"
                y="0"
-               sodipodi:role="line"
                id="tspan4179">Cell Prop.</tspan></text>
           <text
              xml:space="preserve"
@@ -3727,7 +3477,6 @@
              id="text4185"><tspan
                x="0 5.5960541 10.262161 17.251083 21.917191 23.781174 25.645157 30.311264"
                y="0"
-               sodipodi:role="line"
                id="tspan4183">Sampling</tspan></text>
         </g>
         <g
@@ -3760,7 +3509,6 @@
              id="text4201"><tspan
                x="0 5.5960541 10.262161 12.59317 16.788162 21.454269 23.785278 28.451385 30.630814 32.961823 37.62793 41.822922 44.153931 46.48494 50.679932 55.346039 58.139969 60.933899 65.600006 69.794998 72.126007 73.98999 78.656097"
                y="0"
-               sodipodi:role="line"
                id="tspan4199">Batch effect correction</tspan></text>
           <text
              xml:space="preserve"
@@ -3769,7 +3517,6 @@
              id="text4205"><tspan
                x="0 6.0589752 7.9229584 12.589066 16.784058 19.115067 23.781174 26.575104 28.439087 33.105194"
                y="0"
-               sodipodi:role="line"
                id="tspan4203">Clustering</tspan></text>
           <text
              xml:space="preserve"
@@ -3778,7 +3525,6 @@
              id="text4209"><tspan
                x="0 6.0589752 10.725082 13.056091 17.722198 22.388306 26.583298"
                y="0"
-               sodipodi:role="line"
                id="tspan4207">De novo</tspan></text>
           <text
              xml:space="preserve"
@@ -3787,7 +3533,6 @@
              id="text4213"><tspan
                x="0 4.6661072 9.3322144 13.998322 18.664429 20.995438 25.661545 27.992554 29.856537 34.522644"
                y="0"
-               sodipodi:role="line"
                id="tspan4211">annotation</tspan></text>
         </g>
         <g
@@ -3820,7 +3565,6 @@
              id="text4229"><tspan
                x="0 6.0589752 10.725082 13.056091 17.722198 20.516129 25.182236 29.848343 34.043335 38.709442 41.040451 47.566452 53.162506 58.75856"
                y="0"
-               sodipodi:role="line"
                id="tspan4227">Reference GEPs</tspan></text>
         </g>
         <g
@@ -3854,28 +3598,23 @@
       </g>
     </g>
     <g
-       inkscape:groupmode="layer"
        id="layer1"
-       inkscape:label="sigmoid_symbol"
        transform="matrix(3.1250002,0,0,3.1250002,0,5.4483341e-5)"
        style="display:inline">
       <path
          d="m 1243.7404,464.87932 c -1.5104,-0.0239 -3.1081,-0.1549 -4.6702,0.65419 l -0.044,0.0196 -0.039,0.0327 c -1.5237,1.20821 -2.0591,3.18984 -2.8011,4.59243 l -0.01,0.0196 -0.01,0.0131 c -0.7975,1.70567 -1.3374,3.45379 -2.564,4.46805 -1.162,0.74613 -2.7392,0.65147 -4.2512,0.66728 l 0.011,1.25605 c 1.4568,-0.0151 3.2416,0.17193 4.7751,-0.83083 l 0.022,-0.0197 0.022,-0.0132 c 1.5843,-1.2893 2.1707,-3.33551 2.9113,-4.91953 0.8242,-1.56706 1.3168,-3.23695 2.4426,-4.15404 1.2616,-0.63103 2.6576,-0.55402 4.1796,-0.5299 l 0.016,-1.25605 z"
          id="path70643"
          style="display:none;fill:#4d4d4d;fill-opacity:1;stroke:#000000;stroke-width:0;stroke-dasharray:none;stroke-opacity:0"
-         inkscape:label="path70643"
          transform="matrix(0.31999998,0,0,0.31999998,0,-1.7434668e-5)" />
       <path
          d="m 410.06268,142.69799 c -1.51037,-0.0239 -3.10809,-0.1549 -4.67021,0.65419 l -0.0441,0.0196 -0.0386,0.0327 c -1.52375,1.20821 -2.05912,3.18984 -2.80107,4.59243 l -0.006,0.0196 -0.006,0.0131 c -0.7975,1.70567 -1.3374,3.45379 -2.56404,4.46805 -1.16199,0.74613 -2.73916,0.65147 -4.25115,0.66728 l 0.011,1.25605 c 1.45676,-0.0151 3.24159,0.17193 4.77505,-0.83083 l 0.0221,-0.0197 0.0221,-0.0132 c 1.58433,-1.2893 2.17071,-3.33551 2.91134,-4.91953 0.82416,-1.56706 1.3168,-3.23695 2.44259,-4.15404 1.2616,-0.63103 2.65756,-0.55402 4.17954,-0.5299 l 0.0165,-1.25605 z"
          id="path70643-1"
-         style="display:inline;fill:#4d4d4d;fill-opacity:1;stroke:#000000;stroke-width:0;stroke-dasharray:none;stroke-opacity:0"
-         inkscape:label="path70643" />
+         style="display:inline;fill:#4d4d4d;fill-opacity:1;stroke:#000000;stroke-width:0;stroke-dasharray:none;stroke-opacity:0" />
     </g>
   </g>
   <g
-     inkscape:groupmode="layer"
      id="layer2"
-     inkscape:label="figure_tag">
+     transform="translate(-77.852707,-53.792187)">
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:41.6666px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;display:inline;fill:#000000;stroke-width:3.125"
@@ -3883,7 +3622,6 @@
        y="196.36929"
        id="text311161"
        transform="matrix(0.31999998,0,0,0.31999998,0,-1.7434668e-5)"><tspan
-         sodipodi:role="line"
          id="tspan311159"
          style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:41.6666px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:3.125"
          x="244.69098"
@@ -3895,17 +3633,15 @@
        y="788.85278"
        id="text311443"
        transform="matrix(0.31999998,0,0,0.31999998,0,-1.7434668e-5)"><tspan
-         sodipodi:role="line"
          id="tspan311441"
          style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:41.6666px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:3.125"
          x="247.33244"
          y="788.85278">b</tspan></text>
   </g>
   <g
-     inkscape:groupmode="layer"
      id="layer3"
-     inkscape:label="modified_index"
-     style="display:none">
+     style="display:none"
+     transform="translate(-77.852707,-53.792187)">
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:41.6666px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;writing-mode:lr-tb;direction:ltr;text-orientation:sideways;fill:#ff0000;stroke:#000000;stroke-width:0;stroke-opacity:0"
@@ -3913,7 +3649,6 @@
        y="1326.5258"
        id="text16599-7"
        transform="matrix(0.31999998,0,0,0.31999998,0,-1.7434668e-5)"><tspan
-         sodipodi:role="line"
          id="tspan16597-2"
          style="stroke-width:0"
          x="1407.0685"
@@ -3925,7 +3660,6 @@
        y="549.89825"
        id="text16591"
        transform="matrix(0.31999998,0,0,0.31999998,0,-1.7434668e-5)"><tspan
-         sodipodi:role="line"
          id="tspan16589"
          style="stroke-width:0"
          x="1381.4207"
@@ -3936,9 +3670,7 @@
        x="943.06262"
        y="674.08667"
        id="text16587"
-       inkscape:label="text16587"
        transform="matrix(0.31999998,0,0,0.31999998,0,-1.7434668e-5)"><tspan
-         sodipodi:role="line"
          id="tspan16585"
          style="stroke-width:0"
          x="943.06262"
@@ -3949,10 +3681,7 @@
        x="2044.1621"
        y="681.71338"
        id="text16595"
-       inkscape:label="text16595"
-       transform="matrix(0.31999998,0,0,0.31999998,0,-1.7434668e-5)"
-       sodipodi:insensitive="true"><tspan
-         sodipodi:role="line"
+       transform="matrix(0.31999998,0,0,0.31999998,0,-1.7434668e-5)"><tspan
          id="tspan16593"
          style="stroke-width:0"
          x="2044.1621"
@@ -3963,9 +3692,7 @@
        x="945.26306"
        y="450.00751"
        id="text16583"
-       transform="matrix(0.31999998,0,0,0.31999998,0,-1.7434668e-5)"
-       inkscape:label="text16583"><tspan
-         sodipodi:role="line"
+       transform="matrix(0.31999998,0,0,0.31999998,0,-1.7434668e-5)"><tspan
          id="tspan16581"
          style="stroke-width:0"
          x="945.26306"
@@ -3977,7 +3704,6 @@
        y="469.25693"
        id="text16519"
        transform="matrix(0.31999998,0,0,0.31999998,0,-1.7434668e-5)"><tspan
-         sodipodi:role="line"
          id="tspan16517"
          style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:41.6667px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;writing-mode:lr-tb;direction:ltr;stroke-width:0"
          x="372.56528"
@@ -3988,9 +3714,7 @@
        x="440.84973"
        y="1423.3622"
        id="text16599"
-       transform="matrix(0.31999998,0,0,0.31999998,0,-1.7434668e-5)"
-       inkscape:label="text16599"><tspan
-         sodipodi:role="line"
+       transform="matrix(0.31999998,0,0,0.31999998,0,-1.7434668e-5)"><tspan
          id="tspan16597"
          style="stroke-width:0"
          x="440.84973"
