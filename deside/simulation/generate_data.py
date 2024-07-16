@@ -1172,6 +1172,8 @@ class SingleCellTypeGEPGenerator(BulkGEPGenerator):
                 print(f'   Previous result exists: {self.generated_cell_fraction_fp}')
             # DC has 543 cells, larger chunk_size can cause error if set 'replace=False' and 'n_base=1' while sampling
             chunk_size = int(n_sample_each_cell_type / 10)
+            if n_sample_each_cell_type <= 1000:
+                chunk_size = n_sample_each_cell_type
             chunk_counter = 0
             # read existed GEPs
             existed_gep_ids = pd.Index([])
