@@ -1526,6 +1526,7 @@ def filtering_by_gene_list_and_pca_plot(bulk_exp: pd.DataFrame, tcga_exp: pd.Dat
     Applying gene-level filtering based on a specific gene list to simulated bulk GEPs.
     After filtering, the bulk GEPs are rescaled to log2(TPM+1).
     And perform PCA and plot the results for both filtered bulk GEPs and TCGA samples.
+
     :param bulk_exp: pd.DataFrame, Simulated bulk expression data in log2cpm1p format.
     :param tcga_exp: pd.DataFrame, TCGA expression data in TPM format.
     :param gene_list: list, List of gene names used to filter the bulk GEPs.
