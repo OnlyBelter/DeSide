@@ -1395,26 +1395,28 @@ def get_quantile(exp_df, quantile_range, col_name: list = None) -> pd.DataFrame:
     return quantile_df
 
 
-def get_gene_list_for_filtering(bulk_exp_file, tcga_file, result_file_path, q_col_name: list = None,
+def get_gene_list_for_filtering(bulk_exp_file: str, tcga_file: str, result_file_path: str, q_col_name: list = None,
                                 filtering_type: str = 'quantile_range',
                                 corr_threshold: float = 0.3, n_gene_max: int = 1000,
-                                corr_result_fp: str = None, quantile_range: list = None):
+                                corr_result_fp: str = None, quantile_range: list = None) -> list:
     """
-    Gene-level filtering based on the filtering type
-    :param bulk_exp_file: simulated bulk expression file, log2(TPM + 1)
-    :param tcga_file:
-    :param filtering_type: high_corr_gene, quantile_range, all_genes, high_corr_gene_and_quantile_range
-      - high_corr_gene: expression values with high correlation with the cell proportions of any cell types
-      - quantile_range: the median of expression values within the [q_5, q_95] quantile range
-    :param corr_result_fp:
-    :param quantile_range: median gene expression (quantile_range[1], expected as 0.5) of simulated bulk cell GEPs that
-        is less than quantile_range[0] or greater than quantile_range[2] of the quantile expression value
+    Perform gene-level filtering based on the specific filtering type.
+
+    :param bulk_exp_file: str, Path to the simulated bulk expression file in log2(TPM + 1) format to be filtered.
+    :param tcga_file: str, Path to the TCGA reference file in TPM format
+    :param result_file_path: str, Path where the filtered gene list will be saved.
+    :param q_col_name: list, Optional. Column names for quantile ranges.
+    :param filtering_type: str, Specify the method of filtering. Options include: 'high_corr_gene', 'quantile_range', 'all_genes', 'high_corr_gene_and_quantile_range'
+      - 'high_corr_gene': Select genes that their expression values have high correlation with the cell proportions of any cell type
+      - 'quantile_range': Select genes with their median of expression values within the [q_5, q_95] quantile range of their counterparts in TCGA (default)
+    :param corr_result_fp: str, path to the result file after 'high_corr_gene' filtering
+    :param quantile_range: tuple,  (lower_quantile, median_quantile, upper_quantile). Genes are removed if their median expression in simulated bulk GEPs is outside this range in TCGA data
         of the corresponding gene in TCGA dataset will be removed
-    :param result_file_path:
-    :param q_col_name:
-    :param corr_threshold: correlation threshold for gene filtering
-    :param n_gene_max: maximum number of genes for each cell type during gene filtering
-    :return:
+
+
+    :param corr_threshold: float, correlation threshold for gene filtering
+    :param n_gene_max: int, maximum number of genes to select for each cell type during 'high_corr_gene' filtering
+    :return: list, filtered gene list
     """
 
     assert filtering_type in ['high_corr_gene', 'quantile_range', 'all_genes', 'high_corr_gene_and_quantile_range'], \
@@ -1514,63 +1516,71 @@ def cal_loading_by_pca(pca, gene_list, loading_matrix_file_path=None):
     return loading
 
 
-def filtering_by_gene_list_and_pca_plot(bulk_exp, tcga_exp, gene_list, result_dir, simu_dataset_name,
+def filtering_by_gene_list_and_pca_plot(bulk_exp: pd.DataFrame, tcga_exp: pd.DataFrame, gene_list: list,
+                                        result_dir: str, simu_dataset_name: str,
                                         n_components=5, pca_model_name_postfix='', bulk_exp_type='log_space',
                                         tcga_exp_type='TPM', pca_model_file_path=None, pca_data_file_path=None,
-                                        h5ad_file_path=None, cell_frac_file=None, figsize=(5, 5)):
+                                        h5ad_file_path=None, cell_frac_file: pd.DataFrame = None, figsize=(5, 5),
+                                        if_plot_pca: bool = False):
     """
-    Filtering by gene list and pca plot
-    :param bulk_exp: log2cpm1p
-    :param tcga_exp: TPM
-    :param gene_list:
-    :param result_dir:
-    :param n_components:
-    :param pca_model_name_postfix:
-    :param bulk_exp_type:
-    :param tcga_exp_type:
-    :param pca_model_file_path:
-    :param pca_data_file_path:
-    :param simu_dataset_name:
-    :param h5ad_file_path: save simulated bulk GEPs depending on filtered gene list to .h5ad file if not None
-    :param cell_frac_file:
-    :param figsize:
-    :return:
+    Applying gene-level filtering based on a specific gene list to simulated bulk GEPs.
+    After filtering, the bulk GEPs are rescaled to log2(TPM+1).
+    And perform PCA and plot the results for both filtered bulk GEPs and TCGA samples.
+    :param bulk_exp: pd.DataFrame, Simulated bulk expression data in log2cpm1p format.
+    :param tcga_exp: pd.DataFrame, TCGA expression data in TPM format.
+    :param gene_list: list, List of gene names used to filter the bulk GEPs.
+    :param result_dir: str, Directory where results will be saved.
+    :param simu_dataset_name: str, Name of the simulated dataset
+    :param n_components: int, Number of PCA components to compute. Must be >= 2.
+    :param pca_model_name_postfix: str, Postfix for naming the PCA model file.
+    :param bulk_exp_type: str, Type of bulk GEPs, either 'TPM' or 'log_space'.
+    :param tcga_exp_type: str, Type of TCGA samples, either 'TPM' or 'log_space'.
+    :param pca_model_file_path: str, Path to save the fitted PCA model.
+    :param pca_data_file_path: str, Path to save the PCA-transformed data.
+    :param h5ad_file_path: str, Path to save the filtered bulk GEPs as a .h5ad file, if not None.
+    :param cell_frac_file: pd.DataFrame, Cell proportion matrix used to generate simulated bulk GEPs. Required if h5ad_file_path is specified.
+    :param figsize: tuple, Size of the figure for PCA plotting (width, height).
+    :param if_plot_pca: boolean, if True plot PCA components using both simulated bulk GEPs and TCGA samples.
+    :return: None
     """
     bulk_obj = ReadExp(bulk_exp, exp_type=bulk_exp_type)
     bulk_obj.align_with_gene_list(gene_list=gene_list)
     bulk_exp = bulk_obj.get_exp()
-    tcga_obj = ReadExp(tcga_exp, exp_type=tcga_exp_type)
-    tcga_obj.align_with_gene_list(gene_list=gene_list)
-    tcga_obj.to_log2cpm1p()
-    tcga_exp = tcga_obj.get_exp()
 
     # PCA and plot
-    check_dir(result_dir)
-    assert n_components >= 2, 'n_components must be >= 2'
-    if not os.path.exists(pca_data_file_path):
-        # combine both simulated bulk cell GEPs and TCGA dataset together
-        simu_bulk_with_tcga = pd.concat([bulk_exp, tcga_exp])
-        pca_model = do_pca_analysis(exp_df=simu_bulk_with_tcga, n_components=n_components,
-                                    pca_result_fp=pca_model_file_path)
-        pcs = pca_model.transform(simu_bulk_with_tcga)
-        if n_components >= 3:
-            pca_df = pd.DataFrame(pcs[:, range(3)], index=simu_bulk_with_tcga.index, columns=['PC1', 'PC2', 'PC3'])
-        else:
-            pca_df = pd.DataFrame(pcs[:, range(2)], index=simu_bulk_with_tcga.index, columns=['PC1', 'PC2'])
-        pca_df.to_csv(pca_data_file_path)
-    else:
-        print(f'{pca_data_file_path} already exists, skip PCA analysis')
-        pca_df = pd.read_csv(pca_data_file_path, index_col=0)
-        pca_model = load(pca_model_file_path)
+    if if_plot_pca:
+        tcga_obj = ReadExp(tcga_exp, exp_type=tcga_exp_type)
+        tcga_obj.align_with_gene_list(gene_list=gene_list)
+        tcga_obj.to_log2cpm1p()
+        tcga_exp = tcga_obj.get_exp()
 
-    # plot
-    title = f'{simu_dataset_name}_PCA_with_TCGA_{pca_model_name_postfix}'
-    color_code = np.array([simu_dataset_name] * bulk_exp.shape[0] + ['TCGA'] * tcga_exp.shape[0])
-    # cumsum = np.cumsum(pca_model.explained_variance_ratio_)
-    # pca_df['class'] = color_code
-    plot_pca(data=pca_df, figsize=figsize,
-             result_fp=os.path.join(result_dir, title + '.png'),
-             color_code=color_code, explained_variance_ratio=pca_model.explained_variance_ratio_)
+        check_dir(result_dir)
+        assert n_components >= 2, 'n_components must be >= 2'
+        if not os.path.exists(pca_data_file_path):
+            # combine both simulated bulk cell GEPs and TCGA dataset together
+            simu_bulk_with_tcga = pd.concat([bulk_exp, tcga_exp])
+            pca_model = do_pca_analysis(exp_df=simu_bulk_with_tcga, n_components=n_components,
+                                        pca_result_fp=pca_model_file_path)
+            pcs = pca_model.transform(simu_bulk_with_tcga)
+            if n_components >= 3:
+                pca_df = pd.DataFrame(pcs[:, range(3)], index=simu_bulk_with_tcga.index, columns=['PC1', 'PC2', 'PC3'])
+            else:
+                pca_df = pd.DataFrame(pcs[:, range(2)], index=simu_bulk_with_tcga.index, columns=['PC1', 'PC2'])
+            pca_df.to_csv(pca_data_file_path)
+        else:
+            print(f'{pca_data_file_path} already exists, skip PCA analysis')
+            pca_df = pd.read_csv(pca_data_file_path, index_col=0)
+            pca_model = load(pca_model_file_path)
+
+        # plot
+        title = f'{simu_dataset_name}_PCA_with_TCGA_{pca_model_name_postfix}'
+        color_code = np.array([simu_dataset_name] * bulk_exp.shape[0] + ['TCGA'] * tcga_exp.shape[0])
+        # cumsum = np.cumsum(pca_model.explained_variance_ratio_)
+        # pca_df['class'] = color_code
+        plot_pca(data=pca_df, figsize=figsize,
+                 result_fp=os.path.join(result_dir, title + '.png'),
+                 color_code=color_code, explained_variance_ratio=pca_model.explained_variance_ratio_)
+
     if h5ad_file_path is not None:
         assert cell_frac_file is not None, 'cell_frac_file should be provided if h5ad_file_path is not None'
         print(f'Saving filtered bulk exp to file: {h5ad_file_path}')
