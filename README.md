@@ -81,6 +81,9 @@ Any questions or suggestions about DeSide are welcomed! Please report it on [iss
 	eprint = {https://www.biorxiv.org/content/early/2023/05/14/2023.05.11.540466.full.pdf},
 	journal = {bioRxiv}
 }
+
+Xiong, X., Liu, Y., Pu, D., Yang, Z., Bi, Z., Tian, L., and Li, X. (2024). DeSide: A unified deep learning approach for cellular deconvolution of tumor microenvironment. Proc. Natl. Acad. Sci. U. S. A. 121, e2407096121. https://doi.org/10.1073/pnas.2407096121.
+
 ```
 
 
