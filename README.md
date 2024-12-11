@@ -71,7 +71,7 @@ Any questions or suggestions about DeSide are welcomed! Please report it on [iss
 
 ## Manuscript
 ```text
-@article {Xiong2023.05.11.540466,
+@article{Xiong2023.05.11.540466,
 	author = {Xin Xiong and Yerong Liu and Dandan Pu and Zhu Yang and Zedong Bi and Liang Tian and Xuefei Li},
 	title = {DeSide: A unified deep learning approach for cellular decomposition of bulk tumors based on limited scRNA-seq data},
 	elocation-id = {2023.05.11.540466},
@@ -82,7 +82,19 @@ Any questions or suggestions about DeSide are welcomed! Please report it on [iss
 	journal = {bioRxiv}
 }
 
-Xiong, X., Liu, Y., Pu, D., Yang, Z., Bi, Z., Tian, L., and Li, X. (2024). DeSide: A unified deep learning approach for cellular deconvolution of tumor microenvironment. Proc. Natl. Acad. Sci. U. S. A. 121, e2407096121. https://doi.org/10.1073/pnas.2407096121.
+@article{Xiong2024-nq,
+  title        = {{DeSide}: A unified deep learning approach for cellular
+                  deconvolution of tumor microenvironment},
+  author       = {Xiong, Xin* and Liu, Yerong* and Pu, Dandan and Yang, Zhu and
+                  Bi, Zedong and Tian, Liang# and Li, Xuefei#},
+  journaltitle = {Proc. Natl. Acad. Sci. U. S. A.},
+  volume       = {121},
+  issue        = {46},
+  pages        = {e2407096121},
+  date         = {2024},
+  doi          = {10.1073/pnas.2407096121},
+  URL          = {https://www.pnas.org/doi/10.1073/pnas.2407096121}
+}
 
 ```
 
