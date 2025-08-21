@@ -47,13 +47,79 @@ python3 -m pip install --upgrade pip
 pip install deside
 ```
 
+## Quick Start
+
+DeSide now supports one-line imports similar to NumPy and Pandas for improved accessibility:
+
+```python
+import deside as ds
+
+# Create a DeSide model
+model = ds.DeSide(model_dir='./models')
+
+# Load data
+data = ds.ReadH5AD('data.h5ad')
+expression_matrix = data.get_df()
+
+# Preprocess data
+ds.check_dir('./results')
+filtered_genes = ds.filter_gene_by_expression_log_mean(expression_matrix)
+
+# Train model (example)
+model.train_model(training_set_file_path=['training.h5ad'])
+
+# Make predictions
+predictions = model.predict(input_file='test.h5ad', output_file_path='predictions.csv')
+
+# Evaluate results
+rmse = ds.calculate_rmse(y_true, predictions)
+r2 = ds.calculate_r2(y_true, predictions)
+
+# Visualize results
+ds.compare_y_y_pred_plot(y_true, predictions, result_file_dir='./results')
+```
+
 ## Usage Examples
-Usage examples can be found: [DeSide_mini_example](https://github.com/OnlyBelter/DeSide_mini_example)
+Detailed usage examples can be found: [DeSide_mini_example](https://github.com/OnlyBelter/DeSide_mini_example)
 
 Three examples are provided:
 - Using pre-trained model
 - Training a model from scratch
 - Generating a synthetic dataset
+
+### Available Functions at Package Level
+
+DeSide now exposes 40+ functions directly at the package level for easy access:
+
+**Core Classes:**
+- `ds.DeSide` - Main deconvolution model
+- `ds.ReadH5AD` - Read .h5ad files
+- `ds.ReadExp` - Read expression data
+
+**Data Preprocessing:**
+- `ds.filter_gene_by_expression_log_mean()` - Filter genes by expression
+- `ds.log2_transform()` - Log2 transformation
+- `ds.center_value()` - Center data values
+
+**Data Format Conversion:**
+- `ds.log_exp2cpm()` - Convert log expression to CPM
+- `ds.non_log2log_cpm()` - Convert non-log to log CPM
+
+**Evaluation Metrics:**
+- `ds.calculate_rmse()` - Root mean squared error
+- `ds.calculate_r2()` - R-squared coefficient
+- `ds.calculate_mae()` - Mean absolute error
+
+**Visualization:**
+- `ds.plot_gene_exp()` - Plot gene expression
+- `ds.compare_y_y_pred_plot()` - Compare predictions vs truth
+- `ds.plot_pca()` - PCA visualization
+
+**Simulation:**
+- `ds.BulkGEPGenerator` - Generate synthetic bulk data
+- `ds.segment_generation_fraction()` - Generate cell proportions
+
+And many more! See the full list with `dir(deside)` after importing.
 
 ## Documentation
 For all detailed documentation, please check https://deside.readthedocs.io/. The documentation will demonstrate the usage of DeSide from the following aspects:
