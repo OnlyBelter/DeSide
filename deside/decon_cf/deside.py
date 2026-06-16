@@ -1,14 +1,225 @@
 import os
 import json
 import functools
+import hashlib
+import urllib.parse
+import urllib.request
 import numpy as np
 import pandas as pd
-from typing import Union, Dict
+from typing import Union
 import tensorflow as tf
 from tensorflow import keras
-from ..utility.read_file import ReadH5AD, ReadExp
+from ..utility.read_file import ReadH5AD, ReadExp, read_gene_set
 from ..utility import check_dir, print_msg, get_x_by_pathway_network
 from ..plot import plot_loss
+
+
+_DEFAULT_PRETRAINED_PATHWAY_FILES = (
+    'c2.cp.kegg.v2023.1.Hs.symbols.gmt',
+    'c2.cp.reactome.v2023.1.Hs.symbols.gmt',
+)
+
+_DEFAULT_PRETRAINED_MODEL_DOI = '10.6084/m9.figshare.25117862.v1'
+_DEFAULT_GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/OnlyBelter/DeSide_mini_example/main'
+
+
+def _get_default_pretrained_hyper_params() -> dict:
+    return {
+        'architecture': ([200, 2000, 2000, 2000, 50], [0.05, 0.05, 0.05, 0.2, 0]),
+        'architecture_for_pathway_network': ([50, 500, 500, 500, 50], [0, 0, 0, 0, 0]),
+        'loss_function_alpha': 0.5,
+        'normalization': 'layer_normalization',
+        'normalization_layer': [0, 0, 1, 1, 1, 1],
+        'pathway_network': True,
+        'last_layer_activation': 'sigmoid',
+        'learning_rate': 1e-4,
+        'batch_size': 128,
+    }
+
+
+def _get_default_pathway_file_paths(dataset_dir: str) -> list:
+    gene_set_dir = os.path.join(dataset_dir, 'gene_set')
+    return [os.path.join(gene_set_dir, i) for i in _DEFAULT_PRETRAINED_PATHWAY_FILES]
+
+
+def _md5_file(file_path: str, chunk_size: int = 1024 * 1024) -> str:
+    md5 = hashlib.md5()
+    with open(file_path, 'rb') as f:
+        while True:
+            chunk = f.read(chunk_size)
+            if not chunk:
+                break
+            md5.update(chunk)
+    return md5.hexdigest()
+
+
+def _download_file(url: str, dst_file_path: str, timeout: int = 120, overwrite: bool = False,
+                   print_info: bool = True):
+    if os.path.exists(dst_file_path) and (not overwrite):
+        return
+    check_dir(os.path.dirname(os.path.abspath(dst_file_path)))
+    tmp_file_path = dst_file_path + '.part'
+    if os.path.exists(tmp_file_path):
+        os.remove(tmp_file_path)
+    if print_info:
+        print(f'Downloading: {url} -> {dst_file_path}')
+    req = urllib.request.Request(url, headers={'User-Agent': 'DeSide'})
+    with urllib.request.urlopen(req, timeout=timeout) as r, open(tmp_file_path, 'wb') as out:
+        while True:
+            chunk = r.read(1024 * 1024)
+            if not chunk:
+                break
+            out.write(chunk)
+    os.replace(tmp_file_path, dst_file_path)
+    if print_info:
+        size = os.path.getsize(dst_file_path)
+        md5 = _md5_file(dst_file_path)
+        print(f'Downloaded: {dst_file_path} | size={size} bytes | md5={md5}')
+
+
+def _resolve_figshare_file_download_url(doi: str, target_file_name: str, timeout: int = 30) -> str:
+    q = urllib.parse.quote(doi, safe='')
+    query_url = f'https://api.figshare.com/v2/articles?doi={q}'
+    req = urllib.request.Request(query_url, headers={'User-Agent': 'DeSide'})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        articles = json.loads(r.read().decode('utf-8'))
+    if not articles:
+        raise RuntimeError(f'Cannot resolve Figshare article by DOI: {doi}')
+    article_id = articles[0].get('id')
+    if article_id is None:
+        raise RuntimeError(f'Invalid Figshare API response for DOI: {doi}')
+    article_url = f'https://api.figshare.com/v2/articles/{article_id}'
+    req = urllib.request.Request(article_url, headers={'User-Agent': 'DeSide'})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        article = json.loads(r.read().decode('utf-8'))
+    files = article.get('files', [])
+    if not files:
+        raise RuntimeError(f'No files found for Figshare article: {doi}')
+    for f in files:
+        if f.get('name') == target_file_name:
+            return f.get('download_url')
+    if len(files) == 1:
+        return files[0].get('download_url')
+    available = [f.get('name') for f in files]
+    raise RuntimeError(f'Cannot find file "{target_file_name}" in Figshare article: {doi}. Available files: {available}')
+
+
+def _ensure_pretrained_assets(model_dir: str, dataset_dir: str, model_name: str = 'DeSide',
+                              pathway_file_paths: list = None, timeout: int = 120, overwrite: bool = False,
+                              print_info: bool = True):
+    required_model_files = [
+        f'model_{model_name}.h5',
+        'celltypes.txt',
+        'genes.txt',
+        'genes_for_gep.txt',
+        'genes_for_pathway_profile.txt',
+    ]
+    if pathway_file_paths is None:
+        pathway_file_paths = _get_default_pathway_file_paths(dataset_dir=dataset_dir)
+    check_dir(model_dir)
+    check_dir(os.path.join(dataset_dir, 'gene_set'))
+
+    model_file_name = f'model_{model_name}.h5'
+    model_file_path = os.path.join(model_dir, model_file_name)
+    if not os.path.exists(model_file_path) or overwrite:
+        download_url = _resolve_figshare_file_download_url(
+            doi=_DEFAULT_PRETRAINED_MODEL_DOI,
+            target_file_name=model_file_name,
+            timeout=min(30, timeout),
+        )
+        _download_file(download_url, model_file_path, timeout=timeout, overwrite=overwrite, print_info=print_info)
+
+    for name in required_model_files:
+        if name == model_file_name:
+            continue
+        url = f'{_DEFAULT_GITHUB_RAW_BASE}/DeSide_model/{name}'
+        _download_file(url, os.path.join(model_dir, name), timeout=timeout, overwrite=overwrite, print_info=print_info)
+
+    for local_fp, fn in zip(pathway_file_paths, _DEFAULT_PRETRAINED_PATHWAY_FILES):
+        url = f'{_DEFAULT_GITHUB_RAW_BASE}/datasets/gene_set/{fn}'
+        _download_file(url, local_fp, timeout=timeout, overwrite=overwrite, print_info=print_info)
+
+
+def _validate_pretrained_assets(model_dir: str, pathway_file_paths: list = None, model_name: str = 'DeSide'):
+    required_model_files = [
+        f'model_{model_name}.h5',
+        'celltypes.txt',
+        'genes.txt',
+        'genes_for_gep.txt',
+        'genes_for_pathway_profile.txt',
+    ]
+    missing_model_files = [i for i in required_model_files if not os.path.exists(os.path.join(model_dir, i))]
+    if missing_model_files:
+        raise FileNotFoundError(
+            f'Missing pre-trained model files in "{model_dir}". '
+            f'Please prepare the Example 1 assets first. Missing files: {missing_model_files}'
+        )
+    if pathway_file_paths is not None:
+        missing_pathway_files = [i for i in pathway_file_paths if not os.path.exists(i)]
+        if missing_pathway_files:
+            raise FileNotFoundError(
+                'Missing pathway gene-set files required by the pre-trained model. '
+                f'Please prepare the Example 1 assets first. Missing files: {missing_pathway_files}'
+            )
+
+
+def predict_with_pretrained_model(input_file, output_file_path: str = None, model_dir: str = './DeSide_model',
+                                  dataset_dir: str = './datasets', exp_type: str = 'TPM', transpose: bool = True,
+                                  print_info: bool = True, scaling_by_constant: bool = True,
+                                  scaling_by_sample: bool = False, pathway_mask: pd.DataFrame = None,
+                                  pathway_file_paths: list = None, model_name: str = 'DeSide',
+                                  auto_download: bool = True, download_timeout: int = 120, overwrite: bool = False):
+    """
+    Predict cell fractions by the provided pre-trained DeSide model in one call.
+
+    :param input_file: input bulk GEP file path or DataFrame
+    :param output_file_path: optional file path for saving prediction results
+    :param model_dir: directory containing the Example 1 pre-trained model files
+    :param dataset_dir: directory containing `gene_set/` for Example 1 assets
+    :param exp_type: input expression type, `TPM` or `log_space`
+    :param transpose: whether the input file is given as genes by samples
+    :param print_info: whether to print prediction progress
+    :param scaling_by_constant: whether to divide log-space expression by a constant
+    :param scaling_by_sample: whether to scale each sample to [0, 1]
+    :param pathway_mask: optional preloaded pathway mask
+    :param pathway_file_paths: optional `.gmt` files used to build the pathway mask
+    :param model_name: model name used by the saved file naming convention
+    :param auto_download: automatically download required Example 1 assets if missing
+    :param download_timeout: timeout in seconds for each file download
+    :param overwrite: whether to overwrite existing local files
+    :return: prediction result if `output_file_path` is None
+    """
+    if (pathway_mask is None) and (pathway_file_paths is None):
+        pathway_file_paths = _get_default_pathway_file_paths(dataset_dir=dataset_dir)
+    if auto_download:
+        _ensure_pretrained_assets(
+            model_dir=model_dir,
+            dataset_dir=dataset_dir,
+            model_name=model_name,
+            pathway_file_paths=pathway_file_paths,
+            timeout=download_timeout,
+            overwrite=overwrite,
+            print_info=print_info,
+        )
+    if pathway_mask is None:
+        _validate_pretrained_assets(model_dir=model_dir, pathway_file_paths=pathway_file_paths, model_name=model_name)
+        pathway_mask = read_gene_set(pathway_file_paths)
+    else:
+        _validate_pretrained_assets(model_dir=model_dir, model_name=model_name)
+    if output_file_path is not None:
+        check_dir(os.path.dirname(os.path.abspath(output_file_path)))
+    deside_model = DeSide(model_dir=model_dir, model_name=model_name)
+    return deside_model.predict(
+        input_file=input_file,
+        output_file_path=output_file_path,
+        exp_type=exp_type,
+        transpose=transpose,
+        print_info=print_info,
+        scaling_by_sample=scaling_by_sample,
+        scaling_by_constant=scaling_by_constant,
+        hyper_params=_get_default_pretrained_hyper_params(),
+        pathway_mask=pathway_mask
+    )
 
 
 class DeSide(object):

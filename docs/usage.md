@@ -82,56 +82,34 @@ Then use the self-trained model to predict cell proportions.
 
 ### Model Prediction
 
-Using the pre-trained model or self-trained model, you can predict cell proportions in bulk gene expression profiles (bulk GEPs) by using the [`deside_model.predict`](https://deside.readthedocs.io/en/latest/func/deconvolution.html#deside.decon_cf.DeSide.predict) function.
+Using the pre-trained model or self-trained model, you can predict cell proportions in bulk gene expression profiles (bulk GEPs).
+For Example 1, the recommended entry point is the one-call helper
+[`predict_with_pretrained_model`](https://deside.readthedocs.io/en/latest/func/deconvolution.html#deside.decon_cf.predict_with_pretrained_model),
+which wraps the existing `DeSide.predict()` workflow with the default hyper-parameters and pathway files used by the provided pre-trained model.
 
 ```python
-import os
-import pandas as pd
-from deside.utility import check_dir
-from deside.decon_cf import DeSide
-from deside.utility.read_file import read_gene_set
+import deside
 
 # bulk gene expression profiles (GEPs) in TPM format
 bulk_tpm_file_path = 'path/xx_TPM.csv'
-bulk_tpm = pd.read_csv(bulk_tpm_file_path, index_col=0)
 
-# create output directory
-result_dir = './results'
-y_pred_file_path = os.path.join(result_dir, 'y_pred.csv')
-check_dir(result_dir)
-dataset_dir = './datasets/'
-
-# hyper-parameters of the DNN model
-deside_parameters = {
-    'architecture': ([200, 2000, 2000, 2000, 50], [0.05, 0.05, 0.05, 0.2, 0]),
-    'architecture_for_pathway_network': ([50, 500, 500, 500, 50], [0, 0, 0, 0, 0]),
-    'loss_function_alpha': 0.5,  # alpha*mae + (1-alpha)*rmse, mae means mean absolute error
-    'normalization': 'layer_normalization',  # batch_normalization / layer_normalization / None
-     # 1 means to add a normalization layer, input | the first hidden layer | ... | output
-    'normalization_layer': [0, 0, 1, 1, 1, 1],  # 1 more parameter than the number of hidden layers
-    'pathway_network': True,  # using an independent pathway network
-    'last_layer_activation': 'sigmoid',  # sigmoid / softmax
-    'learning_rate': 1e-4,
-    'batch_size': 128}
-
-# read two gene sets as pathway mask
-gene_set_file_path1 = os.path.join(dataset_dir, 'gene_set', 'c2.cp.kegg.v2023.1.Hs.symbols.gmt')
-gene_set_file_path2 = os.path.join(dataset_dir, 'gene_set', 'c2.cp.reactome.v2023.1.Hs.symbols.gmt')
-all_pathway_files = [gene_set_file_path1, gene_set_file_path2]
-pathway_mask = read_gene_set(all_pathway_files)  # genes by pathways
-
-# read pre-trained DeSide model
-model_dir = './DeSide_model/'
-deside_model = DeSide(model_dir=model_dir) 
-
-# predict by pre-trained model
-deside_model.predict(input_file=bulk_tpm_file_path, 
-                     output_file_path=y_pred_file_path, 
-                     exp_type='TPM', transpose=True,
-                     scaling_by_sample=False, scaling_by_constant=True,
-                     hyper_params=deside_parameters,
-                     pathway_mask=pathway_mask)
+deside.predict_with_pretrained_model(
+    input_file=bulk_tpm_file_path,
+    output_file_path='./results/y_pred.csv'
+)
 ```
+
+- The helper above expects the same Example 1 assets used in the mini example:
+  - `./DeSide_model/` containing the pre-trained model files
+  - `./datasets/gene_set/` containing the two pathway `.gmt` files
+- By default, missing Example 1 assets will be downloaded automatically into `model_dir` and `dataset_dir`.
+- Each download step will be printed explicitly, including destination path, file size, and md5.
+- To disable auto-download (e.g. in offline environments), pass `auto_download=False`.
+- If your files are stored elsewhere, pass `model_dir='path/DeSide_model'` and/or `dataset_dir='path/datasets'`.
+- The helper uses the same defaults as the original notebook: `exp_type='TPM'`, `transpose=True`,
+  `scaling_by_sample=False`, and `scaling_by_constant=True`.
+- If you need full control over hyper-parameters or a custom pathway mask, you can still use
+  [`DeSide.predict`](https://deside.readthedocs.io/en/latest/func/deconvolution.html#deside.decon_cf.DeSide.predict) directly.
 - A complete example in jupyter notebook can be found: [E1 - Using pre-trained model.ipynb](https://github.com/OnlyBelter/DeSide_mini_example/blob/main/E1%20-%20Using%20pre-trained%20model.ipynb).
 
 ### Model Training

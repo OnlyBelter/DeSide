@@ -55,12 +55,44 @@ Three examples are provided:
 - Training a model from scratch
 - Generating a synthetic dataset
 
+Example 1 can now be run with one function call after import:
+
+```python
+import deside
+
+deside.predict_with_pretrained_model(
+    input_file="path/xx_TPM.csv",
+    output_file_path="./results/y_pred.csv"
+)
+```
+
+This helper expects the same local assets used in the mini example:
+- `./DeSide_model/` for the pre-trained model files
+- `./datasets/gene_set/` for the pathway `.gmt` files
+
+By default, missing Example 1 assets will be downloaded automatically into those folders (with explicit download logs). To disable auto-download, pass `auto_download=False`.
+
+You can also run Example 1 from this repository as a script:
+
+```bash
+python examples/example1_pretrained_model.py \
+  --input-file path/xx_TPM.csv \
+  --output-file ./results/y_pred.csv
+```
+
 ## Documentation
 For all detailed documentation, please check https://deside.readthedocs.io/. The documentation will demonstrate the usage of DeSide from the following aspects:
 - Installation in a virtual environment
 - Usage examples
 - Datasets used in DeSide
 - Functions and classes in DeSide
+
+## Changelog
+
+See [docs/changelog.md](docs/changelog.md) for the full change history.
+
+- v1.3.3 (June 16, 2026): add a one-call pre-trained model API, automatic
+  downloads for Example 1 assets, and a runnable Example 1 script.
 
 
 ## License
@@ -97,5 +129,3 @@ Any questions or suggestions about DeSide are welcomed! Please report it on [iss
 }
 
 ```
-
-
