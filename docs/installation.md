@@ -24,3 +24,14 @@ python3 -m pip install --upgrade pip
 ```shell
 pip install deside
 ```
+
+## Troubleshooting on Apple Silicon
+
+If installation fails on Apple Silicon macOS when building dependencies such as
+`tables`, install `hdf5` and `pytables` from `conda-forge` first, then install
+DeSide again:
+
+```shell
+conda install -c conda-forge hdf5 pytables
+pip install deside
+```
