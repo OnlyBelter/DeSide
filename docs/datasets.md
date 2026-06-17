@@ -9,7 +9,7 @@ Datasets used in DeSide
 |                Dataset name                | #samples    | Sampling method | Filtering | #cell types | #genes | Input dataset                   |    GEPs <br/>(type, fortmat)    |         Dataset type          | Notation |
 |:------------------------------------------:|-------------|-----------------|-----------|-------------|--------|---------------------------------|:-------------------------------:|:-----------------------------:|:--------:|
 |                    TCGA                    | 7,699       | -               | -         | -           | 19,712 | -                               |           MCT, `TPM`            |     Downloaded from TCGA      |    DA    |
-|            merged_7_sc_datasets            | 325,474     | -               | -         | 19          | 17,834 | 12 collected scRNA-seq datasets | Single cell, <br/>`log2(TPM+1)` |  Raw dataset from scRNA-seq   |    S0    |
+|            merged_12_sc_datasets            | 325,474     | -               | -         | 19          | 17,834 | 12 collected scRNA-seq datasets | Single cell, <br/>`log2(TPM+1)` |  Raw dataset from scRNA-seq   |    S0    |
 |                SCT_POS_N10K                | 10,000 x 16 | n_base=100      | -         | 16          | 17,834 | S0                              |       SCT, `log2(TPM+1)`        | Used to simulate MCT datasets |    S1    |
 |             Mixed_N100K_random             | 100,000     | Random          | No        | 16          | 17,834 | S1                              |       MCT, `log2(TPM+1)`        |         Training set          |    D0    |
 |            Mixed_N100K_segment             | 100,000     | Segment         | Yes       | 16          | 9,028  | S1                              |       MCT, `log2(TPM+1)`        |         Training set          |    D1    |
@@ -43,7 +43,6 @@ Datasets used in DeSide
 - \* The number of **reported cells** may include cells that don't originate from solid tumors, which were removed during integrating.
 - \*\* The count considered only the number of patients (samples) in the data that were integrated into the final dataset.
 
-
 ## Download
 - TCGA (DA): [merged_tpm.csv.zip](https://doi.org/10.6084/m9.figshare.23047547.v2)
   - Contains 7699 samples from 19 cancer types
@@ -60,4 +59,3 @@ Datasets used in DeSide
   - SCT_POS_N100 (T3)
 
 `.h5ad` files can be opened by the function `scanpy.read_h5ad()` in [Scanpy](https://scanpy.readthedocs.io/en/stable/) or the class [`deside.utility.read_file.ReadH5AD`](https://deside.readthedocs.io/en/latest/func/utility.html#deside.utility.read_file.ReadH5AD) in DeSide.
-
