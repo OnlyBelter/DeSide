@@ -14,6 +14,8 @@ June 16, 2026
 - Add explicit download logs for each downloaded file, including destination path, file size, and md5.
 - Add a runnable script `examples/example1_pretrained_model.py` for non-notebook usage.
 - Update documentation and README to reflect the new one-line workflow and auto-download behavior.
+- Add Apple Silicon installation troubleshooting notes for `hdf5` and `pytables`.
+- Fix a typo in the datasets documentation page.
 
 ## v1.3.2 (revision)
 September 15, 2024
