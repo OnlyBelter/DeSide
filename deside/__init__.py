@@ -1,12 +1,23 @@
 r"""EMT Decode"""
 
 
-import pkg_resources
+def _resolve_version():
+    try:
+        from importlib.metadata import version as _pkg_version
+    except ImportError:
+        # Python 3.7 fallback; DeSide's floor is 3.9, so this is defensive
+        try:
+            from pkg_resources import get_distribution
+            return get_distribution("deside").version
+        except Exception:
+            return "0.1-dev"
+    try:
+        return _pkg_version("deside")
+    except Exception:
+        return "0.1-dev"
 
-try:
-    __version__ = pkg_resources.get_distribution("deside").version
-except pkg_resources.DistributionNotFound:
-    __version__ = "0.1-dev"
+
+__version__ = _resolve_version()
 
 
 def predict_with_pretrained_model(*args, **kwargs):
