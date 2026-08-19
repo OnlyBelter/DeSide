@@ -7,11 +7,13 @@ import urllib.request
 import numpy as np
 import pandas as pd
 from typing import Union
-import tensorflow as tf
-from tensorflow import keras
+from .torch_deside import (
+    DeSide as TorchDeSide,
+    loss_fn_mae_rmse as torch_loss_fn_mae_rmse,
+    predict_with_pretrained_model as torch_predict_with_pretrained_model,
+)
 from ..utility.read_file import ReadH5AD, ReadExp, read_gene_set
 from ..utility import check_dir, print_msg, get_x_by_pathway_network
-from ..plot import plot_loss
 
 
 _DEFAULT_PRETRAINED_PATHWAY_FILES = (
@@ -827,6 +829,9 @@ def loss_fn_mae_rmse(y_true, y_pred, alpha=0.5):
     :param y_pred: predicted cell fractions
     :param alpha: weight of MAE
     """
-    mae = keras.losses.MeanAbsoluteError()
-    mse = keras.losses.MeanSquaredError()
-    return alpha * mae(y_true, y_pred) + (1 - alpha) * tf.sqrt(mse(y_true, y_pred))
+    return torch_loss_fn_mae_rmse(y_true, y_pred, alpha=alpha)
+
+
+DeSide = TorchDeSide
+predict_with_pretrained_model = torch_predict_with_pretrained_model
+loss_fn_mae_rmse = torch_loss_fn_mae_rmse

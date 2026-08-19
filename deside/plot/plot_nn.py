@@ -9,7 +9,13 @@ import matplotlib.pyplot as plt
 # from joblib import dump, load
 from .plot_gene import compare_exp_between_group
 from ..utility import read_cancer_purity, check_dir, read_df, log2_transform, set_fig_style
-from sklearn.metrics import median_absolute_error
+try:
+    from sklearn.metrics import median_absolute_error
+except ImportError:  # pragma: no cover - fallback for lightweight environments
+    def median_absolute_error(y_true, y_pred):
+        y_true = np.asarray(y_true)
+        y_pred = np.asarray(y_pred)
+        return np.median(np.abs(y_true - y_pred))
 # sns.set()
 # sns.set(font_scale=1.5)
 # plt.rcParams.update({'font.size': 20})

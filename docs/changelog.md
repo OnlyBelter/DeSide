@@ -3,6 +3,41 @@ Change Log
 The record of all notable changes to this project will be documented in this file.
 ***
 
+## v2.0.0a0 (major upgrade, in progress on branch `pytorch-dev`)
+August 19, 2026
+
+- **Framework migration**: Replace the TensorFlow/Keras DNN implementation in
+  `deside/decon_cf/deside.py` with a PyTorch and PyTorch Lightning stack.
+- Add a dedicated PyTorch module under `deside/models/` that reproduces the
+  original DeSide architecture, including the optional pathway branch, the
+  same hidden widths, dropout, and normalization-layer configuration.
+- Add a Lightning-based training stack under `deside/trainers/` that replaces
+  Keras `Model.fit`, with explicit train/validation loaders, CSV logging,
+  checkpointing, and early stopping.
+- Add a PyTorch `Dataset` implementation under `deside/data/` and a
+  deterministic train/validation split helper so Lightning receives explicit
+  train and validation dataloaders instead of Keras `validation_split`.
+- Keep the current DeSide public entry points as stable facades:
+  `deside.decon_cf.DeSide` and `deside.decon_cf.predict_with_pretrained_model`.
+- Replace legacy TensorFlow `.h5` model artifacts with a DeSide-owned model
+  directory that stores:
+  - Lightning checkpoints (`.ckpt`)
+  - `model_config.json` and `training_config.json`
+  - the saved gene lists, pathway gene lists, and cell type metadata
+- The custom loss function remains `alpha * MAE + (1 - alpha) * RMSE`
+  implemented in PyTorch to preserve training behavior.
+- Update `pyproject.toml` and `docs/requirements.txt` to depend on
+  `torch>=2.0.0` and `lightning==2.5.1`; remove the runtime TensorFlow
+  dependency from the new development line.
+- Update versioning policy for this upgrade: `v2.0.0a0` marks the first
+  pre-release of the PyTorch-based DeSide line on branch `pytorch-dev`.
+- Add legacy-install guidance in the documentation for users who still need
+  the TensorFlow-based `v1.x` DeSide releases.
+- This is a **major upgrade** in saved model format: PyTorch/Lightning DeSide
+  will not load arbitrary legacy TensorFlow `.h5` checkpoints. Future
+  pre-trained assets for DeSide 2.x will be published in the new checkpoint
+  format.
+
 ## v1.3.3
 June 16, 2026
 

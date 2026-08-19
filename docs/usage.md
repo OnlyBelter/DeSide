@@ -1,14 +1,21 @@
-Usage
-=====
+# Usage
+
 Usage of DeSide package is demonstrated.
 
 ***
+
 This package consists of three main modules:
 
--  Utility
--  DeSide model
--  Dataset Simulation
+- Utility
+- DeSide model
+- Dataset Simulation
 
+> [!NOTE]
+> As of the major upgrade on branch `pytorch-dev`, DeSide uses PyTorch and
+> PyTorch Lightning internally instead of TensorFlow/Keras. Public training
+> and prediction entry points remain stable, but saved model files change from
+> `.h5` to a Lightning checkpoint directory. The TensorFlow-based 1.x line is
+> still available as a legacy install documented in the installation page.
 
 ## Utility
 This module contains some utility functions, including:

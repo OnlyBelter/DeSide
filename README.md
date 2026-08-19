@@ -20,31 +20,50 @@ DeSide consists of the following four parts (see figure below):
 In this repository, we provide the code for implementing these four parts and visualizing the results.
 
 ## Requirements
-DeSide requires Python 3.8 or higher. It has been tested on Linux and MacOS, but should work on Windows as well.
-- tensorflow>=2.11.1
-- scikit-learn==0.24.2
+
+DeSide requires Python 3.9 or higher. It is tested on Linux and macOS and is
+expected to work on Windows as well. The current development line on branch
+`pytorch-dev` uses PyTorch and PyTorch Lightning instead of TensorFlow.
+
+- torch>=2.0.0
+- lightning==2.5.1
+- scikit-learn>=0.24.2
 - anndata>=0.8.0
-- scanpy==1.8.0
+- scanpy>=1.8.0
 - umap-learn==0.5.1
-- pandas==1.5.3
+- pandas>=1.5.3
 - numpy>=1.22
-- matplotlib
+- matplotlib>=3.6,<3.10
 - seaborn>=0.11.2
-- bbknn==1.5.1
+- bbknn>=1.5.1
 - SciencePlots
-- matplotlib<3.7
+
+> [!NOTE]
+> This is a major upgrade. DeSide 2.x does not load legacy TensorFlow `.h5`
+> checkpoints from DeSide 1.x. If you need the older TensorFlow-based line,
+> install `deside<2.0` in a Python 3.8 environment.
 
 ## Installation
 
-pip should work out of the box:
+`pip` should work out of the box.
+
+1. Create a virtual environment:
+
 ```shell
-# creating a virtual environment is recommended
-conda create -n deside python=3.8
+conda create -n deside python=3.10
 conda activate deside
-# update pip
+```
+
+2. Update `pip`:
+
+```shell
 python3 -m pip install --upgrade pip
-# install deside
-pip install deside
+```
+
+3. Install DeSide:
+
+```shell
+pip install deside>=2.0.0a0
 ```
 
 ### Troubleshooting on Apple Silicon
@@ -55,18 +74,34 @@ DeSide again:
 
 ```shell
 conda install -c conda-forge hdf5 pytables
-pip install deside
+pip install deside>=2.0.0a0
+```
+
+### Legacy install (TensorFlow-based DeSide 1.x)
+
+Use this section only if you need the older TensorFlow line.
+
+```shell
+conda create -n deside-tf python=3.8
+conda activate deside-tf
+python3 -m pip install --upgrade pip
+pip install deside<2.0
 ```
 
 ## Usage Examples
-Usage examples can be found: [DeSide_mini_example](https://github.com/OnlyBelter/DeSide_mini_example)
+
+Usage examples can be found at [DeSide_mini_example](https://github.com/OnlyBelter/DeSide_mini_example).
 
 Three examples are provided:
-- Using pre-trained model
+
+- Using a pre-trained model
 - Training a model from scratch
 - Generating a synthetic dataset
 
-Example 1 can now be run with one function call after import:
+Example 1 can be run with one function call after import. The current PyTorch
+development branch keeps the same user-facing helper, but saves and loads
+models in a PyTorch Lightning checkpoint directory instead of TensorFlow `.h5`
+files.
 
 ```python
 import deside
@@ -78,10 +113,13 @@ deside.predict_with_pretrained_model(
 ```
 
 This helper expects the same local assets used in the mini example:
-- `./DeSide_model/` for the pre-trained model files
+
+- `./DeSide_model/` for the pre-trained model directory
 - `./datasets/gene_set/` for the pathway `.gmt` files
 
-By default, missing Example 1 assets will be downloaded automatically into those folders (with explicit download logs). To disable auto-download, pass `auto_download=False`.
+By default, missing Example 1 assets are downloaded automatically into those
+folders with explicit download logs. To disable auto-download, pass
+`auto_download=False`.
 
 You can also run Example 1 from this repository as a script:
 
@@ -92,16 +130,19 @@ python examples/example1_pretrained_model.py \
 ```
 
 ## Documentation
-For all detailed documentation, please check https://deside.readthedocs.io/. The documentation will demonstrate the usage of DeSide from the following aspects:
-- Installation in a virtual environment
-- Usage examples
-- Datasets used in DeSide
-- Functions and classes in DeSide
+
+For detailed documentation, see https://deside.readthedocs.io/. The
+documentation covers installation, usage examples, datasets, and the public
+classes and functions.
 
 ## Changelog
 
 See [docs/changelog.md](docs/changelog.md) for the full change history.
 
+- v2.0.0a0 (August 19, 2026, branch `pytorch-dev`): start the major upgrade
+  from TensorFlow/Keras to PyTorch and PyTorch Lightning, keep DeSide training
+  and prediction facades stable, introduce Lightning checkpoint directories,
+  and document the legacy TensorFlow-based 1.x install path.
 - v1.3.3 (June 16, 2026): add a one-call pre-trained model API, automatic
   downloads for Example 1 assets, and a runnable Example 1 script.
 
