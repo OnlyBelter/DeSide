@@ -160,11 +160,11 @@ class DeSideConfig:
 
     @property
     def scaling_by_sample(self) -> bool:
-        return bool(self.data.get("scaling_by_sample", True))
+        return bool(self.data.get("scaling_by_sample", False))
 
     @property
     def scaling_by_constant(self) -> bool:
-        return bool(self.data.get("scaling_by_constant", False))
+        return bool(self.data.get("scaling_by_constant", True))
 
     @property
     def remove_cancer_cell(self) -> bool:
