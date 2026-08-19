@@ -52,7 +52,7 @@ class ReadH5AD(object):
         if scaling_by_sample:
             from sklearn import preprocessing as pp
             scaler = pp.MinMaxScaler(feature_range=(0, 1), copy=False)
-            x_data = scaler.fit_transform(x_data.T, copy=False).T
+            x_data = scaler.fit_transform(x_data.T).T
 
         df = pd.DataFrame(
             data=x_data.copy() if copy else x_data,
@@ -194,7 +194,7 @@ class ReadExp(object):
         if not self.scaled_by_sample:
             from sklearn import preprocessing as pp
             scaler = pp.MinMaxScaler(feature_range=(0, 1), copy=False)
-            x_scaled = scaler.fit_transform(self.exp.to_numpy(dtype=np.float32, copy=False).T, copy=False).T
+            x_scaled = scaler.fit_transform(self.exp.to_numpy(dtype=np.float32, copy=False).T).T
             self.scaled_by_sample = True
             self.exp = pd.DataFrame(
                 data=x_scaled,
