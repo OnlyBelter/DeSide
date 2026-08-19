@@ -24,38 +24,62 @@ class ReadH5AD(object):
             print(self.dataset)
 
     def get_df(self, result_file_path: str = None, convert_to_tpm: bool = False,
-               scaling_by_sample: bool = False) -> pd.DataFrame:
+               scaling_by_sample: bool = False, round_decimals: int = None,
+               copy: bool = False) -> pd.DataFrame:
         """
-        Convert to DataFrame, samples by genes, log space (log2cpm1p)
+        Convert to DataFrame, samples by genes, log space (log2cpm1p).
+
+        Added copy/round_decimals knobs for the training ingestion hot path: when
+        concatenating three H5ADs the caller wants to avoid three deep DataFrame
+        copies and three elementwise .round(N) materializations on the raw matrix,
+        which is the single largest cost of the Start-to-reading-training-set block
+        for N5K x ~18K-gene matrices.
 
         :param result_file_path:
         :param convert_to_tpm: whether to convert log2cpm1p to TPM
         :param scaling_by_sample: whether to scale the expression values of each sample to [0, 1] by 'min_max'
+        :param round_decimals: integer decimals to round output to; None keeps native precision (fastest)
+        :param copy: if False the returned DataFrame may share memory with self.dataset.X; callers
+            that will mutate the output frame must pass copy=True
         """
         if type(self.dataset.X) == csr_matrix:
-            x_data = self.dataset.X.A.astype(np.float32)  # convert sparse matrix to dense matrix
+            x_data = self.dataset.X.A.astype(np.float32, copy=False)
         else:
-            x_data = self.dataset.X.astype(np.float32)
+            x_data = np.asarray(self.dataset.X, dtype=np.float32)
 
         if convert_to_tpm:
             x_data = log_exp2cpm(x_data)
         if scaling_by_sample:
             from sklearn import preprocessing as pp
-            scaler = pp.MinMaxScaler(feature_range=(0, 1), copy=True)
-            x_data = scaler.fit_transform(x_data.T).T
+            scaler = pp.MinMaxScaler(feature_range=(0, 1), copy=False)
+            x_data = scaler.fit_transform(x_data.T, copy=False).T
 
-        df = pd.DataFrame(data=x_data, index=self.dataset.obs.index,
-                          columns=self.dataset.var.index).round(3)
+        df = pd.DataFrame(
+            data=x_data.copy() if copy else x_data,
+            index=self.dataset.obs.index,
+            columns=self.dataset.var.index,
+        )
+        if round_decimals is not None:
+            df = df.round(round_decimals)
         if result_file_path is not None:
-            df.to_csv(result_file_path, float_format='%.3f')
+            df.to_csv(result_file_path, float_format=f'%.{0 if round_decimals is None else round_decimals}f')
         return df
 
-    def get_cell_fraction(self) -> Union[None, pd.DataFrame]:
+    def get_cell_fraction(self, round_decimals: int = None, copy: bool = False) -> Union[None, pd.DataFrame]:
         """
-        Get cell fraction, cells by cell types
+        Get cell fraction, cells by cell types.
+
+        Added round_decimals/copy knobs to match get_df's training-path optimization:
+        downstream concatenation doesn't need an eagerly rounded/memory-copied obs
+        DataFrame per training set.
         """
         if self.dataset.obs.shape[1] > 0:
-            return self.dataset.obs.round(3)
+            y = self.dataset.obs
+            if copy:
+                y = y.copy()
+            if round_decimals is not None:
+                y = y.round(round_decimals)
+            return y
         else:
             print('   There is no cell fraction in this .h5ad file')
             return None
@@ -127,11 +151,18 @@ class ReadExp(object):
         """
         return self.file_type
 
-    def get_exp(self) -> pd.DataFrame:
+    def get_exp(self, round_decimals: int = 3, copy: bool = False) -> pd.DataFrame:
         """
-        Get the expression matrix
+        Get the expression matrix.
+
+        :param round_decimals: decimals to round floats to (legacy default is 3); pass None to keep native precision.
+        :param copy: if True the returned DataFrame is guaranteed independent of internal storage. If False
+            the returned frame may share memory with self.exp.
         """
-        return self.exp.round(3)
+        df = self.exp.copy() if copy else self.exp
+        if round_decimals is not None:
+            df = df.round(round_decimals)
+        return df
 
     def save(self, file_path, sep=',', transpose: bool = False):
         """
@@ -145,17 +176,27 @@ class ReadExp(object):
             self.exp = self.exp.T.copy()
         self.exp.to_csv(file_path, sep=sep, float_format='%.3f')
 
-    def do_scaling(self):
+    def do_scaling(self, round_decimals: int = None):
         """
-        Scaling GEPs by sample to [0, 1], same as Scaden
+        Scaling GEPs by sample to [0, 1], same as Scaden.
+
+        Added round_decimals knob: the training ingestion hot path can skip elementwise
+        rounding when downstream use only needs the scaled float32 values, saving one
+        large DataFrame materialization per call.
         """
         if not self.scaled_by_sample:
             from sklearn import preprocessing as pp
-            scaler = pp.MinMaxScaler(feature_range=(0, 1), copy=True)
-            x_scaled = scaler.fit_transform(self.exp.T).T  # scaling by column (sample), so T is needed here
+            scaler = pp.MinMaxScaler(feature_range=(0, 1), copy=False)
+            x_scaled = scaler.fit_transform(self.exp.to_numpy(dtype=np.float32, copy=False).T, copy=False).T
             self.scaled_by_sample = True
-            self.exp = pd.DataFrame(data=x_scaled, index=self.exp.index,
-                                    columns=self.exp.columns).round(3)
+            self.exp = pd.DataFrame(
+                data=x_scaled,
+                index=self.exp.index,
+                columns=self.exp.columns,
+                copy=False,
+            )
+            if round_decimals is not None:
+                self.exp = self.exp.round(round_decimals)
         # return self.exp
 
     def do_scaling_by_constant(self, divide_by=20):
@@ -167,25 +208,33 @@ class ReadExp(object):
         if np.any(self.exp.values > 1.0):
             self.exp = self.exp / divide_by
 
-    def align_with_gene_list(self, gene_list: list = None, fill_not_exist=False, pathway_list: bool = False):
+    def align_with_gene_list(self, gene_list: list = None, fill_not_exist=False, pathway_list: bool = False,
+                             round_decimals: int = None):
         """
-        Align the expression matrix with a gene list and rescale to TPM or log2(TPM + 1)
+        Align the expression matrix with a gene list and rescale to TPM or log2(TPM + 1).
 
-        :param gene_list: gene list
+        :param gene_list: gene list (order matters, output will match this order)
         :param fill_not_exist: fill 0 if gene not exist in the provided gene_list when True
         :param pathway_list: gene list contains pathway names, so TPM normalization is not suitable
+        :param round_decimals: optional rounding applied after filling/alignment (None keeps native precision).
         """
-        common_genes = [i for i in gene_list if i in self.exp.columns]
-        not_exist_in_gene_list = [i for i in gene_list if i not in common_genes]
-        removed_genes = [i for i in self.exp.columns if i not in common_genes]
+        current_columns = self.exp.columns
+        current_set = set(current_columns)
+        gene_list_pd = pd.Index(gene_list)
+        gene_set = set(gene_list)
+        common_genes = [g for g in gene_list if g in current_set]
+        not_exist_in_gene_list = [g for g in gene_list if g not in current_set]
+        removed_genes = [g for g in current_columns if g not in gene_set]
         print(f'   {len(common_genes)} common genes will be used, {len(removed_genes)} genes will be removed.')
-        self.exp = self.exp.loc[:, common_genes].copy()
         if fill_not_exist and (len(not_exist_in_gene_list) != 0):
             print(f'   {len(not_exist_in_gene_list)} genes are not in current dataset, 0 will be filled')
-            _not_exist_exp = pd.DataFrame(np.zeros((self.exp.shape[0], len(not_exist_in_gene_list))), index=self.exp.index,
-                                          columns=not_exist_in_gene_list)
-            self.exp = pd.concat([self.exp, _not_exist_exp], axis=1)
-            self.exp = self.exp.loc[:, gene_list].copy()
+            # Use reindex on axis=1 to both preserve requested gene order and fill missing columns with 0.
+            # Avoids pd.concat([zeros_df, self.exp]) allocation of a large zero-filled column block.
+            self.exp = self.exp.reindex(columns=gene_list_pd, fill_value=0.0, copy=False)
+        else:
+            self.exp = self.exp.loc[:, common_genes].copy()
+        if round_decimals is not None:
+            self.exp = self.exp.round(round_decimals)
         if not pathway_list:
             if self.file_type == 'log_space':  # scaling to TPM after alignment
                 self.to_tpm()

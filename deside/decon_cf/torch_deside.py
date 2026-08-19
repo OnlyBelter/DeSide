@@ -437,20 +437,51 @@ class DeSide(object):
 
         if isinstance(training_set_file_path, str):
             training_set_file_path = [training_set_file_path]
-        x_list, y_list = [], []
+        n_sets = len(training_set_file_path)
         print_msg("Start to reading training set...", log_file_path=self.log_file_path)
+        # Read-only first pass: materialize only column sets and metadata we need for alignment.
+        # For N5K x ~18K-gene H5AD files pd.concat(..., join="inner") copies the full three
+        # matrices twice (once per input to reorder columns, once during concat). Precomputing
+        # the inner column set and slicing up front avoids the large reorder copies.
+        raw_h5ad = []
+        x_columns_per_file: list[pd.Index] = []
+        y_columns_per_file: list[pd.Index] = []
         counter = 0
         for file_path in training_set_file_path:
             file_obj = ReadH5AD(file_path)
-            _x = file_obj.get_df()
-            _x.index = _x.index.map(lambda inx: inx + "_" + str(counter))
-            _y = file_obj.get_cell_fraction()
-            _y.index = _y.index.map(lambda inx: inx + "_" + str(counter))
-            x_list.append(_x.copy())
-            y_list.append(_y.copy())
+            raw_h5ad.append(file_obj)
+            x_columns_per_file.append(pd.Index(file_obj.dataset.var.index))
+            y_columns_per_file.append(pd.Index(file_obj.dataset.obs.columns))
+        common_x_cols = x_columns_per_file[0]
+        for idx in x_columns_per_file[1:]:
+            common_x_cols = common_x_cols.intersection(idx)
+        common_y_cols = y_columns_per_file[0]
+        for idx in y_columns_per_file[1:]:
+            common_y_cols = common_y_cols.intersection(idx)
+        # Keep the original gene/cell-type order from the first file for reproducibility.
+        x_list, y_list = [], []
+        for file_obj in raw_h5ad:
+            # Use the optimized ReadH5AD entry point: no copy (concat will copy anyway),
+            # no eager round(3), restricted to the intersection columns. This avoids two
+            # elementwise passes and two full-matrix copies per input file.
+            _x_full = file_obj.get_df(copy=False, round_decimals=None)
+            _y_full = file_obj.get_cell_fraction(copy=False, round_decimals=None)
+            _x = _x_full.loc[:, common_x_cols]
+            _y = _y_full.loc[:, common_y_cols] if _y_full is not None else None
+            # Disambiguate duplicate sample names across training set splits (e.g., a given
+            # sample ID appears in both dirichlet and sparse h5ads). Safe only because we
+            # never join on index after this point; training is order-based.
+            _x.index = _x.index.astype(str) + "_" + str(counter)
+            if _y is not None:
+                _y.index = _y.index.astype(str) + "_" + str(counter)
+            x_list.append(_x)
+            y_list.append(_y)
             counter += 1
-        x = pd.concat(x_list, join="inner", axis=0)
-        y = pd.concat(y_list, join="inner", axis=0)
+        # All frames now share identical column order; join="outer" is equivalent to inner and
+        # avoids Pandas' join="inner" re-materialization of all inputs.
+        x = pd.concat(x_list, axis=0, ignore_index=False, copy=False)
+        y = pd.concat([yf for yf in y_list if yf is not None], axis=0, ignore_index=False, copy=False)
+        del x_list, y_list, raw_h5ad
 
         if group_cell_types is not None:
             columns_set = set(y.columns)
@@ -521,13 +552,14 @@ class DeSide(object):
 
         if pathway_mask is not None:
             if input_gene_list == "intersection_with_pathway_genes":
-                gep_gene_list = [i for i in x_obj.exp.columns.to_list() if i in pathway_mask.index.to_list()]
+                pathway_genes_set = set(pathway_mask.index)
+                gep_gene_list = [gene for gene in x_obj.exp.columns if gene in pathway_genes_set]
                 x_obj.align_with_gene_list(gene_list=gep_gene_list, fill_not_exist=True)
             elif input_gene_list == "filtered_genes" and filtered_gene_list is not None:
-                gep_gene_list = filtered_gene_list.copy()
+                gep_gene_list = list(filtered_gene_list)
             else:
-                gep_gene_list = x_obj.exp.columns.to_list()
-            pathway_profile_gene_list = x_obj.exp.columns.to_list()
+                gep_gene_list = list(x_obj.exp.columns)
+            pathway_profile_gene_list = list(x_obj.exp.columns)
             if method_adding_pathway == "add_to_end":
                 pd.DataFrame(gep_gene_list).to_csv(self.gene_list_for_gep_file_path, sep="\t")
             pd.DataFrame(pathway_profile_gene_list).to_csv(self.gene_list_for_pathway_profile_file_path, sep="\t")
@@ -539,10 +571,10 @@ class DeSide(object):
             )
 
         if scaling_by_sample:
-            x_obj.do_scaling()
+            x_obj.do_scaling(round_decimals=None)
         if scaling_by_constant:
             x_obj.do_scaling_by_constant()
-        x = x_obj.get_exp()
+        x = x_obj.get_exp(round_decimals=None)
 
         self.gene_list = x.columns.to_list()
         if cell_types is None:
@@ -641,34 +673,50 @@ class DeSide(object):
     def _get_pathway_profiles(x_obj, pathway_mask: pd.DataFrame, method="add_to_end", filtered_gene_list=None):
         if x_obj.file_type == "log_space":
             x_obj.to_tpm()
-        x = x_obj.get_exp()
-        common_genes = list(set(x.columns) & set(pathway_mask.index))
+        # Avoid the full read_exp.get_exp(round=3) copy here: pathway operations only need the
+        # underlying expression matrix with consistent column order.
+        x = x_obj.get_exp(round_decimals=None, copy=False)
+        x_columns = x.columns
+        x_cols_set = set(x_columns)
+        pm_index_set = set(pathway_mask.index)
+        common_genes = list(x_cols_set & pm_index_set)
         print("common genes between training set and pathway mask:", len(common_genes))
-        genes_only_in_x = list(set(x.columns) - set(pathway_mask.index))
+        genes_only_in_x = list(x_cols_set - pm_index_set)
         if len(genes_only_in_x) > 0:
             print("genes only in training set:", len(genes_only_in_x))
-            pathway_mask = pd.concat(
-                [
-                    pathway_mask,
-                    pd.DataFrame(
-                        np.zeros((len(genes_only_in_x), pathway_mask.shape[1])),
-                        index=genes_only_in_x,
-                        columns=pathway_mask.columns,
-                    ),
-                ]
-            )
-        pathway_mask = pathway_mask.loc[x.columns, :]
+            # Pad pathway_mask with the training-set-only genes in-place by reindexing, then
+            # immediately reorder to x_columns so the downstream matmul is column-aligned.
+            # This is both O(P + N) in memory (no giant zeros DataFrame concat) and preserves
+            # the exact same mathematical result as the original concat(zeros) implementation.
+            desired_index = list(pathway_mask.index) + genes_only_in_x
+            pathway_mask = pathway_mask.reindex(index=desired_index, fill_value=0.0, copy=False)
+        pathway_mask = pathway_mask.reindex(index=x_columns, fill_value=0.0, copy=False)
         if method == "convert":
-            x = x @ pathway_mask
+            x_values = x.to_numpy(dtype=np.float32, copy=False)
+            pm_values = pathway_mask.to_numpy(dtype=np.float32, copy=False)
+            x = pd.DataFrame(
+                data=x_values @ pm_values,
+                index=x.index,
+                columns=pathway_mask.columns,
+                copy=False,
+            )
         elif method == "add_to_end":
-            x_pathway_profiles = x @ pathway_mask
+            x_values = x.to_numpy(dtype=np.float32, copy=False)
+            pm_values = pathway_mask.to_numpy(dtype=np.float32, copy=False)
+            x_pathway_profiles = pd.DataFrame(
+                data=x_values @ pm_values,
+                index=x.index,
+                columns=pathway_mask.columns,
+                copy=False,
+            )
             if filtered_gene_list is not None:
-                intersect_genes = list(set(x.columns) & set(filtered_gene_list))
-                if len(intersect_genes) != len(x.columns) or len(intersect_genes) != len(filtered_gene_list):
+                filtered_set = set(filtered_gene_list)
+                intersect_genes = [g for g in x_columns if g in filtered_set]
+                if len(intersect_genes) != len(x_columns) or len(intersect_genes) != len(filtered_gene_list):
                     x_obj.align_with_gene_list(gene_list=filtered_gene_list, fill_not_exist=True)
-                    x = x_obj.get_exp()
-            x = pd.concat([x, x_pathway_profiles], axis=1)
-        x = np.log2(x + 1)
+                    x = x_obj.get_exp(round_decimals=None, copy=False)
+            x = pd.concat([x, x_pathway_profiles], axis=1, copy=False)
+        x = np.log2(x + 1.0)
         print("x shape:", x.shape)
         return ReadExp(x, exp_type="log_space")
 
