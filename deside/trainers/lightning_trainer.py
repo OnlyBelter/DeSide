@@ -151,19 +151,60 @@ def train_deside_lightning(
         even if the installed torch wheel was built against a CUDA compute capability that the
         current GPU does not implement (e.g. cpu-only wheel in a GPU env, or cu124 wheel on a
         Kepler-era card). That situation raises ``cudaErrorNoKernelImageForDevice`` the first time
-        any kernel launches (e.g. the first DataLoader length probe in ``_run_sanity_check``),
-        surfacing as a cryptic ``AcceleratorError`` at ``Sanity Checking: 0/?`` instead of a
-        usable error message. This probe runs a single tiny matmul on device 0 before building
-        the Trainer so we can fall back to CPU cleanly.
+        any kernel launches (e.g. the first DataLoader length probe in ``_run_sanity_check``), or
+        ``CUBLAS_STATUS_ARCH_MISMATCH`` from the bundled cuBLAS stub if the linear-algebra kernels
+        themselves are missing, surfacing as a cryptic ``AcceleratorError`` at
+        ``Sanity Checking: 0/?`` instead of a usable error message. This probe runs a single tiny
+        matmul on device 0 before building the Trainer so we can fall back to CPU cleanly and
+        print actionable diagnostic context.
         """
         import os as _os
+        import subprocess as _sp
+
+        def _driver_cuda_version() -> str:
+            try:
+                out = _sp.run(
+                    ["nvidia-smi", "--query-gpu=driver_version,name", "--format=csv,noheader,nounits"],
+                    capture_output=True, text=True, timeout=5,
+                )
+                if out.returncode == 0 and out.stdout.strip():
+                    first_line = out.stdout.strip().splitlines()[0]
+                    parts = [p.strip() for p in first_line.split(",")]
+                    if len(parts) == 2:
+                        drv, gname = parts
+                    else:
+                        drv, gname = "unknown", first_line
+                    # try CUDA version line too (cheap second call)
+                    out2 = _sp.run(
+                        ["nvidia-smi"],
+                        capture_output=True, text=True, timeout=5,
+                    )
+                    cuda_ver = "?"
+                    if out2.returncode == 0:
+                        for line in out2.stdout.splitlines():
+                            low = line.lower()
+                            if "cuda version:" in low:
+                                tok = line.split("CUDA Version:")[-1].split()[0].strip()
+                                cuda_ver = tok
+                                break
+                    return f"driver={drv}, cuda_driver_cap={cuda_ver}, gpu={gname}"
+            except Exception:
+                return ""
 
         if _os.environ.get("DESIDE_FORCE_CUDA", "0") not in ("0", "", "false", "False", "no", "No"):
             return True
         if not torch.cuda.is_available():
             return False
+
+        torch_cuda_tag = getattr(torch.version, "cuda", None) or "?"
+        torch_ver = getattr(torch, "__version__", "?")
         try:
             dev = torch.device("cuda:0")
+            try:
+                p = torch.cuda.get_device_properties(0)
+                gpu_line = f"gpu={p.name} SM={p.major}.{p.minor} mem={p.total_memory//1024**3}GiB"
+            except Exception:
+                gpu_line = f"gpu=device0 unknown"
             a = torch.empty(2, 2, device=dev, dtype=torch.float32)
             b = torch.empty(2, 2, device=dev, dtype=torch.float32)
             _ = (a @ b).sum().item()
@@ -171,24 +212,46 @@ def train_deside_lightning(
             return True
         except Exception as exc:  # pragma: no cover - HPC env specific
             msg = str(exc).lower()
-            is_cuda_mismatch = any(
+            try:
+                p2 = torch.cuda.get_device_properties(0)
+                gpu_line2 = f"gpu={p2.name} SM={p2.major}.{p2.minor} mem={p2.total_memory//1024**3}GiB"
+            except Exception:
+                gpu_line2 = f"gpu=device0 unknown"
+            is_cublas_arch = "cublas_status_arch_mismatch" in msg or "cublas" in msg
+            is_no_kernel = any(
                 tag in msg for tag in (
-                    "no kernel image", "nokernelfordevice", "cuda error",
-                    "invalid device function", "kernel image",
+                    "no kernel image", "nokernelfordevice", "invalid device function", "kernel image",
                 )
             )
-            print(
-                f"[WARN] CUDA probe failed ({type(exc).__name__}: {exc}).\n"
-                f"       This usually means the installed torch wheel was not built for this GPU's\n"
-                f"       compute capability (cudaErrorNoKernelImageForDevice). Falling back to CPU\n"
-                f"       training for this run. To force CUDA (hard-fail on probe), set DESIDE_FORCE_CUDA=1.\n"
-                + (
-                    ""
-                    if is_cuda_mismatch
-                    else "       (probe raised an unexpected exception class — check cuda-memcheck / drivers.)\n"
-                ),
-                flush=True,
-            )
+            is_cuda_mismatch = is_cublas_arch or is_no_kernel or ("cuda error" in msg)
+            driver_line = _driver_cuda_version()
+            lines = [
+                f"[WARN] CUDA probe failed ({type(exc).__name__}: {exc}).",
+            ]
+            if is_cublas_arch:
+                lines += [
+                    "       cuBLAS STATUS ARCH MISMATCH: the torch wheel was bundled with a cuBLAS build",
+                    "       that has no kernel for this GPU's SM version. This is 100% a wheel-version",
+                    "       mismatch — reinstall torch with the correct CUDA tag for your driver/GPU",
+                    "       (see Phase 2 commands below, or pytorch.org install matrix).",
+                ]
+            elif is_no_kernel:
+                lines += [
+                    "       NO KERNEL IMAGE FOR DEVICE (code 209): torch wheel's CUDA binaries do not",
+                    "       include a compiled kernel for this GPU's SM version.",
+                ]
+            else:
+                lines += [
+                    "       (probe raised a CUDA exception class not in the standard mismatch set —",
+                    "        check nvidia-smi / drivers for more details.)",
+                ]
+            lines += [
+                f"       Diagnostics: torch={torch_ver} torch_built_for_cuda={torch_cuda_tag} {gpu_line2}",
+                (f"       nvidia-smi says: {driver_line}" if driver_line else "       (nvidia-smi unavailable in this sandbox)"),
+                "       Falling back to CPU training for this run. To force CUDA (hard-fail on probe),",
+                "       set DESIDE_FORCE_CUDA=1.",
+            ]
+            print("\n".join(lines), flush=True)
             try:
                 if torch.cuda.is_initialized():
                     torch.cuda.synchronize()
