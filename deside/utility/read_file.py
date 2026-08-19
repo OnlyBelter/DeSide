@@ -5,7 +5,6 @@ import pandas as pd
 import anndata as an
 from typing import Union
 from scipy.sparse import csr_matrix
-from sklearn import preprocessing as pp
 from .pub_func import (log_exp2cpm, read_df, non_log2log_cpm,
                        non_log2cpm, get_inx2cell_type)
 
@@ -41,6 +40,7 @@ class ReadH5AD(object):
         if convert_to_tpm:
             x_data = log_exp2cpm(x_data)
         if scaling_by_sample:
+            from sklearn import preprocessing as pp
             scaler = pp.MinMaxScaler(feature_range=(0, 1), copy=True)
             x_data = scaler.fit_transform(x_data.T).T
 
@@ -150,6 +150,7 @@ class ReadExp(object):
         Scaling GEPs by sample to [0, 1], same as Scaden
         """
         if not self.scaled_by_sample:
+            from sklearn import preprocessing as pp
             scaler = pp.MinMaxScaler(feature_range=(0, 1), copy=True)
             x_scaled = scaler.fit_transform(self.exp.T).T  # scaling by column (sample), so T is needed here
             self.scaled_by_sample = True

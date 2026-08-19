@@ -50,6 +50,7 @@ dependencies = [
     "h5py",
     "jinja2>=3.1",
     "numba>=0.57",
+    "pyyaml",
 ]
 #dynamic = ["version"]
 
@@ -68,6 +69,9 @@ commit = true
 tag = true
 push = false
 
+[project.scripts]
+deside = "deside.cli.main:main"
+
 [tool.bumpver.file_patterns]
 "pyproject.toml" = [
     'current_version = "{version}"',
@@ -84,3 +88,12 @@ push = false
     "{version}",
     "{pep440_version}",
 ]
+
+# Setuptools configuration
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["deside*"]
+exclude = ["tests*", "docs*", "examples*"]
+
+[tool.setuptools.package-data]
+"deside.configs" = ["*.yaml"]

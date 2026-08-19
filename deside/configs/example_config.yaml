@@ -1,0 +1,79 @@
+# DeSide Configuration File (PyTorch/Lightning 2.x line)
+# Style mirrors VAEDecon example_config.yaml: sections data, training, model, evaluation.
+# Example shown below reproduces the "E2 - Training a model from scratch" notebook workflow
+# from the OnlyBelter/DeSide_mini_example repository.
+
+data:
+  data_dir: './datasets/'
+  # Training datasets (paths to .h5ad that contain GEP + cell fraction).
+  training_sets:
+    D1: './datasets/simulated_bulk_cell_dataset/D1/simu_bulk_exp_Mixed_N100K_D1.h5ad'
+  # Optional cell-type grouping dictionary (group subtypes before training).
+  # Leave commented or empty to use the cell types from each .h5ad as-is.
+  group_cell_types:
+    B Cells: ['Non-plasma B cells', 'Plasma B cells']
+    CD4 T: ['CD4 T']
+    CD8 T: ['CD8 T (GZMK high)', 'CD8 T effector']
+    DC: ['DC']
+    Endothelial Cells: ['Endothelial Cells']
+    Cancer Cells: ['Cancer Cells']
+    Fibroblasts: ['CAFs', 'Myofibroblasts']
+    Macrophages: ['Macrophages']
+    Mast Cells: ['Mast Cells']
+    NK: ['NK']
+    Neutrophils: ['Neutrophils']
+    Double-neg-like T: ['Double-neg-like T']
+    Monocytes: ['Monocytes']
+  # Optional explicit cell-type order for training. Overrides group_cell_types when non-empty.
+  cell_types: []
+  # Expression preprocessing.
+  scaling_by_sample: false
+  scaling_by_constant: true
+  # Remove "Cancer Cells" from training fractions; prediction can still fill it later as residual.
+  remove_cancer_cell: true
+  # Pathway/gene set inputs (used when model.pathway_network is true).
+  pathway_gene_set_files:
+    - './datasets/gene_set/c2.cp.kegg.v2023.1.Hs.symbols.gmt'
+    - './datasets/gene_set/c2.cp.reactome.v2023.1.Hs.symbols.gmt'
+  method_adding_pathway: 'add_to_end'  # 'add_to_end' or 'convert'
+  input_gene_list: 'filtered_genes'  # '' | 'filtered_genes' | 'intersection_with_pathway_genes'
+  filtered_gene_list_file: './datasets/simulated_bulk_cell_dataset/D1/gene_list_filtered_by_high_corr_gene_and_quantile_range.csv'
+  filtered_gene_list_index_col: 0
+
+training:
+  output_dir: './output/deside'
+  model_name: 'DeSide'
+  naming_postfix: 'scratch_E2_D1'
+  learning_rate: 1.0e-4
+  batch_size: 128
+  num_epochs: 10000
+  n_early_stopping_patience: 100
+  validation_split: 0.2
+  validation_seed: 42
+  loss_function_alpha: 0.5  # alpha * MAE + (1 - alpha) * RMSE
+  one_minus_alpha: false
+  callback: true
+  verbose: 1
+  fine_tune: false
+
+model:
+  # Main GEP branch architecture (hidden_units, dropout_rates).
+  hidden_units: [200, 2000, 2000, 2000, 50]
+  dropout_rates: [0.05, 0.05, 0.05, 0.2, 0]
+  # Optional independent pathway branch used only when pathway_network=true.
+  pathway_network: true
+  pathway_hidden_units: [50, 500, 500, 500, 50]
+  pathway_dropout_rates: [0, 0, 0, 0, 0]
+  # Normalization: layer_normalization | batch_normalization | null.
+  normalization: 'layer_normalization'
+  # One entry per layer boundary: input + each hidden layer (len = len(hidden_units) + 1).
+  normalization_layer: [0, 0, 1, 1, 1, 1]
+  last_layer_activation: 'sigmoid'  # 'sigmoid' or 'softmax'
+
+evaluation:
+  # Post-processing applied during DeSide.predict(...) and during on-demand eval.
+  cell_prop_threshold: 0.0001
+  cancer_cell_type_name: 'Cancer Cells'
+  # Toggle prediction post-processing rules for scratch / pretrained workflows.
+  renormalize_non_cancer_after_threshold: true
+  fill_cancer_as_residual: true

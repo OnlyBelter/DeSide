@@ -2,21 +2,14 @@ import os
 import csv
 import json
 import time
-import umap
 from typing import Union
 import numpy as np
 import pandas as pd
 # import anndata as an
-import seaborn as sns
-import matplotlib as mpl
 from pathlib import Path
 import scipy.stats as stats
-from joblib import dump, load
-import matplotlib.pyplot as plt
 from scipy.sparse import csr_matrix
-from sklearn.decomposition import PCA
 from anndata import AnnData, read_h5ad
-from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 import gzip
 import shutil
 
@@ -60,6 +53,10 @@ def print_df(df):
 
 
 def set_fig_style(font_family=None, font_size=None):
+    import seaborn as sns
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
+
     fig, ax = plt.subplots()
     sns.set_style("white")
     try:
@@ -286,6 +283,8 @@ def calculate_rmse(y_true: pd.DataFrame, y_pred: pd.DataFrame):
     :param y_pred: a dataFrame
     :return:
     """
+    from sklearn.metrics import mean_squared_error
+
     if y_true.shape[1] == 1:  # only one feature
         multioutput = 'uniform_average'
     else:  # multiple cell types
@@ -302,6 +301,8 @@ def calculate_mae(y_true: pd.DataFrame, y_pred: pd.DataFrame):
     :param y_pred: a dataFrame
     :return:
     """
+    from sklearn.metrics import mean_absolute_error
+
     if y_true.shape[1] == 1:  # only one feature
         multioutput = 'uniform_average'
     else:  # multiple cell types
@@ -317,6 +318,8 @@ def calculate_r2(y_true, y_pred):
     :param y_pred:
     :return:
     """
+    from sklearn.metrics import r2_score
+
     return r2_score(y_true=y_true, y_pred=y_pred, multioutput='raw_values')
 
 
@@ -908,6 +911,9 @@ def do_pca_analysis(exp_df, n_components=5, pca_result_fp=None, save_model: bool
     :param save_model:
     :return: fitted PCA model
     """
+    from joblib import dump, load
+    from sklearn.decomposition import PCA
+
     if os.path.exists(pca_result_fp):
         print(f'Loading PCA result from file: {pca_result_fp}')
         pca = load(pca_result_fp)
@@ -931,6 +937,9 @@ def do_umap_analysis(exp_df, n_components=5, n_neighbors=15, min_dist=0.1,
     :param save_model:
     :return:
     """
+    import umap
+    from joblib import dump, load
+
     if os.path.exists(umap_model_result_fp):
         print(f'Loading UMAP result from file: {umap_model_result_fp}')
         umap_model = load(umap_model_result_fp)

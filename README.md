@@ -129,6 +129,50 @@ python examples/example1_pretrained_model.py \
   --output-file ./results/y_pred.csv
 ```
 
+### Example 2 — Training a model from scratch (YAML config)
+
+DeSide 2.x (branch `pytorch-dev`) ships with a structured example YAML
+configuration organized into `data / training / model / evaluation` sections,
+along with corresponding one-line training helpers. The configuration mirrors
+the E2 scratch-training workflow in [DeSide_mini_example](https://github.com/OnlyBelter/DeSide_mini_example/blob/main/E2%20-%20Training%20a%20model%20from%20scratch.ipynb).
+
+#### Python API one-liner (recommended for notebooks)
+
+```python
+from deside.workflow import train_from_config_file
+
+model = train_from_config_file("deside/configs/example_config.yaml")
+```
+
+This one line runs the full E2 training flow end to end: it loads the YAML
+configuration, instantiates the `DeSide` facade, resolves the pathway gene
+set mask and filtered gene list, calls `DeSide.train_model(...)` with the
+mapped hyper-parameters, and copies the source YAML into the model directory
+for reproducibility.
+
+#### CLI one-liner (recommended for HPC / CI)
+
+```bash
+deside train --config deside/configs/example_config.yaml
+```
+
+The `deside` entry point is registered automatically when DeSide is installed
+(the `deside = deside.cli.main:main` console script defined in
+[pyproject.toml](pyproject.toml)). You can override the output directory on
+the fly:
+
+```bash
+deside train --config deside/configs/example_config.yaml --output-dir ./output/deside_E2_D1
+```
+
+The YAML file is organized into `data / training / model / evaluation`
+sections for readability and reproducibility. See
+[deside/configs/example_config.yaml](deside/configs/example_config.yaml) for
+the full parameter reference and [deside/configs/__init__.py](deside/configs/__init__.py)
+for how each section is mapped into `DeSide.train_model(...)` call arguments
+and hyper-parameter dict.
+
+
 ## Documentation
 
 For detailed documentation, see https://deside.readthedocs.io/. The

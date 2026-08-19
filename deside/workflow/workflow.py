@@ -6,10 +6,26 @@ from ..decon_cf import DeSide
 from ..utility import check_dir, print_msg
 from ..utility.read_file import ReadH5AD
 from ..utility.compare import mean_exp_of_marker_gene, read_and_merge_result, cal_gene_signature_score
-from ..plot import (compare_exp_and_cell_fraction, plot_predicted_result,
-                    compare_cell_fraction_across_cancer_type, ScatterPlot, compare_y_y_pred_plot)
+
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.simplefilter(action='ignore', category=UserWarning)
+
+
+def _lazy_plot_imports():
+    from ..plot import (
+        compare_exp_and_cell_fraction,
+        plot_predicted_result,
+        compare_cell_fraction_across_cancer_type,
+        ScatterPlot,
+        compare_y_y_pred_plot,
+    )
+    return (
+        compare_exp_and_cell_fraction,
+        plot_predicted_result,
+        compare_cell_fraction_across_cancer_type,
+        ScatterPlot,
+        compare_y_y_pred_plot,
+    )
 
 
 def tcga_evaluation(marker_gene_file_path, total_result_dir, pred_cell_frac_tcga_dir,
@@ -38,6 +54,13 @@ def tcga_evaluation(marker_gene_file_path, total_result_dir, pred_cell_frac_tcga
     :param cell_type2subtypes: a dictionary of cell types, key is the cell type, value is a list of subtypes
     :return:
     """
+    (
+        compare_exp_and_cell_fraction,
+        plot_predicted_result,
+        compare_cell_fraction_across_cancer_type,
+        ScatterPlot,
+        compare_y_y_pred_plot,
+    ) = _lazy_plot_imports()
     # marker_gene_file_path = marker_gene_file_path
     # pred_cell_frac_dir = pred_cell_frac_tcga_dir
     # result_dir = total_result_dir
@@ -180,6 +203,13 @@ def run_step3(evaluation_dataset2path, log_file_path, result_dir, model_dir,
     :param hyper_params: dict, hyper parameters for DNN model
     :param group_cell_types: dict, group cell types
     """
+    (
+        _compare_exp_and_cell_fraction,
+        _plot_predicted_result,
+        _compare_cell_fraction_across_cancer_type,
+        ScatterPlot,
+        compare_y_y_pred_plot,
+    ) = _lazy_plot_imports()
     # Step3, evaluation on test set
     print_msg('Step3: Predicting cell fractions of test set and evaluation...',
               log_file_path=log_file_path)
@@ -264,6 +294,13 @@ def run_step4(tcga_data_dir: str, cancer_types: list, log_file_path: str, model_
     """
     # TCGA
     print_msg("Step 4: Predict cell fraction of TCGA...", log_file_path=log_file_path)
+    (
+        _compare_exp_and_cell_fraction,
+        plot_predicted_result,
+        _compare_cell_fraction_across_cancer_type,
+        _ScatterPlot,
+        _compare_y_y_pred_plot,
+    ) = _lazy_plot_imports()
     # model_name = 'DeSide'
     for model_name in model_names:
         if bulk_tpm_file_path is None:

@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 from typing import Union
 from .read_file import ReadExp
-from sklearn.neighbors import NearestNeighbors
 from .pub_func import default_core_marker_genes, aggregate_marker_gene_exp, read_df
 
 
@@ -46,6 +45,8 @@ class QueryNeighbors(object):
         - if radius is None, fit a model with specific n_neighbors
         - if radius is not None, fit a model with specific radius
         """
+        from sklearn.neighbors import NearestNeighbors
+
         if radius is not None:
             nn_model = NearestNeighbors(radius=radius)
         else:
