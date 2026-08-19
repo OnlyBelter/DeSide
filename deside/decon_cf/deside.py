@@ -385,9 +385,9 @@ class DeSide(object):
         self.model = model
 
     def train_model(self, training_set_file_path: Union[str, list], hyper_params: dict,
-                    cell_types: list = None, scaling_by_sample: bool = True, callback: bool = True,
-                    n_epoch: int = 10000, metrics: str = 'mse', n_patience: int = 100, scaling_by_constant=False,
-                    remove_cancer_cell=False, fine_tune=False, one_minus_alpha: bool = False, verbose=1,
+                    cell_types: list = None, scaling_by_sample: bool = False, callback: bool = True,
+                    n_epoch: int = 10000, metrics: str = 'mse', n_patience: int = 100, scaling_by_constant=True,
+                    remove_cancer_cell=True, fine_tune=False, one_minus_alpha: bool = False, verbose=1,
                     pathway_mask=None, method_adding_pathway='add_to_end', input_gene_list: str = None,
                     filtered_gene_list: list = None, group_cell_types: dict = None):
         """
@@ -681,8 +681,8 @@ class DeSide(object):
         return x
 
     def predict(self, input_file, exp_type, output_file_path: str = None, transpose: bool = False,
-                print_info: bool = True, add_cell_type: bool = False, scaling_by_constant=False,
-                scaling_by_sample=True, one_minus_alpha: bool = False, pathway_mask: pd.DataFrame = None,
+                print_info: bool = True, add_cell_type: bool = False, scaling_by_constant=True,
+                scaling_by_sample=False, one_minus_alpha: bool = False, pathway_mask: pd.DataFrame = None,
                 method_adding_pathway: str = 'add_to_end', hyper_params: dict = None):
         """
         Predicting cell proportions using pre-trained model.

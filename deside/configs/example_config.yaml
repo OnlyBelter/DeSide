@@ -46,7 +46,7 @@ training:
   naming_postfix: 'scratch_E2_D1'
   learning_rate: 1.0e-4
   batch_size: 128
-  num_epochs: 10000
+  num_epochs: 3000
   n_early_stopping_patience: 100
   validation_split: 0.2
   validation_seed: 42
