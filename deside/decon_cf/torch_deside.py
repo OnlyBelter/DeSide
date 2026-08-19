@@ -453,10 +453,61 @@ class DeSide(object):
         y = pd.concat(y_list, join="inner", axis=0)
 
         if group_cell_types is not None:
+            columns_set = set(y.columns)
             for g, _cell_types in group_cell_types.items():
-                if len(_cell_types) > 1:
-                    y[g] = y[_cell_types].sum(axis=1)
-                    y = y.drop(_cell_types, axis=1)
+                _cell_types_list = list(_cell_types)
+                if not _cell_types_list:
+                    continue
+                # Ensure the grouped output column g is considered alongside its subtypes. The
+                # group name can legitimately appear as a raw column in SimuTME outputs (both when
+                # the file exports only the pre-grouped column, and when it exports both the group
+                # name and raw subtypes alongside one another). Treat g as another subtype so the
+                # sum is always written back to g cleanly and never silently dropped.
+                subtype_candidates = list(_cell_types_list)
+                if g in columns_set and g not in subtype_candidates:
+                    subtype_candidates.append(g)
+                missing_in_y = [c for c in _cell_types_list if c not in columns_set]
+                # Which of (g plus subtypes) actually exist in the current y?
+                present_any = [c for c in subtype_candidates if c in columns_set]
+                if missing_in_y:
+                    # Heterogeneous SimuTME outputs: at least one listed subtype is missing. We
+                    # only proceed when the group name g itself exists in y; that column becomes
+                    # the canonical accumulator, and any subtypes (other than g) that do exist are
+                    # folded into it. We do NOT drop g here: g in y == g equals the group column
+                    # itself, so dropping it would erase the final grouped output.
+                    if g in columns_set:
+                        present_subtypes_except_g = [c for c in _cell_types_list if c in columns_set and c != g]
+                        if present_subtypes_except_g:
+                            y[g] = y[g] + y[present_subtypes_except_g].sum(axis=1)
+                            y = y.drop(columns=present_subtypes_except_g)
+                            columns_set = set(y.columns)
+                        # g still exists and is the merged column.
+                        continue
+                    if (
+                        len(missing_in_y) == 1
+                        and len(_cell_types_list) == 1
+                        and missing_in_y[0] == g
+                    ):
+                        continue
+                    raise KeyError(
+                        f"group_cell_types[{g!r}] references subtypes not present in the merged training "
+                        f"set cell-fraction columns: {missing_in_y}. Available columns: {sorted(columns_set)}."
+                    )
+                if len(present_any) > 1:
+                    y[g] = y[present_any].sum(axis=1)
+                    y = y.drop(columns=[c for c in present_any if c != g])
+                    columns_set = set(y.columns)
+                else:
+                    single = present_any[0]
+                    if single != g:
+                        if g in columns_set:
+                            raise KeyError(
+                                f"group_cell_types[{g!r}] maps to single subtype {single!r}, but a column "
+                                f"named {g!r} already exists in the training set y columns. Refusing to "
+                                f"overwrite; rename one of the sides or merge subtypes explicitly."
+                            )
+                        y = y.rename(columns={single: g})
+                        columns_set = set(y.columns)
         assert np.all(x.index == y.index), "The order of samples in x and y are not the same!"
         y = y.loc[y.sum(axis=1) > 0, :]
         x = x.loc[y.index, :]
