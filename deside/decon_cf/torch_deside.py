@@ -1,5 +1,52 @@
 from __future__ import annotations
 
+import os as _os
+
+def _cap_blas_threads():
+    """Cap BLAS / numpy / torch worker threads before either library is fully
+    imported, to prevent CPU oversubscription on HPC nodes. Oversubscription of
+    OpenBLAS/MKL threads on a shared node (e.g. 32 threads requested but 64
+    launched) multiplies context-switch overhead and, when combined with the
+    2.8–5.6 GB peak RSS of the pathway matmul stage, pushes the process into
+    swap thrash that presents as a 20+ minute silent stall with no stdout
+    updates (the exact symptom reported in this investigation).
+
+    Policy: if the user has not explicitly set any of the standard knobs
+    (OMP_NUM_THREADS, OPENBLAS_NUM_THREADS, MKL_NUM_THREADS, NUMEXPR_NUM_THREADS,
+    VECLIB_MAXIMUM_THREADS), clamp to min(physical cores, 8, torch intra-op parallelism).
+    """
+    knobs = [
+        "OMP_NUM_THREADS",
+        "OPENBLAS_NUM_THREADS",
+        "MKL_NUM_THREADS",
+        "NUMEXPR_NUM_THREADS",
+        "VECLIB_MAXIMUM_THREADS",
+    ]
+    explicitly_set = any(_os.environ.get(k) for k in knobs)
+    if explicitly_set:
+        return
+    try:
+        import multiprocessing as _mp
+        phys = _mp.cpu_count() or 4
+    except Exception:
+        phys = 4
+    cap = min(phys, 8)
+    for k in knobs:
+        _os.environ.setdefault(k, str(cap))
+    try:
+        import torch as _torch
+        if hasattr(_torch, "set_num_threads") and not _os.environ.get("PYTORCH_NO_AUTOTHREAD_CAP"):
+            try:
+                _torch.set_num_threads(cap)
+                _torch.set_num_interop_threads(max(1, min(cap // 2, 4)))
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+_cap_blas_threads()
+del _cap_blas_threads
+
 import functools
 import hashlib
 import json
@@ -820,8 +867,18 @@ class DeSide(object):
         if x_obj.file_type == "log_space":
             x_obj.to_tpm()
         _dbgtp("pw_profiles_start")
-        # Avoid the full read_exp.get_exp(round=3) copy here: pathway operations only need the
-        # underlying expression matrix with consistent column order.
+        if filtered_gene_list is not None:
+            x_cols_set_before = set(x_obj.exp.columns)
+            filtered_set = set(filtered_gene_list)
+            intersect_before = [g for g in x_obj.exp.columns if g in filtered_set]
+            needs_align = (
+                len(intersect_before) != len(x_obj.exp.columns)
+                or len(intersect_before) != len(filtered_gene_list)
+            )
+            if needs_align:
+                _dbgtp("pw_align_gene_list_start")
+                x_obj.align_with_gene_list(gene_list=filtered_gene_list, fill_not_exist=True)
+                _dbgtp("pw_align_gene_list_done", {"x_shape": list(x_obj.exp.shape)})
         x = x_obj.get_exp(round_decimals=None, copy=False)
         x_columns = x.columns
         x_cols_set = set(x_columns)
@@ -831,10 +888,6 @@ class DeSide(object):
         genes_only_in_x = list(x_cols_set - pm_index_set)
         if len(genes_only_in_x) > 0:
             print("genes only in training set:", len(genes_only_in_x))
-            # Pad pathway_mask with the training-set-only genes in-place by reindexing, then
-            # immediately reorder to x_columns so the downstream matmul is column-aligned.
-            # This is both O(P + N) in memory (no giant zeros DataFrame concat) and preserves
-            # the exact same mathematical result as the original concat(zeros) implementation.
             desired_index = list(pathway_mask.index) + genes_only_in_x
             pathway_mask = pathway_mask.reindex(index=desired_index, fill_value=0.0, copy=False)
         _dbgtp("pw_pad_complete", {"genes_only_in_x": len(genes_only_in_x),
@@ -865,22 +918,28 @@ class DeSide(object):
                 copy=False,
             )
             _dbgtp("pw_matmul_done", {"x_pw_shape": list(x_pathway_profiles.shape)})
-            if filtered_gene_list is not None:
-                filtered_set = set(filtered_gene_list)
-                intersect_genes = [g for g in x_columns if g in filtered_set]
-                if len(intersect_genes) != len(x_columns) or len(intersect_genes) != len(filtered_gene_list):
-                    _dbgtp("pw_align_gene_list_start")
-                    x_obj.align_with_gene_list(gene_list=filtered_gene_list, fill_not_exist=True)
-                    x = x_obj.get_exp(round_decimals=None, copy=False)
-                    _dbgtp("pw_align_gene_list_done", {"x_shape": list(x.shape)})
+            print(
+                "   Pathway profile matmul complete.",
+                f"x shape={x.shape}, pathway_profiles shape={x_pathway_profiles.shape}",
+                flush=True,
+            )
             _dbgtp("pw_concat_start", {"x_shape": list(x.shape),
                                          "x_pw_shape": list(x_pathway_profiles.shape)})
             x = pd.concat([x, x_pathway_profiles], axis=1, copy=False)
             _dbgtp("pw_concat_done", {"x_shape": list(x.shape)})
+            print(f"   Concat [GEP + pathway profiles] complete. Combined shape={x.shape}", flush=True)
         _dbgtp("pw_log2_start", {"x_shape": list(x.shape)})
-        x = np.log2(x + 1.0)
+        _log_in = x.to_numpy(dtype=np.float32, copy=False)
+        _log_out = np.log2(_log_in + 1.0)
+        x = pd.DataFrame(
+            data=_log_out,
+            index=x.index,
+            columns=x.columns,
+            copy=False,
+        )
+        del _log_in, _log_out
         _dbgtp("pw_log2_done", {"x_shape": list(x.shape)})
-        print("x shape:", x.shape)
+        print("x shape:", x.shape, flush=True)
         _dbgtp("pw_xshape_printed", {"x_shape": list(x.shape)})
         result = ReadExp(x, exp_type="log_space")
         _dbgtp("pw_readexp_constructed")

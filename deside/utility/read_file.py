@@ -118,7 +118,14 @@ class ReadExp(object):
     def __init__(self, exp_file, exp_type='TPM', transpose: bool = False):
         assert exp_type in ['TPM', 'CPM', 'log_space', 'non_log']
         self.file_type = exp_type
-        self.exp = read_df(exp_file)
+        raw = read_df(exp_file)
+        if isinstance(raw, np.ndarray):
+            n_row, n_col = raw.shape
+            row_idx = pd.Index([str(i) for i in range(n_row)], name="sample")
+            col_idx = pd.Index([f"col_{i}" for i in range(n_col)], name="gene")
+            self.exp = pd.DataFrame(data=raw, index=row_idx, columns=col_idx, copy=False)
+        else:
+            self.exp = raw
         if transpose:
             self.exp = self.exp.T
         self.scaled_by_sample = False
