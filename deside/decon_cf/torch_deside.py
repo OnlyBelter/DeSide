@@ -5,6 +5,9 @@ import hashlib
 import json
 import os
 import shutil
+import sys
+import threading
+import time
 import urllib.parse
 import urllib.request
 from typing import Optional, Union
@@ -19,6 +22,109 @@ from ..models import build_deside_model
 from ..trainers import load_model_state_from_checkpoint
 from ..utility import check_dir, get_x_by_pathway_network, print_msg
 from ..utility.read_file import ReadExp, ReadH5AD, read_gene_set
+
+
+#region debug-point deside-log-stall-after-pathway-stats
+# Optional offline instrumentation for debugging stalls after the two pathway gene-stat
+# lines ("common genes ...", "genes only in training set ..."). Activate with:
+#   export TRAE_DEBUG_SESSION="deside-log-stall-after-pathway-stats"
+#   export TRAE_DEBUG_TRACE_DIR="/tmp/deside_debug"   # user-writable HPC directory
+# This reporter appends one NDJSON event per tracepoint to a per-pid trace file in that
+# directory. It does not alter behavior (no exceptions, no timing side effects beyond a
+# handful of microseconds per append); if the env vars are not set, the reporter is a
+# no-op and does not allocate.
+_TRAE_DEBUG_SESSION = os.environ.get("TRAE_DEBUG_SESSION", "")
+_TRAE_DEBUG_TRACE_DIR = os.environ.get("TRAE_DEBUG_TRACE_DIR", "")
+if _TRAE_DEBUG_SESSION == "deside-log-stall-after-pathway-stats" and _TRAE_DEBUG_TRACE_DIR:
+    try:
+        os.makedirs(_TRAE_DEBUG_TRACE_DIR, exist_ok=True)
+    except Exception:
+        _TRAE_DEBUG_TRACE_DIR = ""
+
+_DBG_TRACE_LOCK = threading.Lock()
+_DBG_TRACE_FILE = ""
+if _TRAE_DEBUG_TRACE_DIR:
+    _DBG_TRACE_FILE = os.path.join(
+        _TRAE_DEBUG_TRACE_DIR, f"trae-debug-log-{_TRAE_DEBUG_SESSION}-pid{os.getpid()}.ndjson"
+    )
+
+
+def _dbgrss_kb() -> dict:
+    try:
+        import resource
+        ru = resource.getrusage(resource.RUSAGE_SELF)
+        # ru_maxrss: on Linux it is KB; on macOS it is bytes. Normalize to KB conservatively.
+        rss_kb = ru.ru_maxrss
+        if sys.platform == "darwin":
+            rss_kb = int(rss_kb / 1024)
+        return {
+            "rss_max_kb": int(rss_kb),
+            "utime_s": float(ru.ru_utime),
+            "stime_s": float(ru.ru_stime),
+            "minflt": int(ru.ru_minflt),
+            "majflt": int(ru.ru_majflt),
+            "nvcsw": int(ru.ru_nvcsw),
+            "nivcsw": int(ru.ru_nivcsw),
+        }
+    except Exception:
+        return {}
+
+
+def _dbgtp(point: str, extra: Optional[dict] = None):
+    if not _DBG_TRACE_FILE:
+        return
+    try:
+        event = {
+            "ts": time.time(),
+            "session": _TRAE_DEBUG_SESSION,
+            "pid": os.getpid(),
+            "tid": threading.current_thread().name,
+            "point": point,
+            "rss": _dbgrss_kb(),
+        }
+        if extra:
+            event["extra"] = extra
+        line = json.dumps(event, ensure_ascii=False, sort_keys=True)
+        with _DBG_TRACE_LOCK:
+            with open(_DBG_TRACE_FILE, "a", encoding="utf-8") as fp:
+                fp.write(line + "\n")
+                try:
+                    fp.flush()
+                except Exception:
+                    pass
+    except Exception:
+        # Never let instrumentation break the job. Swallow.
+        return
+
+
+def _dbg_excepthook(exc_type, exc_value, exc_tb):
+    _dbgtp("sys_excepthook", {
+        "exc_type": f"{getattr(exc_type, '__module__', 'builtins')}.{getattr(exc_type, '__name__', str(exc_type))}",
+        "exc_value": str(exc_value)[:2000],
+    })
+    # Continue with default behavior so user still sees stack trace on crash.
+    sys.__excepthook__(exc_type, exc_value, exc_tb)
+
+
+if _DBG_TRACE_FILE:
+    sys.excepthook = _dbg_excepthook
+    try:
+        if hasattr(threading, "excepthook"):
+            def _dbg_threading_excepthook(args):
+                _dbgtp("threading_excepthook", {
+                    "exc_type": (
+                        f"{getattr(args.exc_type, '__module__', 'builtins')}."
+                        f"{getattr(args.exc_type, '__name__', str(args.exc_type))}"
+                    ),
+                    "exc_value": str(args.exc_value)[:2000],
+                    "thread": getattr(args.thread, "name", ""),
+                })
+                threading.__excepthook__(args)
+            threading.excepthook = _dbg_threading_excepthook
+    except Exception:
+        pass
+    _dbgtp("session_start", {"trace_file": _DBG_TRACE_FILE, "argv": sys.argv})
+#endregion debug-point deside-log-stall-after-pathway-stats
 
 
 _DEFAULT_PRETRAINED_PATHWAY_FILES = (
@@ -546,15 +652,19 @@ class DeSide(object):
             y = 1 - y
 
         x_obj = ReadExp(x, exp_type="log_space")
+        _dbgtp("train_readexp_x_constructed", {"x_shape": list(x.shape)})
         if len(training_set_file_path) >= 2:
             x_obj.to_tpm()
             x_obj.to_log2cpm1p()
+            _dbgtp("train_renorm_to_log2cpm1p_done", {"x_shape": [x_obj.exp.shape[0], x_obj.exp.shape[1]]})
 
         if pathway_mask is not None:
             if input_gene_list == "intersection_with_pathway_genes":
                 pathway_genes_set = set(pathway_mask.index)
                 gep_gene_list = [gene for gene in x_obj.exp.columns if gene in pathway_genes_set]
+                _dbgtp("train_align_intersection_pw_genes_start", {"n_pw_genes": len(gep_gene_list)})
                 x_obj.align_with_gene_list(gene_list=gep_gene_list, fill_not_exist=True)
+                _dbgtp("train_align_intersection_pw_genes_done")
             elif input_gene_list == "filtered_genes" and filtered_gene_list is not None:
                 gep_gene_list = list(filtered_gene_list)
             else:
@@ -563,18 +673,28 @@ class DeSide(object):
             if method_adding_pathway == "add_to_end":
                 pd.DataFrame(gep_gene_list).to_csv(self.gene_list_for_gep_file_path, sep="\t")
             pd.DataFrame(pathway_profile_gene_list).to_csv(self.gene_list_for_pathway_profile_file_path, sep="\t")
+            _dbgtp("train_pathway_profiles_entry", {"gep_gene_list_len": len(gep_gene_list),
+                                                     "pw_profile_gene_len": len(pathway_profile_gene_list),
+                                                     "method": str(method_adding_pathway)})
             x_obj = self._get_pathway_profiles(
                 x_obj,
                 pathway_mask,
                 method=method_adding_pathway,
                 filtered_gene_list=gep_gene_list,
             )
+            _dbgtp("train_pathway_profiles_returned", {"x_shape": [x_obj.exp.shape[0], x_obj.exp.shape[1]]})
 
         if scaling_by_sample:
+            _dbgtp("train_scaling_sample_start")
             x_obj.do_scaling(round_decimals=None)
+            _dbgtp("train_scaling_sample_done")
         if scaling_by_constant:
+            _dbgtp("train_scaling_constant_start")
             x_obj.do_scaling_by_constant()
+            _dbgtp("train_scaling_constant_done")
+        _dbgtp("train_getexp_before_gene_list_start")
         x = x_obj.get_exp(round_decimals=None)
+        _dbgtp("train_getexp_before_gene_list_done", {"x_shape": list(x.shape)})
 
         self.gene_list = x.columns.to_list()
         if cell_types is None:
@@ -590,36 +710,52 @@ class DeSide(object):
             self.cell_types = [i for i in self.cell_types if i != "Cancer Cells"]
         y = y.loc[:, self.cell_types]
 
+        _dbgtp("train_metadata_write_start", {"model_dir": str(self.model_dir),
+                                               "gene_list_len": len(self.gene_list),
+                                               "cell_types_len": len(self.cell_types)})
         pd.DataFrame(self.cell_types).to_csv(self.cell_type_file_path, sep="\t")
         pd.DataFrame(self.gene_list).to_csv(self.gene_list_file_path, sep="\t")
+        _dbgtp("train_metadata_write_done")
 
         print(f"   Use the following cell types: {self.cell_types} during training.")
         print(f"   The shape of X is: {x.shape}, (n_sample, n_gene)")
         print(f"   The shape of y is: {y.shape}, (n_sample, n_cell_type)")
+        _dbgtp("train_pre_split_shapes_printed", {"x_shape": list(x.shape), "y_shape": list(y.shape)})
 
         pathway_network = bool(hyper_params["pathway_network"])
+        _dbgtp("train_split_inputs_for_dataset_start")
         x_gep, x_pathway = self._split_inputs_for_dataset(x, pathway_network=pathway_network, pathway_mask=pathway_mask)
+        _dbgtp("train_split_inputs_for_dataset_done", {"x_gep_cols": int(x_gep.shape[1]),
+                                                         "x_pw_cols": 0 if x_pathway is None else int(x_pathway.shape[1])})
         if not fine_tune:
+            _dbgtp("train_build_model_start")
             self._build_model(
                 input_shape=x_gep.shape[1],
                 output_shape=len(self.cell_types),
                 hyper_params=hyper_params,
                 n_pathway=0 if x_pathway is None else x_pathway.shape[1],
             )
+            _dbgtp("train_build_model_done")
         else:
+            _dbgtp("train_load_pretrained_start")
             self._load_trained_model()
+            _dbgtp("train_load_pretrained_done")
 
+        _dbgtp("train_dataset_construct_start", {"y_shape": list(y.shape)})
         dataset = DeSideDataset(
             gep=x_gep,
             pathway_profile=x_pathway,
             cell_fraction=y,
             sample_ids=list(x.index),
         )
+        _dbgtp("train_split_dataset_start")
         dataset_split = split_deside_dataset(
             dataset,
             validation_split=float(hyper_params.get("validation_split", 0.2)),
             seed=int(hyper_params.get("validation_seed", 42)),
         )
+        _dbgtp("train_split_dataset_done", {"train_len": len(dataset_split.train),
+                                              "val_len": len(dataset_split.val)})
         print(
             "   The following loss function will be used:",
             loss_function_alpha,
@@ -629,6 +765,11 @@ class DeSide(object):
         )
         from ..trainers import train_deside_lightning
 
+        _dbgtp("train_deside_lightning_start", {
+            "max_epochs": int(n_epoch),
+            "batch_size": int(batch_size),
+            "patience": int(n_patience),
+        })
         training_history = train_deside_lightning(
             model=self.model,
             train_dataset=dataset_split.train,
@@ -642,6 +783,11 @@ class DeSide(object):
             patience=n_patience,
             verbose=verbose,
         )
+        _dbgtp("train_deside_lightning_returned", {
+            "best_model_path": str(training_history.best_model_path or ""),
+            "last_model_path": str(training_history.last_model_path or ""),
+            "final_epoch": int(getattr(training_history, "final_epoch", -1)),
+        })
 
         best_or_last = training_history.best_model_path or training_history.last_model_path
         if best_or_last and os.path.abspath(best_or_last) != os.path.abspath(self.model_file_path):
@@ -673,6 +819,7 @@ class DeSide(object):
     def _get_pathway_profiles(x_obj, pathway_mask: pd.DataFrame, method="add_to_end", filtered_gene_list=None):
         if x_obj.file_type == "log_space":
             x_obj.to_tpm()
+        _dbgtp("pw_profiles_start")
         # Avoid the full read_exp.get_exp(round=3) copy here: pathway operations only need the
         # underlying expression matrix with consistent column order.
         x = x_obj.get_exp(round_decimals=None, copy=False)
@@ -690,8 +837,14 @@ class DeSide(object):
             # the exact same mathematical result as the original concat(zeros) implementation.
             desired_index = list(pathway_mask.index) + genes_only_in_x
             pathway_mask = pathway_mask.reindex(index=desired_index, fill_value=0.0, copy=False)
+        _dbgtp("pw_pad_complete", {"genes_only_in_x": len(genes_only_in_x),
+                                   "common_genes": len(common_genes),
+                                   "pm_shape": list(pathway_mask.shape)})
         pathway_mask = pathway_mask.reindex(index=x_columns, fill_value=0.0, copy=False)
+        _dbgtp("pw_reindex_complete", {"x_columns": len(x_columns),
+                                        "pm_shape": list(pathway_mask.shape)})
         if method == "convert":
+            _dbgtp("pw_matmul_start", {"method": "convert"})
             x_values = x.to_numpy(dtype=np.float32, copy=False)
             pm_values = pathway_mask.to_numpy(dtype=np.float32, copy=False)
             x = pd.DataFrame(
@@ -700,7 +853,9 @@ class DeSide(object):
                 columns=pathway_mask.columns,
                 copy=False,
             )
+            _dbgtp("pw_matmul_done", {"x_out_shape": list(x.shape)})
         elif method == "add_to_end":
+            _dbgtp("pw_matmul_start", {"method": "add_to_end"})
             x_values = x.to_numpy(dtype=np.float32, copy=False)
             pm_values = pathway_mask.to_numpy(dtype=np.float32, copy=False)
             x_pathway_profiles = pd.DataFrame(
@@ -709,16 +864,27 @@ class DeSide(object):
                 columns=pathway_mask.columns,
                 copy=False,
             )
+            _dbgtp("pw_matmul_done", {"x_pw_shape": list(x_pathway_profiles.shape)})
             if filtered_gene_list is not None:
                 filtered_set = set(filtered_gene_list)
                 intersect_genes = [g for g in x_columns if g in filtered_set]
                 if len(intersect_genes) != len(x_columns) or len(intersect_genes) != len(filtered_gene_list):
+                    _dbgtp("pw_align_gene_list_start")
                     x_obj.align_with_gene_list(gene_list=filtered_gene_list, fill_not_exist=True)
                     x = x_obj.get_exp(round_decimals=None, copy=False)
+                    _dbgtp("pw_align_gene_list_done", {"x_shape": list(x.shape)})
+            _dbgtp("pw_concat_start", {"x_shape": list(x.shape),
+                                         "x_pw_shape": list(x_pathway_profiles.shape)})
             x = pd.concat([x, x_pathway_profiles], axis=1, copy=False)
+            _dbgtp("pw_concat_done", {"x_shape": list(x.shape)})
+        _dbgtp("pw_log2_start", {"x_shape": list(x.shape)})
         x = np.log2(x + 1.0)
+        _dbgtp("pw_log2_done", {"x_shape": list(x.shape)})
         print("x shape:", x.shape)
-        return ReadExp(x, exp_type="log_space")
+        _dbgtp("pw_xshape_printed", {"x_shape": list(x.shape)})
+        result = ReadExp(x, exp_type="log_space")
+        _dbgtp("pw_readexp_constructed")
+        return result
 
     def get_x_before_predict(
         self,
