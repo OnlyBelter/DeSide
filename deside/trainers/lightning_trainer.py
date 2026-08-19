@@ -143,10 +143,72 @@ def train_deside_lightning(
         )
 
     logger = CSVLogger(save_dir=model_dir, name="training_logs")
+
+    def _probe_cuda_usable() -> bool:
+        """Best-effort preflight: returns True only if a CUDA kernel actually runs.
+
+        Lightning ``accelerator="auto"`` picks CUDA whenever ``torch.cuda.is_available()`` is True,
+        even if the installed torch wheel was built against a CUDA compute capability that the
+        current GPU does not implement (e.g. cpu-only wheel in a GPU env, or cu124 wheel on a
+        Kepler-era card). That situation raises ``cudaErrorNoKernelImageForDevice`` the first time
+        any kernel launches (e.g. the first DataLoader length probe in ``_run_sanity_check``),
+        surfacing as a cryptic ``AcceleratorError`` at ``Sanity Checking: 0/?`` instead of a
+        usable error message. This probe runs a single tiny matmul on device 0 before building
+        the Trainer so we can fall back to CPU cleanly.
+        """
+        import os as _os
+
+        if _os.environ.get("DESIDE_FORCE_CUDA", "0") not in ("0", "", "false", "False", "no", "No"):
+            return True
+        if not torch.cuda.is_available():
+            return False
+        try:
+            dev = torch.device("cuda:0")
+            a = torch.empty(2, 2, device=dev, dtype=torch.float32)
+            b = torch.empty(2, 2, device=dev, dtype=torch.float32)
+            _ = (a @ b).sum().item()
+            del a, b
+            return True
+        except Exception as exc:  # pragma: no cover - HPC env specific
+            msg = str(exc).lower()
+            is_cuda_mismatch = any(
+                tag in msg for tag in (
+                    "no kernel image", "nokernelfordevice", "cuda error",
+                    "invalid device function", "kernel image",
+                )
+            )
+            print(
+                f"[WARN] CUDA probe failed ({type(exc).__name__}: {exc}).\n"
+                f"       This usually means the installed torch wheel was not built for this GPU's\n"
+                f"       compute capability (cudaErrorNoKernelImageForDevice). Falling back to CPU\n"
+                f"       training for this run. To force CUDA (hard-fail on probe), set DESIDE_FORCE_CUDA=1.\n"
+                + (
+                    ""
+                    if is_cuda_mismatch
+                    else "       (probe raised an unexpected exception class — check cuda-memcheck / drivers.)\n"
+                ),
+                flush=True,
+            )
+            try:
+                if torch.cuda.is_initialized():
+                    torch.cuda.synchronize()
+            except Exception:
+                pass
+            return False
+
+    _cuda_ok = _probe_cuda_usable()
+    _accelerator = "cuda" if _cuda_ok else "cpu"
+    _devices = 1 if _cuda_ok else "auto"
+    if not _cuda_ok:
+        print(
+            "[INFO] Using accelerator='cpu' for this run. Install a CUDA-enabled torch build matching\n"
+            "       your GPU to regain GPU acceleration (see 'Install PyTorch' on pytorch.org).",
+            flush=True,
+        )
     trainer = L.Trainer(
         max_epochs=int(max_epochs),
-        accelerator="auto",
-        devices=1,
+        accelerator=_accelerator,
+        devices=_devices,
         logger=logger,
         callbacks=callbacks,
         enable_progress_bar=verbose > 0,
