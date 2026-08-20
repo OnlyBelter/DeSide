@@ -77,3 +77,17 @@ evaluation:
   # Toggle prediction post-processing rules for scratch / pretrained workflows.
   renormalize_non_cancer_after_threshold: true
   fill_cancer_as_residual: true
+  # ── Post-training predict on test sets ────────────────────────────────
+  # If test_sets is provided, the trained model is automatically applied to
+  # each test set at the end of `deside train` (or train_from_config_file()).
+  # Accepts dict (name -> path), list of paths, or a single path string.
+  test_sets:
+    Test_D1: './datasets/simulated_bulk_cell_dataset/D1/simu_bulk_exp_Mixed_N100K_D1.h5ad'
+  # Directory where predictions are saved. Default: <model_dir>/predictions
+  test_predict_output_dir: null
+  # "TPM" for raw count / TPM inputs, "log_space" for log2(CPM+1) inputs.
+  exp_type: 'log_space'
+  # Set to true if input file has genes as rows / samples as columns.
+  transpose: false
+  # Add a final column with argmax-predicted cell type per sample.
+  add_cell_type: false

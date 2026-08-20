@@ -170,6 +170,72 @@ class DeSideConfig:
     def remove_cancer_cell(self) -> bool:
         return bool(self.data.get("remove_cancer_cell", False))
 
+    # ── Evaluation (post-training predict) ─────────────────────────────
+
+    @property
+    def test_sets(self) -> Optional[Dict[str, str]]:
+        raw = self.evaluation.get("test_sets") or self.evaluation.get("test_set_files") or None
+        if raw is None:
+            return None
+        if isinstance(raw, Mapping):
+            out: Dict[str, str] = {}
+            for k, v in raw.items():
+                if v is None or str(v).strip() == "":
+                    continue
+                out[str(k)] = str(v)
+            return out or None
+        if isinstance(raw, (list, tuple)):
+            out = {}
+            for i, p in enumerate(raw):
+                if p is None or str(p).strip() == "":
+                    continue
+                name = Path(str(p)).stem or f"test_{i + 1}"
+                out[name] = str(p)
+            return out or None
+        if isinstance(raw, str) and raw.strip():
+            p = raw.strip()
+            return {Path(p).stem or "test_1": p}
+        return None
+
+    @property
+    def test_predict_output_dir(self) -> str:
+        raw = self.evaluation.get("test_predict_output_dir")
+        if raw:
+            return str(raw)
+        return str(Path(self.model_dir) / "predictions")
+
+    @property
+    def test_exp_type(self) -> str:
+        val = self.evaluation.get("exp_type") or self.evaluation.get("test_exp_type") or "log_space"
+        return str(val)
+
+    @property
+    def test_transpose(self) -> bool:
+        return bool(self.evaluation.get("transpose", False))
+
+    @property
+    def test_add_cell_type(self) -> bool:
+        return bool(self.evaluation.get("add_cell_type", False))
+
+    def build_predict_kwargs(self, pathway_mask: Optional[Any] = None) -> Dict[str, Any]:
+        """Bundle kwargs suitable for ``DeSide.predict()`` for a single test set.
+
+        Callers override ``input_file`` / ``output_file_path`` per test set.
+        """
+        hp = self.build_hyper_params()
+        return {
+            "exp_type": self.test_exp_type,
+            "transpose": self.test_transpose,
+            "print_info": True,
+            "add_cell_type": self.test_add_cell_type,
+            "scaling_by_constant": self.scaling_by_constant,
+            "scaling_by_sample": self.scaling_by_sample,
+            "one_minus_alpha": bool(self.training.get("one_minus_alpha", False)),
+            "pathway_mask": pathway_mask,
+            "method_adding_pathway": self.method_adding_pathway,
+            "hyper_params": hp,
+        }
+
     # ── Training outputs and hyper-params ──────────────────────────────
     @property
     def output_dir(self) -> str:
