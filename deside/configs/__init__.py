@@ -217,6 +217,22 @@ class DeSideConfig:
     def test_add_cell_type(self) -> bool:
         return bool(self.evaluation.get("add_cell_type", False))
 
+    @property
+    def cell_prop_threshold(self) -> float:
+        return float(self.evaluation.get("cell_prop_threshold", 0.0001))
+
+    @property
+    def cancer_cell_type_name(self) -> str:
+        return str(self.evaluation.get("cancer_cell_type_name", "Cancer Cells"))
+
+    @property
+    def fill_cancer_as_residual(self) -> bool:
+        return bool(self.evaluation.get("fill_cancer_as_residual", True))
+
+    @property
+    def renormalize_non_cancer_after_threshold(self) -> bool:
+        return bool(self.evaluation.get("renormalize_non_cancer_after_threshold", True))
+
     def build_predict_kwargs(self, pathway_mask: Optional[Any] = None) -> Dict[str, Any]:
         """Bundle kwargs suitable for ``DeSide.predict()`` for a single test set.
 
@@ -234,6 +250,10 @@ class DeSideConfig:
             "pathway_mask": pathway_mask,
             "method_adding_pathway": self.method_adding_pathway,
             "hyper_params": hp,
+            "cell_prop_threshold": self.cell_prop_threshold,
+            "cancer_cell_type_name": self.cancer_cell_type_name,
+            "fill_cancer_as_residual": self.fill_cancer_as_residual,
+            "renormalize_non_cancer_after_threshold": self.renormalize_non_cancer_after_threshold,
         }
 
     # ── Training outputs and hyper-params ──────────────────────────────
