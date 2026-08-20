@@ -61,7 +61,8 @@ def set_fig_style(font_family=None, font_size=None):
     sns.set_style("white")
     try:
         # need to install the package of "SciencePlots" first, see https://github.com/garrettj403/SciencePlots
-        plt.style.use(['science', 'no-latex'])
+        import scienceplots
+        plt.style.use(['science'])
     except:
         print('No science style, please install the package of "SciencePlots" first, '
               'see https://github.com/garrettj403/SciencePlots')
