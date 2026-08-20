@@ -236,7 +236,7 @@ semantics:
 The current model uses a somewhat irregular normalization configuration via
 `normalization_layer`. The migration must preserve this behavior explicitly
 rather than silently simplifying it, because that would change the effective
-architecture. [Please explain what "somewhat irregular normalization configuration" means here. What is the regular normalization configuration?]
+architecture.
 
 ## Lightning training design
 

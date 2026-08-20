@@ -45,6 +45,12 @@ training:
   model_name: 'DeSide'
   naming_postfix: 'scratch_E2_D1'
   learning_rate: 1.0e-4
+  optimizer: 'adamw'
+  weight_decay: 1.0e-5
+  lr_scheduler: 'reduce_lr_on_plateau'
+  lr_scheduler_factor: 0.5
+  lr_scheduler_patience: 20
+  lr_scheduler_min_lr: 1.0e-6
   batch_size: 128
   num_epochs: 3000
   n_early_stopping_patience: 100

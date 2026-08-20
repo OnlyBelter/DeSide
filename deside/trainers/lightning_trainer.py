@@ -8,7 +8,8 @@ from typing import Optional
 import pandas as pd
 import torch
 from torch import nn
-from torch.optim import Adam
+from torch.optim import Adam, AdamW
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 
 try:
@@ -35,11 +36,30 @@ class DeSideTrainingHistory:
 
 
 class DeSideLightningModule(L.LightningModule):
-    def __init__(self, model: nn.Module, learning_rate: float, loss_alpha: float = 0.5):
+    def __init__(
+        self,
+        model: nn.Module,
+        learning_rate: float,
+        loss_alpha: float = 0.5,
+        optimizer_name: str = "adamw",
+        weight_decay: float = 1e-5,
+        enable_lr_scheduler: bool = True,
+        lr_scheduler_name: str = "reduce_lr_on_plateau",
+        lr_scheduler_factor: float = 0.5,
+        lr_scheduler_patience: int = 20,
+        lr_scheduler_min_lr: float = 1e-6,
+    ):
         super().__init__()
         self.model = model
         self.learning_rate = float(learning_rate)
         self.loss_alpha = float(loss_alpha)
+        self.optimizer_name = str(optimizer_name).lower()
+        self.weight_decay = float(weight_decay)
+        self.enable_lr_scheduler = bool(enable_lr_scheduler)
+        self.lr_scheduler_name = str(lr_scheduler_name).lower() if lr_scheduler_name else ""
+        self.lr_scheduler_factor = float(lr_scheduler_factor)
+        self.lr_scheduler_patience = int(lr_scheduler_patience)
+        self.lr_scheduler_min_lr = float(lr_scheduler_min_lr)
 
     def forward(self, batch: dict) -> torch.Tensor:
         return self.model(
@@ -65,7 +85,34 @@ class DeSideLightningModule(L.LightningModule):
         return self._shared_step(batch, "val")
 
     def configure_optimizers(self):
-        return Adam(self.model.parameters(), lr=self.learning_rate)
+        if self.optimizer_name == "adamw":
+            optimizer = AdamW(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+        elif self.optimizer_name == "adam":
+            optimizer = Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+        else:
+            raise ValueError(f"Unsupported optimizer: {self.optimizer_name}")
+
+        if not self.enable_lr_scheduler or not self.lr_scheduler_name:
+            return optimizer
+
+        if self.lr_scheduler_name == "reduce_lr_on_plateau":
+            scheduler = ReduceLROnPlateau(
+                optimizer,
+                mode="min",
+                factor=self.lr_scheduler_factor,
+                patience=self.lr_scheduler_patience,
+                min_lr=self.lr_scheduler_min_lr,
+            )
+            return {
+                "optimizer": optimizer,
+                "lr_scheduler": {
+                    "scheduler": scheduler,
+                    "monitor": "val_loss",
+                    "interval": "epoch",
+                    "frequency": 1,
+                },
+            }
+        raise ValueError(f"Unsupported lr scheduler: {self.lr_scheduler_name}")
 
 
 def _build_loader(dataset, batch_size: int, shuffle: bool) -> DataLoader:
@@ -107,6 +154,13 @@ def train_deside_lightning(
     val_dataset,
     learning_rate: float,
     loss_alpha: float,
+    optimizer_name: str,
+    weight_decay: float,
+    enable_lr_scheduler: bool,
+    lr_scheduler_name: str,
+    lr_scheduler_factor: float,
+    lr_scheduler_patience: int,
+    lr_scheduler_min_lr: float,
     model_dir: str,
     max_epochs: int,
     batch_size: int,
@@ -118,6 +172,13 @@ def train_deside_lightning(
         model=model,
         learning_rate=learning_rate,
         loss_alpha=loss_alpha,
+        optimizer_name=optimizer_name,
+        weight_decay=weight_decay,
+        enable_lr_scheduler=bool(enable_lr_scheduler and val_dataset is not None),
+        lr_scheduler_name=lr_scheduler_name,
+        lr_scheduler_factor=lr_scheduler_factor,
+        lr_scheduler_patience=lr_scheduler_patience,
+        lr_scheduler_min_lr=lr_scheduler_min_lr,
     )
     model_dir_path = Path(model_dir)
     model_dir_path.mkdir(parents=True, exist_ok=True)

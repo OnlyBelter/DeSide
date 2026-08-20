@@ -155,6 +155,35 @@ def test_loss_fn_mae_rmse_torch():
     assert float(loss) >= 0
 
 
+def test_lightning_module_uses_adamw_with_plateau_scheduler():
+    if not HAS_LIGHTNING:
+        pytest.skip("lightning/pytorch_lightning is not installed in this environment")
+
+    from deside.models import build_deside_model
+    from deside.trainers.lightning_trainer import DeSideLightningModule
+
+    cfg = _base_model_config(input_dim=6, output_dim=2)
+    model = build_deside_model(cfg)
+    pl_module = DeSideLightningModule(
+        model=model,
+        learning_rate=1e-4,
+        loss_alpha=0.5,
+        optimizer_name="adamw",
+        weight_decay=1e-5,
+        enable_lr_scheduler=True,
+        lr_scheduler_name="reduce_lr_on_plateau",
+        lr_scheduler_factor=0.5,
+        lr_scheduler_patience=20,
+        lr_scheduler_min_lr=1e-6,
+    )
+
+    optim_cfg = pl_module.configure_optimizers()
+    assert isinstance(optim_cfg, dict)
+    assert optim_cfg["optimizer"].__class__.__name__ == "AdamW"
+    assert type(optim_cfg["lr_scheduler"]["scheduler"]).__name__ == "ReduceLROnPlateau"
+    assert optim_cfg["lr_scheduler"]["monitor"] == "val_loss"
+
+
 def test_load_state_from_checkpoint_roundtrip():
     from deside.models import build_deside_model
     from deside.trainers import load_model_state_from_checkpoint

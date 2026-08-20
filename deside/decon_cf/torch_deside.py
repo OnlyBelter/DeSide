@@ -104,6 +104,12 @@ def _get_default_pretrained_hyper_params() -> dict:
         "pathway_network": True,
         "last_layer_activation": "sigmoid",
         "learning_rate": 1e-4,
+        "optimizer": "adamw",
+        "weight_decay": 1e-5,
+        "lr_scheduler": "reduce_lr_on_plateau",
+        "lr_scheduler_factor": 0.5,
+        "lr_scheduler_patience": 20,
+        "lr_scheduler_min_lr": 1e-6,
         "batch_size": 128,
         "validation_split": 0.2,
         "validation_seed": 42,
@@ -480,6 +486,13 @@ class DeSide(object):
         learning_rate = hyper_params["learning_rate"]
         loss_function_alpha = hyper_params["loss_function_alpha"]
         batch_size = hyper_params["batch_size"]
+        optimizer_name = str(hyper_params.get("optimizer", "adamw"))
+        weight_decay = float(hyper_params.get("weight_decay", 1e-5))
+        lr_scheduler_name = str(hyper_params.get("lr_scheduler", "reduce_lr_on_plateau"))
+        enable_lr_scheduler = bool(lr_scheduler_name and lr_scheduler_name.lower() not in {"none", "null", "false"})
+        lr_scheduler_factor = float(hyper_params.get("lr_scheduler_factor", 0.5))
+        lr_scheduler_patience = int(hyper_params.get("lr_scheduler_patience", 20))
+        lr_scheduler_min_lr = float(hyper_params.get("lr_scheduler_min_lr", 1e-6))
 
         if isinstance(training_set_file_path, str):
             training_set_file_path = [training_set_file_path]
@@ -681,6 +694,13 @@ class DeSide(object):
             val_dataset=dataset_split.val,
             learning_rate=learning_rate,
             loss_alpha=loss_function_alpha,
+            optimizer_name=optimizer_name,
+            weight_decay=weight_decay,
+            enable_lr_scheduler=enable_lr_scheduler,
+            lr_scheduler_name=lr_scheduler_name,
+            lr_scheduler_factor=lr_scheduler_factor,
+            lr_scheduler_patience=lr_scheduler_patience,
+            lr_scheduler_min_lr=lr_scheduler_min_lr,
             model_dir=self.model_dir,
             max_epochs=n_epoch,
             batch_size=batch_size,
@@ -695,6 +715,12 @@ class DeSide(object):
 
         training_config = {
             "learning_rate": learning_rate,
+            "optimizer": optimizer_name,
+            "weight_decay": weight_decay,
+            "lr_scheduler": lr_scheduler_name,
+            "lr_scheduler_factor": lr_scheduler_factor,
+            "lr_scheduler_patience": lr_scheduler_patience,
+            "lr_scheduler_min_lr": lr_scheduler_min_lr,
             "loss_function_alpha": loss_function_alpha,
             "batch_size": batch_size,
             "n_epoch": n_epoch,
