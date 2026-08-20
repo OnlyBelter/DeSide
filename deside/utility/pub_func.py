@@ -65,7 +65,7 @@ def set_fig_style(font_family=None, font_size=None):
     except:
         print('No science style, please install the package of "SciencePlots" first, '
               'see https://github.com/garrettj403/SciencePlots')
-        sns.set(palette='muted', font_scale=1.5)
+        sns.set_theme(palette='muted', font_scale=1.5)
 
     mpl.rcParams['figure.dpi'] = 300
     mpl.rcParams['figure.facecolor'] = 'white'

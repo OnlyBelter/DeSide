@@ -1,8 +1,9 @@
 from .plot_nn import plot_loss, plot_paras, plot_paras_all_cell_types
 from .plot_nn import plot_corr_two_columns, plot_predicted_result
 from .plot_gene import compare_exp_between_group
-
+from ..utility.pub_func import set_fig_style
 try:
+    set_fig_style(font_family='Arial', font_size=10)
     from .plot_clustering import plot_hcluster, t_sne_plot
     from .plot_gene import (
         plot_single_gene_exp,
