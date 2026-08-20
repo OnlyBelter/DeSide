@@ -62,7 +62,7 @@ def set_fig_style(font_family=None, font_size=None):
     try:
         # need to install the package of "SciencePlots" first, see https://github.com/garrettj403/SciencePlots
         import scienceplots
-        plt.style.use(['science'])
+        plt.style.use(['science', 'no-latex'])
     except:
         print('No science style, please install the package of "SciencePlots" first, '
               'see https://github.com/garrettj403/SciencePlots')
