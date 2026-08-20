@@ -77,6 +77,10 @@ evaluation:
   # Toggle prediction post-processing rules for scratch / pretrained workflows.
   renormalize_non_cancer_after_threshold: true
   fill_cancer_as_residual: true
+  # When true, save VAEDecon-style comparison outputs for each test set whenever
+  # sample-level ground-truth cell fractions can be read from the test file or
+  # from evaluation.test_truth_files below.
+  compare_with_truth: true
   # ── Post-training predict on test sets ────────────────────────────────
   # If test_sets is provided, the trained model is automatically applied to
   # each test set at the end of `deside train` (or train_from_config_file()).
@@ -85,8 +89,13 @@ evaluation:
     Test_D1: './datasets/simulated_bulk_cell_dataset/D1/simu_bulk_exp_Mixed_N100K_D1.h5ad'
   # Directory where predictions are saved. Default: <model_dir>/predictions
   test_predict_output_dir: null
+  # Optional external ground-truth cell-fraction files (csv or h5ad) keyed by
+  # test-set name. If omitted, DeSide tries to read truth from the test .h5ad obs.
+  test_truth_files: {}
+  test_truth_index_col: 0
   # "TPM" for raw count / TPM inputs, "log_space" for log2(CPM+1) inputs.
   exp_type: 'log_space'
+  comparison_figure_format: 'png'
   # Set to true if input file has genes as rows / samples as columns.
   transpose: false
   # Add a final column with argmax-predicted cell type per sample.

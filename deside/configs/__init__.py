@@ -205,6 +205,36 @@ class DeSideConfig:
         return str(Path(self.model_dir) / "predictions")
 
     @property
+    def compare_with_truth(self) -> bool:
+        return bool(self.evaluation.get("compare_with_truth", True))
+
+    @property
+    def test_truth_files(self) -> Optional[Dict[str, str]]:
+        raw = (
+            self.evaluation.get("test_truth_files")
+            or self.evaluation.get("test_set_truth_files")
+            or None
+        )
+        if raw is None:
+            return None
+        if not isinstance(raw, Mapping):
+            raise ValueError("evaluation.test_truth_files must be a dict mapping test-set name -> truth file path.")
+        out: Dict[str, str] = {}
+        for k, v in raw.items():
+            if v is None or str(v).strip() == "":
+                continue
+            out[str(k)] = str(v)
+        return out or None
+
+    @property
+    def test_truth_index_col(self) -> int:
+        return int(self.evaluation.get("test_truth_index_col", 0))
+
+    @property
+    def comparison_figure_format(self) -> str:
+        return str(self.evaluation.get("comparison_figure_format", "png"))
+
+    @property
     def test_exp_type(self) -> str:
         val = self.evaluation.get("exp_type") or self.evaluation.get("test_exp_type") or "log_space"
         return str(val)

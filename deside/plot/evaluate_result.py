@@ -206,7 +206,8 @@ class ScatterPlot(object):
 def compare_y_y_pred_plot(y_true: Union[str, pd.DataFrame], y_pred: Union[str, pd.DataFrame],
                           show_columns: list = None, result_file_dir=None, annotation: dict = None,
                           y_label=None, x_label=None, model_name='average',
-                          show_metrics: bool = False, figsize: tuple = (8, 8)):
+                          show_metrics: bool = False, figsize: tuple = (8, 8),
+                          return_metrics: bool = False, figure_format: str = 'png'):
     """
     Plot y against y_pred to visualize the performance of prediction result
 
@@ -230,7 +231,11 @@ def compare_y_y_pred_plot(y_true: Union[str, pd.DataFrame], y_pred: Union[str, p
 
     :param figsize: figure size
 
-    :return: None
+    :param return_metrics: return corr/p_value/rmse/ccc when True
+
+    :param figure_format: output format when saving figure
+
+    :return: None or metrics dict
     """
     if show_columns is None:
         show_columns = []
@@ -280,13 +285,25 @@ def compare_y_y_pred_plot(y_true: Union[str, pd.DataFrame], y_pred: Union[str, p
     x_max = x_right + x_right * 0.01
     y_max = y_top + y_top * 0.01
     plt.plot([0, max(x_max, y_max)], [0, max(x_max, y_max)], linestyle='--', color='tab:gray')
-    if show_metrics:  # show metrics in test set
+    metrics = None
+    if show_metrics or return_metrics:  # show metrics in test set
         all_x = np.concatenate(all_x)
         all_y = np.concatenate(all_y)
-        corr = get_corr(all_x, all_y)
+        corr, p_value = get_corr(all_x, all_y, return_p_value=True)
         rmse = calculate_rmse(y_true=pd.DataFrame(all_x), y_pred=pd.DataFrame(all_y))
-        plt.text(0.70 * x_max, 0.16 * y_max, 'corr = {:.3f}'.format(corr))
-        plt.text(0.70 * x_max, 0.10 * y_max, 'RMSE = {:.3f}'.format(rmse))
+        ccc = get_ccc(all_y, all_x)
+        metrics = {
+            "corr": float(corr),
+            "p_value": float(p_value),
+            "rmse": float(rmse),
+            "ccc": float(ccc),
+        }
+    if show_metrics and metrics is not None:
+        p_value = metrics["p_value"]
+        p_str = 'p < 0.001' if p_value < 0.001 else 'p = {:.3f}'.format(p_value)
+        plt.text(0.60 * x_max, 0.16 * y_max, 'corr = {:.3f}'.format(metrics["corr"]))
+        plt.text(0.60 * x_max, 0.10 * y_max, p_str)
+        plt.text(0.60 * x_max, 0.04 * y_max, 'RMSE = {:.3f}, CCC = {:.3f}'.format(metrics["rmse"], metrics["ccc"]))
     if x_label:
         plt.xlabel(x_label)
     else:
@@ -298,8 +315,10 @@ def compare_y_y_pred_plot(y_true: Union[str, pd.DataFrame], y_pred: Union[str, p
     plt.legend()
     plt.tight_layout()
     if result_file_dir:
-        plt.savefig(os.path.join(result_file_dir, 'y_true_vs_y_pred_{}.png'.format(model_name)), dpi=200)
+        plt.savefig(os.path.join(result_file_dir, f'y_true_vs_y_pred_{model_name}.{figure_format}'), dpi=200)
     plt.close()
+    if return_metrics:
+        return metrics
 
 
 def compare_exp_and_cell_fraction(merged_file_path, result_dir,
