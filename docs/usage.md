@@ -200,19 +200,20 @@ deside_obj.train_model(training_set_file_path=[training_set2file_path['D1']],
 
 ## Dataset Simulation
 
-This module now has a standalone, config-driven workflow for sctGEP generation,
-mixed bulk GEP generation, and the two filtering stages. The recommended entry
-point is the YAML configuration file
-`deside/configs/example_bulk_simulation_config.yaml` together with the CLI
-command `deside workflow filter-sim-data`.
+DeSide now provides a standalone, config-driven workflow for dataset
+simulation. This workflow keeps data preparation independent from model
+training and covers single-cell-type GEP (sctGEP) reference generation, mixed bulk GEP generation, GEP-level
+filtering, and gene-level filtering from one YAML file. The recommended entry
+point is `deside/configs/example_bulk_simulation_config.yaml` together with the
+CLI command `deside workflow filter-sim-data`.
 
-### a. Using the single cell dataset we provided
+### a. Using the provided single-cell dataset
 
-This workflow reproduces the logic of the mini example while reducing the
-manual setup. If `input.sct_dataset_file_path` is empty, DeSide first
-bootstraps the single-cell-type reference dataset with
-`SingleCellTypeGEPGenerator`, then reuses that generated `.h5ad` for the
-existing mixed-bulk `BulkGEPGenerator` step.
+This workflow reproduces the logic of the mini example while reducing manual
+setup. If `input.sct_dataset_file_path` is empty, DeSide first generates the
+sctGEP reference dataset with `SingleCellTypeGEPGenerator`, then
+passes the generated `.h5ad` into the legacy mixed-bulk
+`BulkGEPGenerator` step.
 
 The updated standalone workflow runs in three stages:
 
@@ -225,8 +226,9 @@ The updated standalone workflow runs in three stages:
    - If `input.sct_dataset_file_path` is set but the file is missing, the
      workflow raises an error.
 2. Generate mixed bulk GEPs.
-   - The workflow runs the legacy `BulkGEPGenerator.generate_gep(...)`
-     pipeline with `simulation.*` and `gep_filtering.*`.
+   - The workflow runs the legacy
+     `BulkGEPGenerator.generate_gep(...)` pipeline with `simulation.*`
+     and `gep_filtering.*`.
 3. Apply gene-level filtering.
    - If `gene_filtering.enable: true`, the workflow derives the filtered gene
      list and optionally saves a filtered `.h5ad`, PCA outputs, and summary
@@ -257,7 +259,9 @@ input:
 
 This means the workflow bootstraps the S1-style sctGEP dataset automatically
 from the merged S0 dataset before generating the mixed bulk dataset
-`Mixed_N10K_segment`.
+`Mixed_N10K_segment`. If `runtime.skip_if_done: true`, DeSide reuses the
+generated sctGEP file instead of rebuilding it when that artifact already
+exists.
 
 <!-- prettier-ignore -->
 > [!IMPORTANT]
@@ -273,6 +277,10 @@ After the run completes, the workflow writes:
 - The optional filtered bulk `.h5ad` file.
 - The optional filtered gene-list `.csv` file.
 - The summary JSON file `bulk_simulation_summary.json`.
+
+By default, the mixed bulk dataset and cell-fraction file are written under
+`output.simu_bulk_dir`, while the summary and gene-filtering artifacts are
+written under `output.gene_filtering_result_dir`.
 
 ### Example configuration
 
@@ -404,7 +412,8 @@ The `sct_generation` section is used only when
     before sctGEP generation.
 - `output_file_path`
   - Optional explicit path for the generated sctGEP `.h5ad` file.
-  - Leave this empty to use the deterministic path under `simu_bulk_dir`.
+  - Leave this empty to use the deterministic legacy output path and copy or
+    reuse that file automatically inside the standalone workflow.
 
 #### gep_filtering
 
@@ -501,7 +510,8 @@ The `runtime` section controls workflow behavior rather than the simulation
 design itself.
 
 - `skip_if_done`
-  - Reuses existing outputs when the expected files already exist.
+  - Reuses existing outputs when the expected files already exist, including a
+    previously generated sctGEP file.
 - `check_basic_info`
   - Validates the single-cell reference metadata before generation starts.
 - `zero_ratio_threshold`
@@ -517,9 +527,11 @@ directly from Python for custom workflows, but the config-driven standalone
 workflow is now the recommended path for reproducing the mini example and for
 keeping simulation separate from model training.
 
-### b. Preparing single cell dataset by yourself
+### b. Preparing a single-cell dataset yourself
 
-If you want to use other scRNA-seq datasets to simulate GEPs, you can follow our workflow to preprocess single cell datasets and merge them together. The Python package `Scanpy` was used heavily in our workflow.
+If you want to use other scRNA-seq datasets to simulate GEPs, you can follow
+our workflow to preprocess single-cell datasets and merge them together. We use
+the Python package `Scanpy` heavily in this workflow.
 
 - Preprocessing a single dataset: [03deal_with_Puram et al Cell.ipynb](https://github.com/OnlyBelter/DeSide_mini_example/blob/main/single_cell_dataset_integration/03deal_with_Puram%20et%20al%20Cell.ipynb).
 - Merging multiple datasets together (part 1): [Merge_12_scRNA-seq_datasets_part1.ipynb](https://github.com/OnlyBelter/DeSide_mini_example/blob/main/single_cell_dataset_integration/Merge_12_scRNA-seq_datasets_part1.ipynb).
