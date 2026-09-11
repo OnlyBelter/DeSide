@@ -8,7 +8,7 @@ import pandas as pd
 # import anndata as an
 from pathlib import Path
 import scipy.stats as stats
-from scipy.sparse import csr_matrix
+from scipy.sparse import issparse
 from anndata import AnnData, read_h5ad
 import gzip
 import shutil
@@ -457,7 +457,7 @@ def create_h5ad_dataset(simulated_bulk_exp_file_path, cell_fraction_file_path,
         var = pd.DataFrame(index=simu_bulk_exp.columns, columns=[f'in_{gep_type}'])
         var[f'in_{gep_type}'] = 1
         adata = AnnData(X=simu_bulk_exp.values.astype('float32'), obs=cell_frac, uns=uns,
-                        var=var, dtype=np.dtype('float32'))
+                        var=var)
         adata.write_h5ad(filename=Path(result_file_path), compression='gzip')
     else:
         raise KeyError('simu_bulk_exp and cell_frac file should have same sample order')
@@ -473,8 +473,8 @@ def read_data_from_h5ad(h5ad_file_path: str) -> dict:
     """
     raw_input = read_h5ad(h5ad_file_path)
     cell_fraction = raw_input.obs.round(3)
-    if type(raw_input.X) == csr_matrix:
-        x_data = raw_input.X.A.astype(np.float32)  # convert sparse matrix to dense matrix
+    if issparse(raw_input.X):
+        x_data = raw_input.X.toarray().astype(np.float32)  # convert sparse matrix to dense matrix
     else:
         x_data = raw_input.X.astype(np.float32)  # samples x genes (eg: 6000 x 18863)
     bulk_exp = pd.DataFrame(data=x_data, index=raw_input.obs.index, columns=raw_input.var.index).round(3)
