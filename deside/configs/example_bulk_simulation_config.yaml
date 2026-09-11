@@ -2,8 +2,8 @@
 # This workflow is intentionally separate from the model-training config.
 
 input:
-  # Merged single-cell reference used for bootstrapping the sctGEP reference (S0 in the mini example workflow).
-  merged_sc_dataset_file_path: './datasets/generated_sc_dataset/merged_sc_dataset_log2cpm1p.h5ad'
+  # Merged single-cell RNA-seq (scRNA-seq) reference used for bootstrapping the sctGEP reference (S0 in the mini example workflow).
+  merged_sc_dataset_file_path: './datasets/sc_dataset/merged_sc_dataset_log2cpm1p.h5ad'
   # Single-cell-type reference used by the legacy bulk generator.
   # Leave this empty to auto-generate the sctGEP reference below before mixed-bulk simulation.
   sct_dataset_file_path: ''
