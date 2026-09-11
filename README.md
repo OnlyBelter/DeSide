@@ -156,7 +156,7 @@ the E2 scratch-training workflow in [DeSide_mini_example](https://github.com/Onl
 ```python
 from deside.workflow import train_from_config_file
 
-model = train_from_config_file("deside/configs/example_config.yaml")
+model = train_from_config_file("deside/configs/example_model_training_config.yaml")
 ```
 
 This one line runs the full E2 training flow end to end: it loads the YAML
@@ -168,7 +168,7 @@ for reproducibility.
 #### CLI one-liner (recommended for HPC / CI)
 
 ```bash
-deside train --config deside/configs/example_config.yaml
+deside train --config deside/configs/example_model_training_config.yaml
 ```
 
 The `deside` entry point is registered automatically when DeSide is installed
@@ -177,15 +177,34 @@ The `deside` entry point is registered automatically when DeSide is installed
 the fly:
 
 ```bash
-deside train --config deside/configs/example_config.yaml --output-dir ./output/deside_E2_D1
+deside train --config deside/configs/example_model_training_config.yaml --output-dir ./output/deside_E2_D1
 ```
 
 The YAML file is organized into `data / training / model / evaluation`
 sections for readability and reproducibility. See
-[deside/configs/example_config.yaml](deside/configs/example_config.yaml) for
+[deside/configs/example_model_training_config.yaml](deside/configs/example_model_training_config.yaml) for
 the full parameter reference and [deside/configs/__init__.py](deside/configs/__init__.py)
 for how each section is mapped into `DeSide.train_model(...)` call arguments
 and hyper-parameter dict.
+
+### Example 3 — Dataset simulation (YAML config)
+
+DeSide 2.x also ships with a standalone YAML workflow for dataset simulation.
+This workflow keeps data preparation separate from model training, can
+auto-generate the sctGEP reference dataset when
+`input.sct_dataset_file_path: ''`, and then runs mixed bulk GEP generation and
+optional filtering from the same config file.
+
+Run the full simulation workflow with one command:
+
+```bash
+deside workflow filter-sim-data --config deside/configs/example_bulk_simulation_config.yaml
+```
+
+See
+[deside/configs/example_bulk_simulation_config.yaml](deside/configs/example_bulk_simulation_config.yaml)
+for the runnable example config and
+[docs/usage.md](docs/usage.md) for the workflow and parameter guide.
 
 
 ## Documentation

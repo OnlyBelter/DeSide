@@ -48,7 +48,7 @@ def _maybe_copy_source_config(config: DeSideConfig, config_file_path: Optional[U
         return
     dst_dir = Path(config.model_dir)
     check_dir(str(dst_dir))
-    for dst_name in ("example_config.yaml", src.name, f"config_used.yaml"):
+    for dst_name in ("example_model_training_config.yaml", src.name, f"config_used.yaml"):
         try:
             shutil.copy2(src, dst_dir / dst_name)
         except Exception:  # pragma: no cover - best-effort only.
@@ -274,7 +274,7 @@ def train_from_config_file(config_file_path: Union[str, Path]) -> DeSide:
     Usage
     -----
     >>> from deside.workflow import train_from_config_file
-    >>> model = train_from_config_file('deside/configs/example_config.yaml')
+    >>> model = train_from_config_file('deside/configs/example_model_training_config.yaml')
     """
 
     config = DeSideConfig.from_yaml(config_file_path)

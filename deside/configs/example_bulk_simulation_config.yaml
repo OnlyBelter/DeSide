@@ -1,0 +1,138 @@
+# DeSide bulk simulation + filtering configuration
+# This workflow is intentionally separate from the model-training config.
+
+input:
+  # Merged single-cell reference used for bootstrapping the sctGEP reference (S0 in the mini example workflow).
+  merged_sc_dataset_file_path: './datasets/generated_sc_dataset/merged_sc_dataset_log2cpm1p.h5ad'
+  # Single-cell-type reference used by the legacy bulk generator.
+  # Leave this empty to auto-generate the sctGEP reference below before mixed-bulk simulation.
+  sct_dataset_file_path: ''
+  # TCGA cancer-type annotation file used in the mini example notebook.
+  tcga2cancer_type_file_path: './datasets/TCGA/tpm/tcga_sample_id2cancer_type.csv'
+  # Cell types and subtypes used in the mini example notebook.
+  cell_type2subtype:
+    B Cells: ['Non-plasma B cells', 'Plasma B cells']
+    CD4 T: ['CD4 T']
+    CD8 T: ['CD8 T (GZMK high)', 'CD8 T effector']
+    DC: ['DC']
+    Endothelial Cells: ['Endothelial Cells']
+    Cancer Cells: ['Cancer Cells']
+    Fibroblasts: ['CAFs', 'Myofibroblasts']
+    Macrophages: ['Macrophages']
+    Mast Cells: ['Mast Cells']
+    NK: ['NK']
+    Neutrophils: ['Neutrophils']
+    Double-neg-like T: ['Double-neg-like T']
+    Monocytes: ['Monocytes']
+  # The 12 merged single-cell datasets used in the mini example notebook.
+  sc_dataset_ids: ['hnscc_cillo_01', 'pdac_pengj_02', 'hnscc_puram_03', 'pdac_steele_04', 'luad_kim_05', 'nsclc_guo_06', 'pan_cancer_07', 'prad_cheng_08', 'prad_dong_09', 'hcc_sun_10', 'gbm_neftel_11', 'gbm_abdelfattah_12']
+  # Total-RNA coefficients used in the notebook example. Setting all values to 1.0 keeps the legacy behavior unchanged.
+  total_rna_coefficient:
+    B Cells: 1.0
+    CD4 T: 1.0
+    CD8 T: 1.0
+    DC: 1.0
+    Endothelial Cells: 1.0
+    Cancer Cells: 1.0
+    Fibroblasts: 1.0
+    Macrophages: 1.0
+    Mast Cells: 1.0
+    NK: 1.0
+    Neutrophils: 1.0
+    Double-neg-like T: 1.0
+    Monocytes: 1.0
+  cell_type_col_name: 'cell_type'
+  subtype_col_name: 'cell_type'
+
+output:
+  simu_bulk_dir: './datasets/simulated_bulk_cell_dataset'
+  bulk_dataset_name: 'Mixed_N10K_segment'
+  # Optional dedicated log file for this standalone workflow.
+  log_file_path: './datasets/simulated_bulk_cell_dataset/bulk_simulation.log'
+  # Optional override; defaults to <simu_bulk_dir>/<bulk_dataset_name>/bulk_simulation_summary.json
+  summary_file_path: ''
+  # Optional override; defaults to <simu_bulk_dir>/<bulk_dataset_name>/
+  gene_filtering_result_dir: ''
+
+simulation:
+  n_samples: 8000
+  sampling_method: 'segment'  # The notebook uses segment sampling for Mixed_N10K_segment.
+  sampling_range: {}
+  n_threads: 5
+  simu_method: 'mul'
+  add_noise: false
+  noise_params: []
+  # Optional prior ranges for specific cell types.
+  cell_prop_prior: {}
+
+sct_generation:
+  # Dataset name aligned with the mini example's S1 naming.
+  sct_dataset_name: 'SCT_N10K_S1_16sct'
+  # Number of simulated single-cell-type GEPs per cell type in the mini example.
+  n_sample_each_cell_type: 10000
+  # Number of single cells averaged for each positive SCT sample in the mini example.
+  n_base_for_positive_samples: 100
+  # Sampling mode used by the legacy SCT generator.
+  sample_type: 'positive'
+  # Restrict SCT sampling to one patient at a time when true.
+  sep_by_patient: false
+  # Legacy SCT simulation method.
+  simu_method: 'ave'
+  # Generate the legacy SCT test-set layout when true.
+  test_set: false
+  # Minimum number of single cells required for each sampled cell type.
+  minimum_n_base: 1
+  # Optional reference gene list applied before SCT generation.
+  ref_gene_list_file_path: ''
+  # Optional explicit output path for the generated SCT .h5ad. Leave empty to use the deterministic default under simu_bulk_dir.
+  output_file_path: ''
+
+gep_filtering:
+  enable: true
+  reference_file: './datasets/TCGA/tpm/merged_tpm.csv'
+  ref_exp_type: 'TPM'
+  filtering_method: 'median_gep'  # 'median_gep' | 'mean_gep' | 'linear_mmd' | 'marker_ratio'
+  filtering_ref_types: ['ACC', 'BLCA', 'BRCA', 'GBM', 'HNSC', 'LGG', 'LIHC', 'LUAD', 'PAAD', 'PRAD', 'CESC', 'COAD', 'KICH', 'KIRC', 'KIRP', 'LUSC', 'READ', 'THCA', 'UCEC']
+  gep_filtering_quantile: [0.0, 0.95]
+  n_top: 20  # Number of top marker-ratio features used by the legacy GEP-level filtering workflow; mainly relevant for filtering_method='marker_ratio'.
+  show_filtering_info: false
+  # Optional precomputed high-correlation genes used only as the feature space
+  # for GEP-level filtering, preserving the legacy meaning.
+  high_corr_gene_list_file: ''
+  filtering_by_gene_range: false  # If true, keep only simulated GEPs whose gene-wise expression values mostly fall within the TCGA quantile range below.
+  min_percentage_within_gene_range: 0.95  # Minimum fraction of genes that must fall within the TCGA gene-wise quantile range for a simulated sample to pass gene-range filtering.
+  gene_quantile_range: [0.005, 0.5, 0.995]  # The mini example uses the 0.5% / 50% / 99.5% TCGA quantile range when gene-range filtering is enabled.
+  filtering_in_pca_space: true  # The mini example performs GEP-level filtering in PCA space.
+  pca_n_components: 0.9  # The mini example keeps enough PCs to explain 90% of variance.
+  norm_ord: 1  # Norm order used in distance calculations for distance-based GEP filtering, e.g. 1 for L1 distance and 2 for Euclidean distance.
+
+gene_filtering:
+  enable: true
+  # 'high_corr_gene' | 'quantile_range' | 'all_genes' | 'high_corr_gene_and_quantile_range'
+  filtering_type: 'high_corr_gene_and_quantile_range'
+  tcga_file: './datasets/TCGA/tpm/merged_tpm.csv'
+  quantile_range: [0.005, 0.5, 0.995]
+  q_col_name: ['q_0.5', 'q_50.0', 'q_99.5']
+  corr_threshold: 0.3
+  n_gene_max: 1000
+  # Optional precomputed high-correlation gene list. When provided together with
+  # filtering_type='high_corr_gene_and_quantile_range', the workflow intersects
+  # this list with the quantile-range gene list, matching the legacy notebook flow.
+  high_corr_gene_file: ''
+  save_filtered_h5ad: true
+  filtered_dataset_postfix: 'filtered'
+  plot_pca: true
+  pca_n_components: 2
+  pca_figsize: [5, 5]
+  # Optional explicit output paths. Leave empty to use deterministic defaults.
+  gene_list_file: ''
+  corr_result_file: ''
+  pca_model_file: ''
+  pca_data_file: ''
+  filtered_h5ad_file: ''
+
+runtime:
+  skip_if_done: true
+  check_basic_info: true
+  zero_ratio_threshold: 0.97
+  sc_dataset_gep_type: 'log_space'

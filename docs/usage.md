@@ -200,159 +200,322 @@ deside_obj.train_model(training_set_file_path=[training_set2file_path['D1']],
 
 ## Dataset Simulation
 
+This module now has a standalone, config-driven workflow for sctGEP generation,
+mixed bulk GEP generation, and the two filtering stages. The recommended entry
+point is the YAML configuration file
+`deside/configs/example_bulk_simulation_config.yaml` together with the CLI
+command `deside workflow filter-sim-data`.
+
 ### a. Using the single cell dataset we provided
 
-In this module, you can synthesize bulk tumors based on the dataset `S1`.
+This workflow reproduces the logic of the mini example while reducing the
+manual setup. If `input.sct_dataset_file_path` is empty, DeSide first
+bootstraps the single-cell-type reference dataset with
+`SingleCellTypeGEPGenerator`, then reuses that generated `.h5ad` for the
+existing mixed-bulk `BulkGEPGenerator` step.
 
-```python
-import os
-import pandas as pd
-from deside.utility.read_file import ReadH5AD, ReadExp
-from deside.utility import check_dir, sorted_cell_types
-from deside.simulation import (BulkGEPGenerator, get_gene_list_for_filtering, 
-                               filtering_by_gene_list_and_pca_plot)
+The updated standalone workflow runs in three stages:
 
-# the list of single cell RNA-seq datasets
-sc_dataset_ids = ['hnscc_cillo_01', 'pdac_pengj_02', 'hnscc_puram_03',
-                  'pdac_steele_04', 'luad_kim_05', 'nsclc_guo_06', 
-                  'pan_cancer_07', 'prad_cheng_08', 'prad_dong_09', 
-                  'hcc_sun_10', 'gbm_neftel_11', 'gbm_abdelfattah_12']
+1. Resolve the sctGEP reference.
+   - If `input.sct_dataset_file_path` is an existing `.h5ad` file, the
+     workflow reuses it directly.
+   - If `input.sct_dataset_file_path` is `''`, the workflow generates the
+     sctGEP reference from `input.merged_sc_dataset_file_path` by using
+     `sct_generation.*`.
+   - If `input.sct_dataset_file_path` is set but the file is missing, the
+     workflow raises an error.
+2. Generate mixed bulk GEPs.
+   - The workflow runs the legacy `BulkGEPGenerator.generate_gep(...)`
+     pipeline with `simulation.*` and `gep_filtering.*`.
+3. Apply gene-level filtering.
+   - If `gene_filtering.enable: true`, the workflow derives the filtered gene
+     list and optionally saves a filtered `.h5ad`, PCA outputs, and summary
+     files.
 
-# the list of cancer types in the TCGA dataset
-cancer_types = ['ACC', 'BLCA', 'BRCA', 'GBM', 'HNSC', 'LGG', 'LIHC', 'LUAD', 'PAAD', 'PRAD',
-                'CESC', 'COAD', 'KICH', 'KIRC', 'KIRP', 'LUSC', 'READ', 'THCA', 'UCEC']
+To run the example workflow, make sure you have the required inputs in place:
 
-cancer_types_for_filtering = cancer_types.copy()
+1. Put the merged single-cell dataset at the path used by
+   `input.merged_sc_dataset_file_path`.
+2. Put the TCGA merged TPM matrix at the path used by
+   `gep_filtering.reference_file` and `gene_filtering.tcga_file`.
+3. Put the TCGA cancer-type annotation file at the path used by
+   `input.tcga2cancer_type_file_path`.
+4. Run the standalone workflow:
 
-# coefficient to correct the difference of total RNA abundance in different cell types
-# There is no effect to the final results if all the coefficients are set to 1
-alpha_total_rna_coefficient = {'B Cells': 1.0, 'CD4 T': 1.0, 'CD8 T': 1.0, 'DC': 1.0,
-                               'Endothelial Cells': 1.0, 'Cancer Cells': 1.0, 'Fibroblasts': 1.0,
-                               'Macrophages': 1.0, 'Mast Cells': 1.0, 'NK': 1.0, 'Neutrophils': 1.0,
-                               'Double-neg-like T': 1.0, 'Monocytes': 1.0}
-
-# cell types and the corresponding subtypes
-cell_type2subtypes = {'B Cells': ['Non-plasma B cells', 'Plasma B cells'],
-                      'CD4 T': ['CD4 T'], 'CD8 T': ['CD8 T (GZMK high)', 'CD8 T effector'],
-                      'DC': ['DC'], 'Endothelial Cells': ['Endothelial Cells'],
-                      'Cancer Cells': ['Cancer Cells'],
-                      'Fibroblasts': ['CAFs', 'Myofibroblasts'], 'Macrophages': ['Macrophages'],
-                      'Mast Cells': ['Mast Cells'], 'NK': ['NK'], 'Neutrophils': ['Neutrophils'],
-                      'Double-neg-like T': ['Double-neg-like T'], 'Monocytes': ['Monocytes']}
-
-# the list of cell types
-all_cell_types = sorted([i for v in cell_type2subtypes.values() for i in v])
-all_cell_types = [i for i in sorted_cell_types if i in all_cell_types]
-
-# parameters
-# for gene-level filtering
-gene_list_type = 'high_corr_gene_and_quantile_range'
-gene_quantile_range = [0.005, 0.5, 0.995]  # gene-level filtering
-
-# for GEP-level filtering
-gep_filtering_quantile = (0.0, 0.95)  # GEP-level filtering, L1-norm threshold
-filtering_in_pca_space = True
-pca_n_components = 0.9
-n_base = 100  # averaging 100 GEPs sampled from S1 to synthesize 1 bulk GEP, used by S1 generation
-
-cell_prop_prior = None
-dataset2parameters = {
-    'Mixed_N10K_segment': {
-        'sc_dataset_ids': sc_dataset_ids,
-        'cell_type2subtype': cell_type2subtypes,
-        'n_samples': 8000,
-        'sampling_method': 'segment', # or `random` used by Scaden
-        'filtering': True,
-    }
-}
-
-# skipped steps here ...
-simu_bulk_exp_dir = './datasets/simulated_bulk_cell_dataset'
-sct_dataset_file_path = 'path/to/simu_bulk_exp_SCT_N10K_S1_16sct.h5ad'
-tcga2cancer_type_file_path = 'path/to/tcga_sample_id2cancer_type.csv'
-tcga_merged_tpm_file_path = 'path/to/merged_tpm.csv'
-high_corr_gene_file_path = 'path/to/gene_list_filtered_by_high_corr_gene.csv'
-high_corr_gene_list = pd.read_csv(high_corr_gene_file_path)
-high_corr_gene_list = high_corr_gene_list['gene_name'].to_list()
-for dataset_name, params in dataset2parameters.items():
-    # skipped steps here ...
-    bulk_generator = BulkGEPGenerator(simu_bulk_dir=simu_bulk_exp_dir,
-                                      merged_sc_dataset_file_path=None,
-                                      cell_type2subtype=params['cell_type2subtype'],
-                                      sc_dataset_ids=params['sc_dataset_ids'],
-                                      bulk_dataset_name=dataset_name,
-                                      sct_dataset_file_path=sct_dataset_file_path,
-                                      check_basic_info=False,
-                                      tcga2cancer_type_file_path=tcga2cancer_type_file_path,
-                                      total_rna_coefficient=alpha_total_rna_coefficient,
-                                      cell_type_col_name='cell_type',
-                                      subtype_col_name='cell_type')
-    # GEP-filtering will be performed during this generation process
-    generated_bulk_gep_fp = bulk_generator.generated_bulk_gep_fp
-    dataset2path[dataset_name] = generated_bulk_gep_fp
-    if not os.path.exists(generated_bulk_gep_fp):
-        bulk_generator.generate_gep(n_samples=params['n_samples'],
-                                    simu_method='mul',
-                                    sampling_method=params['sampling_method'],
-                                    reference_file=tcga_merged_tpm_file_path,
-                                    ref_exp_type='TPM',
-                                    filtering=params['filtering'],
-                                    filtering_ref_types=params['filtering_ref_types'],
-                                    gep_filtering_quantile=gep_filtering_quantile,
-                                    n_threads=5,
-                                    log_file_path=log_file_path,
-                                    show_filtering_info=False,
-                                    filtering_method='median_gep',
-                                    cell_prop_prior=cell_prop_prior,
-                                    filtering_in_pca_space=filtering_in_pca_space,
-                                    norm_ord=1, pca_n_components=pca_n_components)
-
-    # gene-level filtering that depends on the high correlation genes and quantile range (each dataset itself)
-    if params['filtering']:
-        filtered_file_path = generated_bulk_gep_fp.replace('.h5ad', replace_by)
-        if not os.path.exists(filtered_file_path):
-            gene_list = high_corr_gene_list.copy()
-            # get gene list, filtering, PCA and plot
-            current_result_dir = os.path.join(simu_bulk_exp_dir, dataset_name)
-            check_dir(current_result_dir)
-            # the gene list file for current dataset
-            if 'quantile_range' in gene_list_type:
-                gene_list_file_path = os.path.join(simu_bulk_exp_dir, dataset_name, f'gene_list_filtered_by_{gene_list_type}.csv')
-                gene_list_file_path = gene_list_file_path.replace('.csv', f'_{q_names[0]}_{q_names[2]}.csv')
-                if not os.path.exists(gene_list_file_path):
-                    print(f'Gene list of {dataset_name} will be saved in: {gene_list_file_path}')
-                    quantile_gene_list = get_gene_list_for_filtering(bulk_exp_file=generated_bulk_gep_fp,
-                                                                     filtering_type='quantile_range',
-                                                                     tcga_file=tcga_merged_tpm_file_path,
-                                                                     quantile_range=gene_quantile_range,
-                                                                     result_file_path=gene_list_file_path,
-                                                                     q_col_name=q_names)
-                else:
-                    print(f'Gene list file existed: {gene_list_file_path}')
-                    quantile_gene_list = pd.read_csv(gene_list_file_path)
-                    quantile_gene_list = quantile_gene_list['gene_name'].to_list()
-                # get the intersection of the two gene lists (high correlation genes and within quantile range)
-                gene_list = [gene for gene in gene_list if gene in quantile_gene_list]
-            bulk_exp_obj = ReadH5AD(generated_bulk_gep_fp)
-            bulk_exp = bulk_exp_obj.get_df()
-            bulk_exp_cell_frac = bulk_exp_obj.get_cell_fraction()
-            tcga_exp = ReadExp(tcga_merged_tpm_file_path, exp_type='TPM').get_exp()
-            pc_file_name = f'both_TCGA_and_simu_data_{dataset_name}'
-            pca_model_file_path = os.path.join(current_result_dir, f'{pc_file_name}_PCA_{gene_list_type}.joblib')
-            pca_data_file_path = os.path.join(current_result_dir, f'{dataset_name}_PCA_with_TCGA_{gene_list_type}.csv')
-            # save GEPs data by filtered gene list
-            print('Filtering by gene list and PCA plot')
-            filtering_by_gene_list_and_pca_plot(bulk_exp=bulk_exp, tcga_exp=tcga_exp, gene_list=gene_list,
-                                                result_dir=current_result_dir, n_components=2,
-                                                simu_dataset_name=dataset_name,
-                                                pca_model_name_postfix=gene_list_type,
-                                                pca_model_file_path=pca_model_file_path,
-                                                pca_data_file_path=pca_data_file_path,
-                                                h5ad_file_path=filtered_file_path,
-                                                cell_frac_file=bulk_exp_cell_frac,
-                                                figsize=(5, 5))
+```bash
+deside workflow filter-sim-data \
+  --config deside/configs/example_bulk_simulation_config.yaml
 ```
-- This example synthesized 10,000 samples of bulk tumors as a demonstration about the generation and filtering steps. The complete example in jupyter notebook can be found: [E3 - Synthesizing bulk tumors.ipynb](https://github.com/OnlyBelter/DeSide_mini_example/blob/main/E3%20-%20Synthesizing%20bulk%20tumors.ipynb)
+
+The example config keeps `input.sct_dataset_file_path` empty:
+
+```yaml
+input:
+  merged_sc_dataset_file_path: './datasets/generated_sc_dataset/merged_sc_dataset_log2cpm1p.h5ad'
+  sct_dataset_file_path: ''
+```
+
+This means the workflow bootstraps the S1-style sctGEP dataset automatically
+from the merged S0 dataset before generating the mixed bulk dataset
+`Mixed_N10K_segment`.
+
+<!-- prettier-ignore -->
+> [!IMPORTANT]
+> When `input.sct_dataset_file_path` is empty, `input.merged_sc_dataset_file_path`
+> must point to an existing merged single-cell dataset. The workflow does not
+> silently fall back to another source.
+
+After the run completes, the workflow writes:
+
+- The resolved sctGEP `.h5ad` file.
+- The generated mixed bulk `.h5ad` file.
+- The generated cell-fraction `.csv` file.
+- The optional filtered bulk `.h5ad` file.
+- The optional filtered gene-list `.csv` file.
+- The summary JSON file `bulk_simulation_summary.json`.
+
+### Example configuration
+
+The file `deside/configs/example_bulk_simulation_config.yaml` is aligned with
+the mini example notebook
+[E3 - Synthesizing bulk tumors.ipynb](https://github.com/OnlyBelter/DeSide_mini_example/blob/main/E3%20-%20Synthesizing%20bulk%20tumors.ipynb),
+but it uses the new auto-bootstrap workflow instead of requiring a prebuilt S1
+file.
+
+The current example configuration does the following:
+
+- Uses the 12 single-cell datasets from the mini example.
+- Generates an S1-style sctGEP dataset named `SCT_N10K_S1_16sct`.
+- Generates `8000` mixed bulk samples with `sampling_method: 'segment'`.
+- Uses `simu_method: 'mul'` for mixed-bulk synthesis.
+- Applies TCGA-guided GEP-level filtering across 19 cancer types.
+- Applies PCA-space filtering with `pca_n_components: 0.9` and `norm_ord: 1`.
+- Applies gene-level filtering with
+  `filtering_type: 'high_corr_gene_and_quantile_range'`.
+- Uses the mini example quantile range `[0.005, 0.5, 0.995]`.
+
+### Configuration reference
+
+This section explains the main parameters in
+`deside/configs/example_bulk_simulation_config.yaml` and highlights the common
+alternatives you can use.
+
+#### input
+
+The `input` section defines the datasets and metadata needed before simulation
+starts.
+
+- `merged_sc_dataset_file_path`
+  - Points to the merged single-cell reference dataset used for sctGEP
+    bootstrapping.
+  - This file is required when `sct_dataset_file_path: ''`.
+- `sct_dataset_file_path`
+  - Set this to `''` to auto-generate the sctGEP reference.
+  - Set this to an existing `.h5ad` path to reuse a previously generated or
+    downloaded sctGEP dataset.
+- `tcga2cancer_type_file_path`
+  - Points to the TCGA sample-to-cancer-type mapping file used by GEP-level
+    filtering.
+- `cell_type2subtype`
+  - Defines which cell types and subtypes are included in simulation.
+  - Keep a single subtype equal to the parent cell type, for example
+    `CD4 T: ['CD4 T']`, when you don't want subtype splitting.
+- `sc_dataset_ids`
+  - Lists the merged single-cell datasets that can contribute cells during
+    simulation.
+  - Reduce this list if you want to restrict the reference to a smaller cohort.
+- `total_rna_coefficient`
+  - Sets optional per-cell-type RNA abundance correction factors.
+  - Use all `1.0` values to keep the unadjusted legacy behavior.
+- `cell_type_col_name` and `subtype_col_name`
+  - Define which columns in the merged single-cell `obs` table hold the cell
+    type and subtype labels.
+
+#### output
+
+The `output` section controls where workflow artifacts are written.
+
+- `simu_bulk_dir`
+  - Root directory for generated sctGEP, mixed bulk, and filtering outputs.
+- `bulk_dataset_name`
+  - Name used to build the mixed-bulk output filenames.
+- `log_file_path`
+  - Optional workflow log file.
+- `summary_file_path`
+  - Leave this empty to save the summary to
+    `<gene_filtering_result_dir>/bulk_simulation_summary.json`.
+- `gene_filtering_result_dir`
+  - Leave this empty to save filtering outputs under
+    `<simu_bulk_dir>/<bulk_dataset_name>/`.
+
+#### simulation
+
+The `simulation` section controls mixed-bulk generation.
+
+- `n_samples`
+  - Number of mixed bulk GEPs to generate.
+- `sampling_method`
+  - Supported choices are `'segment'`, `'random'`, `'fragment'`, and
+    `'dirichlet'`.
+  - The mini example uses `'segment'`.
+- `sampling_range`
+  - Optional per-cell-type sampling ranges. Leave this empty to use the legacy
+    defaults of the selected sampling method.
+- `n_threads`
+  - Number of worker threads used during cell sampling.
+- `simu_method`
+  - `'mul'` uses the sctGEP reference for mixed-bulk generation.
+  - Other legacy methods still exist, but the example workflow uses `'mul'`.
+- `add_noise` and `noise_params`
+  - Control optional noise injection into simulated GEPs.
+  - Leave them disabled unless you need explicit perturbations.
+- `cell_prop_prior`
+  - Optionally constrains the cell-fraction search space.
+  - This can speed up GEP-level filtering when you already know realistic
+    ranges for specific cell types.
+
+#### sct_generation
+
+The `sct_generation` section is used only when
+`input.sct_dataset_file_path: ''`.
+
+- `sct_dataset_name`
+  - Naming prefix for the generated sctGEP dataset.
+- `n_sample_each_cell_type`
+  - Number of positive sctGEP samples generated per cell type.
+- `n_base_for_positive_samples`
+  - Number of single cells averaged to create one positive sctGEP sample.
+  - The mini example uses `100`.
+- `sample_type`
+  - `'positive'` generates one-cell-type samples.
+  - `'negative'` generates mixed-cell-type samples for the sctGEP stage.
+- `sep_by_patient`
+  - Set this to `true` to sample cells from one patient at a time.
+- `simu_method`
+  - The example uses `'ave'` for the sctGEP stage.
+- `test_set`
+  - Set this to `true` to generate the legacy SCT test-set layout instead of
+    the training-style dataset.
+- `minimum_n_base`
+  - Minimum number of cells required for a cell type to participate in
+    sctGEP generation.
+- `ref_gene_list_file_path`
+  - Optional reference gene list used to align the merged single-cell dataset
+    before sctGEP generation.
+- `output_file_path`
+  - Optional explicit path for the generated sctGEP `.h5ad` file.
+  - Leave this empty to use the deterministic path under `simu_bulk_dir`.
+
+#### gep_filtering
+
+The `gep_filtering` section controls TCGA-guided sample-level filtering during
+mixed-bulk generation.
+
+- `enable`
+  - Set this to `false` to skip GEP-level filtering entirely.
+- `reference_file`
+  - Points to the TCGA expression matrix used as the filtering reference.
+- `ref_exp_type`
+  - Expression scale of `reference_file`. The example uses `'TPM'`.
+- `filtering_method`
+  - Supported choices are `'median_gep'`, `'mean_gep'`, `'linear_mmd'`, and
+    `'marker_ratio'`.
+  - The mini example uses `'median_gep'`.
+- `filtering_ref_types`
+  - Lists the TCGA cancer types used as the reference cohort.
+  - You can also set this to `['all']` to expand to every cancer type listed
+    in `tcga2cancer_type_file_path`.
+- `gep_filtering_quantile`
+  - Lower and upper quantiles used to define the acceptance band during
+    filtering.
+  - Use `null` for an open lower bound when needed.
+- `n_top`
+  - Number of top features used by marker-ratio filtering.
+- `show_filtering_info`
+  - Prints more detailed filtering diagnostics when `true`.
+- `high_corr_gene_list_file`
+  - Optional precomputed high-correlation gene list used only as the feature
+    space for GEP-level filtering.
+- `filtering_by_gene_range`
+  - Enables additional gene-range checks during GEP filtering.
+- `min_percentage_within_gene_range`
+  - Minimum fraction of genes that must stay within the TCGA range when
+    `filtering_by_gene_range: true`.
+- `gene_quantile_range`
+  - Lower, center, and upper TCGA quantiles used by the gene-range check.
+- `filtering_in_pca_space`
+  - Set this to `true` to filter in PCA space instead of the original
+    expression space.
+- `pca_n_components`
+  - Number of principal components if you set an integer, or explained
+    variance ratio if you set a float.
+- `norm_ord`
+  - Norm order used for distance calculations. `1` means L1 distance, and `2`
+    means Euclidean distance.
+
+#### gene_filtering
+
+The `gene_filtering` section controls post-generation gene-level filtering and
+the optional filtered dataset.
+
+- `enable`
+  - Set this to `false` to keep the generated mixed-bulk dataset unchanged.
+- `filtering_type`
+  - Supported choices are `'high_corr_gene'`, `'quantile_range'`,
+    `'all_genes'`, and `'high_corr_gene_and_quantile_range'`.
+  - The example uses the intersection of high-correlation genes and
+    quantile-range genes.
+- `tcga_file`
+  - Points to the TCGA TPM matrix used in gene filtering.
+- `quantile_range`
+  - Lower, center, and upper quantiles used to derive the quantile-range gene
+    list.
+- `q_col_name`
+  - Column names corresponding to `quantile_range`.
+  - Keep these names synchronized with the selected quantiles.
+- `corr_threshold`
+  - Correlation threshold used by the high-correlation gene filter.
+- `n_gene_max`
+  - Maximum number of genes selected per cell type during high-correlation
+    filtering.
+- `high_corr_gene_file`
+  - Optional precomputed high-correlation gene list.
+  - Leave this empty to compute the list inside the workflow.
+- `save_filtered_h5ad`
+  - Set this to `false` if you only want the filtered gene list.
+- `filtered_dataset_postfix`
+  - Suffix appended to the filtered dataset filename.
+- `plot_pca`
+  - Controls whether the workflow saves the PCA comparison plot for TCGA and
+    simulated data.
+- `pca_n_components` and `pca_figsize`
+  - Control PCA output dimensionality and figure size.
+- `gene_list_file`, `corr_result_file`, `pca_model_file`, `pca_data_file`,
+  and `filtered_h5ad_file`
+  - Optional explicit output paths. Leave them empty to use deterministic
+    default filenames.
+
+#### runtime
+
+The `runtime` section controls workflow behavior rather than the simulation
+design itself.
+
+- `skip_if_done`
+  - Reuses existing outputs when the expected files already exist.
+- `check_basic_info`
+  - Validates the single-cell reference metadata before generation starts.
+- `zero_ratio_threshold`
+  - Filters out single-cell profiles with too many zero-expression genes.
+- `sc_dataset_gep_type`
+  - Use `'log_space'` for log2-transformed single-cell inputs, or
+    `'linear_space'` for non-log inputs.
+
+### Legacy Python API
+
+You can still call `SingleCellTypeGEPGenerator` and `BulkGEPGenerator`
+directly from Python for custom workflows, but the config-driven standalone
+workflow is now the recommended path for reproducing the mini example and for
+keeping simulation separate from model training.
 
 ### b. Preparing single cell dataset by yourself
 

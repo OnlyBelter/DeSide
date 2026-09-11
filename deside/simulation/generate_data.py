@@ -18,7 +18,6 @@ from ..utility import (create_h5ad_dataset, check_dir, cal_corr_gene_exp_with_ce
                        sorted_cell_types, do_pca_analysis, non_log2cpm)
 from ..utility.read_file import ReadH5AD, read_single_cell_type_dataset, ReadExp
 from ..single_cell import get_sample_id
-from ..plot import plot_pca
 
 
 def segment_generation_fraction(n_samples: int = None, max_value: int = 10000,
@@ -630,7 +629,6 @@ class BulkGEPGenerator(object):
                                       filtering_method == 'mean_gep' or filtering_method == 'linear_mmd') and \
                             (simulated_gep is not None):
                         if filtering_in_pca_space:
-                            # TODO, this gene list should be the same as the gene list in PCA model, not the gene list in sc_ds
                             if gene_list_in_pca is None:
                                 gene_list_in_pca = []
                             pca_model_dir = os.path.dirname(os.path.dirname(reference_file))
@@ -1550,6 +1548,8 @@ def filtering_by_gene_list_and_pca_plot(bulk_exp: pd.DataFrame, tcga_exp: pd.Dat
 
     # PCA and plot
     if if_plot_pca:
+        from ..plot import plot_pca
+
         tcga_obj = ReadExp(tcga_exp, exp_type=tcga_exp_type)
         tcga_obj.align_with_gene_list(gene_list=gene_list)
         tcga_obj.to_log2cpm1p()

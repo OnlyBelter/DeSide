@@ -13,9 +13,13 @@ from typing import Any, Dict, List, Mapping, Optional, Union
 
 __all__ = [
     "DeSideConfig",
+    "BulkSimulationConfig",
     "load_deside_yaml",
+    "load_bulk_simulation_yaml",
     "deside_config_from_dict",
     "deside_config_from_yaml",
+    "bulk_simulation_config_from_dict",
+    "bulk_simulation_config_from_yaml",
 ]
 
 
@@ -447,7 +451,591 @@ class DeSideConfig:
         return cls.from_dict(_load_yaml(yaml_path))
 
 
+@dataclass
+class BulkSimulationConfig:
+    """Configuration container for independent bulk simulation and filtering workflows."""
+
+    raw: Dict[str, Any]
+    input: Dict[str, Any]
+    output: Dict[str, Any]
+    simulation: Dict[str, Any]
+    sct_generation: Dict[str, Any]
+    gep_filtering: Dict[str, Any]
+    gene_filtering: Dict[str, Any]
+    runtime: Dict[str, Any]
+
+    @property
+    def simu_bulk_dir(self) -> str:
+        return str(self.output.get("simu_bulk_dir", "./datasets/simulated_bulk_cell_dataset"))
+
+    @property
+    def bulk_dataset_name(self) -> str:
+        value = self.output.get("bulk_dataset_name")
+        if not value or str(value).strip() == "":
+            raise ValueError("output.bulk_dataset_name must be set in the bulk simulation config.")
+        return str(value)
+
+    @property
+    def log_file_path(self) -> Optional[str]:
+        value = self.output.get("log_file_path")
+        if not value:
+            return None
+        return str(value)
+
+    @property
+    def generated_bulk_gep_file_path(self) -> str:
+        prefix = f"simu_bulk_exp_{self.bulk_dataset_name}_log2cpm1p"
+        return str(Path(self.simu_bulk_dir) / f"{prefix}.h5ad")
+
+    @property
+    def gene_filtering_result_dir(self) -> str:
+        value = self.output.get("gene_filtering_result_dir")
+        if value:
+            return str(value)
+        return str(Path(self.simu_bulk_dir) / self.bulk_dataset_name)
+
+    @property
+    def generated_cell_fraction_file_path(self) -> str:
+        return str(Path(self.simu_bulk_dir) / f"generated_frac_{self.bulk_dataset_name}.csv")
+
+    @property
+    def simulation_summary_file_path(self) -> str:
+        value = self.output.get("summary_file_path")
+        if value:
+            return str(value)
+        return str(Path(self.gene_filtering_result_dir) / "bulk_simulation_summary.json")
+
+    @property
+    def skip_if_done(self) -> bool:
+        return bool(self.runtime.get("skip_if_done", True))
+
+    @property
+    def check_basic_info(self) -> bool:
+        return bool(self.runtime.get("check_basic_info", True))
+
+    @property
+    def zero_ratio_threshold(self) -> float:
+        return float(self.runtime.get("zero_ratio_threshold", 0.97))
+
+    @property
+    def sc_dataset_gep_type(self) -> str:
+        return str(self.runtime.get("sc_dataset_gep_type", "log_space"))
+
+    @property
+    def merged_sc_dataset_file_path(self) -> Optional[str]:
+        value = self.input.get("merged_sc_dataset_file_path")
+        if value in (None, ""):
+            return None
+        return str(value)
+
+    @property
+    def sct_dataset_file_path(self) -> Optional[str]:
+        value = self.input.get("sct_dataset_file_path")
+        if value in (None, ""):
+            return None
+        return str(value)
+
+    @property
+    def auto_generate_sct_dataset(self) -> bool:
+        return self.sct_dataset_file_path is None
+
+    @property
+    def tcga2cancer_type_file_path(self) -> Optional[str]:
+        value = self.input.get("tcga2cancer_type_file_path")
+        if value in (None, ""):
+            return None
+        return str(value)
+
+    @property
+    def cell_type2subtype(self) -> Dict[str, List[str]]:
+        raw = self.input.get("cell_type2subtype")
+        if not isinstance(raw, Mapping) or not raw:
+            raise ValueError("input.cell_type2subtype must be a non-empty dict.")
+        return {
+            str(cell_type): [str(subtype) for subtype in _coerce_optional_list(subtypes, allow_empty=False)]
+            for cell_type, subtypes in raw.items()
+        }
+
+    @property
+    def sc_dataset_ids(self) -> List[str]:
+        values = _coerce_optional_list(self.input.get("sc_dataset_ids"), allow_empty=False)
+        if not values:
+            raise ValueError("input.sc_dataset_ids must define at least one single-cell dataset ID.")
+        return [str(value) for value in values]
+
+    @property
+    def total_rna_coefficient(self) -> Optional[Dict[str, float]]:
+        raw = self.input.get("total_rna_coefficient")
+        if raw in (None, ""):
+            return None
+        if not isinstance(raw, Mapping):
+            raise ValueError("input.total_rna_coefficient must be a dict when provided.")
+        return {str(key): float(value) for key, value in raw.items()}
+
+    @property
+    def subtype_col_name(self) -> Optional[str]:
+        value = self.input.get("subtype_col_name")
+        if value in (None, ""):
+            return None
+        return str(value)
+
+    @property
+    def cell_type_col_name(self) -> Optional[str]:
+        value = self.input.get("cell_type_col_name")
+        if value in (None, ""):
+            return None
+        return str(value)
+
+    @property
+    def n_samples(self) -> int:
+        return int(self.simulation.get("n_samples", 0))
+
+    @property
+    def sct_dataset_name(self) -> str:
+        return str(self.sct_generation.get("sct_dataset_name", "mixed_sctGEP_nbase100"))
+
+    @property
+    def sct_n_sample_each_cell_type(self) -> int:
+        return int(self.sct_generation.get("n_sample_each_cell_type", 10000))
+
+    @property
+    def sct_n_base_for_positive_samples(self) -> int:
+        return int(self.sct_generation.get("n_base_for_positive_samples", 100))
+
+    @property
+    def sct_sample_type(self) -> str:
+        return str(self.sct_generation.get("sample_type", "positive"))
+
+    @property
+    def sct_sep_by_patient(self) -> bool:
+        return bool(self.sct_generation.get("sep_by_patient", False))
+
+    @property
+    def sct_simu_method(self) -> str:
+        return str(self.sct_generation.get("simu_method", "ave"))
+
+    @property
+    def sct_test_set(self) -> bool:
+        return bool(self.sct_generation.get("test_set", False))
+
+    @property
+    def sct_minimum_n_base(self) -> int:
+        return int(self.sct_generation.get("minimum_n_base", 1))
+
+    @property
+    def sct_ref_gene_list_file_path(self) -> Optional[str]:
+        value = self.sct_generation.get("ref_gene_list_file_path")
+        if value in (None, ""):
+            return None
+        return str(value)
+
+    @property
+    def sct_output_file_path(self) -> Optional[str]:
+        value = self.sct_generation.get("output_file_path")
+        if value in (None, ""):
+            return None
+        return str(value)
+
+    @property
+    def sampling_method(self) -> str:
+        return str(self.simulation.get("sampling_method", "segment"))
+
+    @property
+    def sampling_range(self) -> Optional[Dict[str, List[float]]]:
+        raw = self.simulation.get("sampling_range")
+        if not raw:
+            return None
+        if not isinstance(raw, Mapping):
+            raise ValueError("simulation.sampling_range must be a dict when provided.")
+        return {
+            str(key): [float(v) for v in _coerce_optional_list(value, allow_empty=False)]
+            for key, value in raw.items()
+        }
+
+    @property
+    def total_cell_number(self) -> int:
+        return int(self.simulation.get("total_cell_number", 100))
+
+    @property
+    def n_threads(self) -> int:
+        return int(self.simulation.get("n_threads", 10))
+
+    @property
+    def simu_method(self) -> str:
+        return str(self.simulation.get("simu_method", "mul"))
+
+    @property
+    def add_noise(self) -> bool:
+        return bool(self.simulation.get("add_noise", False))
+
+    @property
+    def noise_params(self) -> tuple:
+        return tuple(_coerce_optional_list(self.simulation.get("noise_params")))
+
+    @property
+    def cell_prop_prior(self) -> Optional[Dict[str, List[float]]]:
+        raw = self.simulation.get("cell_prop_prior")
+        if not raw:
+            return None
+        if not isinstance(raw, Mapping):
+            raise ValueError("simulation.cell_prop_prior must be a dict when provided.")
+        return {
+            str(key): [float(v) for v in _coerce_optional_list(value, allow_empty=False)]
+            for key, value in raw.items()
+        }
+
+    @property
+    def gep_filtering_enabled(self) -> bool:
+        return bool(self.gep_filtering.get("enable", True))
+
+    @property
+    def gep_reference_file(self) -> Optional[str]:
+        value = self.gep_filtering.get("reference_file")
+        if value in (None, ""):
+            return None
+        return str(value)
+
+    @property
+    def gep_ref_exp_type(self) -> Optional[str]:
+        value = self.gep_filtering.get("ref_exp_type")
+        if value in (None, ""):
+            return None
+        return str(value)
+
+    @property
+    def gep_filtering_quantile(self) -> tuple[Optional[float], Optional[float]]:
+        values = _coerce_optional_list(self.gep_filtering.get("gep_filtering_quantile"))
+        if not values:
+            return (None, 0.95)
+        if len(values) != 2:
+            raise ValueError("gep_filtering.gep_filtering_quantile must contain exactly two values.")
+        lower = None if values[0] in (None, "", "null") else float(values[0])
+        upper = None if values[1] in (None, "", "null") else float(values[1])
+        return (lower, upper)
+
+    @property
+    def gep_filtering_method(self) -> str:
+        return str(self.gep_filtering.get("filtering_method", "median_gep"))
+
+    @property
+    def gep_filtering_ref_types(self) -> Optional[List[str]]:
+        values = _coerce_optional_list(self.gep_filtering.get("filtering_ref_types"))
+        if not values:
+            return None
+        normalized_values = [str(value).strip() for value in values]
+        if len(normalized_values) == 1 and normalized_values[0].lower() == "all":
+            import pandas as pd
+
+            tcga_map_file = self.tcga2cancer_type_file_path
+            if not tcga_map_file:
+                raise ValueError(
+                    "input.tcga2cancer_type_file_path must be set when "
+                    "gep_filtering.filtering_ref_types='all'."
+                )
+            tcga_df = pd.read_csv(tcga_map_file, index_col=0)
+            if "cancer_type" not in tcga_df.columns:
+                raise ValueError(
+                    "The TCGA cancer-type mapping file must contain a 'cancer_type' column "
+                    "when gep_filtering.filtering_ref_types='all'."
+                )
+            return sorted(tcga_df["cancer_type"].dropna().astype(str).unique().tolist())
+        return normalized_values
+
+    @property
+    def gep_show_filtering_info(self) -> bool:
+        return bool(self.gep_filtering.get("show_filtering_info", False))
+
+    @property
+    def gep_n_top(self) -> int:
+        return int(self.gep_filtering.get("n_top", 20))
+
+    @property
+    def gep_high_corr_gene_list_file(self) -> Optional[str]:
+        value = self.gep_filtering.get("high_corr_gene_list_file")
+        if value in (None, ""):
+            return None
+        return str(value)
+
+    @property
+    def gep_filtering_by_gene_range(self) -> bool:
+        return bool(self.gep_filtering.get("filtering_by_gene_range", False))
+
+    @property
+    def gep_min_percentage_within_gene_range(self) -> float:
+        return float(self.gep_filtering.get("min_percentage_within_gene_range", 0.95))
+
+    @property
+    def gep_gene_quantile_range(self) -> Optional[List[float]]:
+        values = _coerce_optional_list(self.gep_filtering.get("gene_quantile_range"))
+        if not values:
+            return None
+        return [float(value) for value in values]
+
+    @property
+    def gep_filtering_in_pca_space(self) -> bool:
+        return bool(self.gep_filtering.get("filtering_in_pca_space", False))
+
+    @property
+    def gep_pca_n_components(self) -> Union[int, float]:
+        value = self.gep_filtering.get("pca_n_components", 0.9)
+        if isinstance(value, float):
+            return value
+        if isinstance(value, int):
+            return value
+        text = str(value).strip()
+        return float(text) if "." in text else int(text)
+
+    @property
+    def gep_norm_ord(self) -> int:
+        return int(self.gep_filtering.get("norm_ord", 1))
+
+    @property
+    def gene_filtering_enabled(self) -> bool:
+        return bool(self.gene_filtering.get("enable", True))
+
+    @property
+    def gene_filtering_type(self) -> str:
+        return str(self.gene_filtering.get("filtering_type", "high_corr_gene_and_quantile_range"))
+
+    @property
+    def gene_filtering_tcga_file(self) -> Optional[str]:
+        value = self.gene_filtering.get("tcga_file")
+        if value in (None, ""):
+            return None
+        return str(value)
+
+    @property
+    def gene_filtering_quantile_range(self) -> Optional[List[float]]:
+        values = _coerce_optional_list(self.gene_filtering.get("quantile_range"))
+        if not values:
+            return None
+        return [float(value) for value in values]
+
+    @property
+    def gene_filtering_q_col_name(self) -> Optional[List[str]]:
+        values = _coerce_optional_list(self.gene_filtering.get("q_col_name"))
+        if not values:
+            return None
+        return [str(value) for value in values]
+
+    @property
+    def gene_filtering_corr_threshold(self) -> float:
+        return float(self.gene_filtering.get("corr_threshold", 0.3))
+
+    @property
+    def gene_filtering_n_gene_max(self) -> int:
+        return int(self.gene_filtering.get("n_gene_max", 1000))
+
+    @property
+    def gene_filtering_high_corr_gene_file(self) -> Optional[str]:
+        value = self.gene_filtering.get("high_corr_gene_file")
+        if value in (None, ""):
+            return None
+        return str(value)
+
+    @property
+    def gene_filtering_save_filtered_h5ad(self) -> bool:
+        return bool(self.gene_filtering.get("save_filtered_h5ad", True))
+
+    @property
+    def gene_filtering_filtered_dataset_postfix(self) -> str:
+        return str(self.gene_filtering.get("filtered_dataset_postfix", "filtered"))
+
+    @property
+    def gene_filtering_plot_pca(self) -> bool:
+        return bool(self.gene_filtering.get("plot_pca", True))
+
+    @property
+    def gene_filtering_pca_n_components(self) -> int:
+        return int(self.gene_filtering.get("pca_n_components", 2))
+
+    @property
+    def gene_filtering_pca_figsize(self) -> tuple[float, float]:
+        values = _coerce_optional_list(self.gene_filtering.get("pca_figsize", [5, 5]), allow_empty=False)
+        if len(values) != 2:
+            raise ValueError("gene_filtering.pca_figsize must contain two values.")
+        return (float(values[0]), float(values[1]))
+
+    @property
+    def gene_filtering_gene_list_file(self) -> str:
+        value = self.gene_filtering.get("gene_list_file")
+        if value:
+            return str(value)
+        file_name = f"gene_list_filtered_by_{self.gene_filtering_type}.csv"
+        return str(Path(self.gene_filtering_result_dir) / file_name)
+
+    @property
+    def gene_filtering_corr_result_file(self) -> str:
+        value = self.gene_filtering.get("corr_result_file")
+        if value:
+            return str(value)
+        return str(Path(self.gene_filtering_result_dir) / "gene_corr_with_cell_fraction.csv")
+
+    @property
+    def gene_filtering_pca_model_file(self) -> str:
+        value = self.gene_filtering.get("pca_model_file")
+        if value:
+            return str(value)
+        return str(Path(self.gene_filtering_result_dir) / f"both_TCGA_and_simu_data_{self.bulk_dataset_name}_PCA_{self.gene_filtering_type}.joblib")
+
+    @property
+    def gene_filtering_pca_data_file(self) -> str:
+        value = self.gene_filtering.get("pca_data_file")
+        if value:
+            return str(value)
+        return str(Path(self.gene_filtering_result_dir) / f"{self.bulk_dataset_name}_PCA_with_TCGA_{self.gene_filtering_type}.csv")
+
+    @property
+    def gene_filtering_filtered_h5ad_file(self) -> str:
+        value = self.gene_filtering.get("filtered_h5ad_file")
+        if value:
+            return str(value)
+        postfix = self.gene_filtering_filtered_dataset_postfix.strip("_")
+        if not postfix:
+            postfix = "filtered"
+        stem = Path(self.generated_bulk_gep_file_path).stem
+        return str(Path(self.simu_bulk_dir) / f"{stem}_{postfix}.h5ad")
+
+    def build_bulk_generator_kwargs(self) -> Dict[str, Any]:
+        return {
+            "simu_bulk_dir": self.simu_bulk_dir,
+            "merged_sc_dataset_file_path": self.merged_sc_dataset_file_path,
+            "sct_dataset_file_path": self.sct_dataset_file_path,
+            "cell_type2subtype": self.cell_type2subtype,
+            "sc_dataset_ids": self.sc_dataset_ids,
+            "bulk_dataset_name": self.bulk_dataset_name,
+            "check_basic_info": self.check_basic_info,
+            "zero_ratio_threshold": self.zero_ratio_threshold,
+            "sc_dataset_gep_type": self.sc_dataset_gep_type,
+            "tcga2cancer_type_file_path": self.tcga2cancer_type_file_path,
+            "total_rna_coefficient": self.total_rna_coefficient,
+            "subtype_col_name": self.subtype_col_name,
+            "cell_type_col_name": self.cell_type_col_name,
+        }
+
+    def build_sct_generator_kwargs(self) -> Dict[str, Any]:
+        return {
+            "merged_sc_dataset_file_path": self.merged_sc_dataset_file_path,
+            "cell_type2subtype": self.cell_type2subtype,
+            "sc_dataset_ids": self.sc_dataset_ids,
+            "simu_bulk_dir": self.simu_bulk_dir,
+            "bulk_dataset_name": self.sct_dataset_name,
+            "zero_ratio_threshold": self.zero_ratio_threshold,
+            "sc_dataset_gep_type": self.sc_dataset_gep_type,
+            "subtype_col_name": self.subtype_col_name,
+            "cell_type_col_name": self.cell_type_col_name,
+        }
+
+    def build_sct_generate_samples_kwargs(self) -> Dict[str, Any]:
+        return {
+            "n_sample_each_cell_type": self.sct_n_sample_each_cell_type,
+            "n_base_for_positive_samples": self.sct_n_base_for_positive_samples,
+            "sample_type": self.sct_sample_type,
+            "sep_by_patient": self.sct_sep_by_patient,
+            "simu_method": self.sct_simu_method,
+            "test_set": self.sct_test_set,
+            "minimum_n_base": self.sct_minimum_n_base,
+            "ref_gene_list_file_path": self.sct_ref_gene_list_file_path,
+        }
+
+    def build_generate_gep_kwargs(self, *, high_corr_gene_list: Optional[List[str]]) -> Dict[str, Any]:
+        return {
+            "n_samples": self.n_samples,
+            "sampling_range": self.sampling_range,
+            "sampling_method": self.sampling_method,
+            "total_cell_number": self.total_cell_number,
+            "n_threads": self.n_threads,
+            "filtering": self.gep_filtering_enabled,
+            "reference_file": self.gep_reference_file,
+            "ref_exp_type": self.gep_ref_exp_type,
+            "gep_filtering_quantile": self.gep_filtering_quantile,
+            "log_file_path": self.log_file_path,
+            "n_top": self.gep_n_top,
+            "simu_method": self.simu_method,
+            "filtering_method": self.gep_filtering_method,
+            "add_noise": self.add_noise,
+            "noise_params": self.noise_params,
+            "filtering_ref_types": self.gep_filtering_ref_types,
+            "show_filtering_info": self.gep_show_filtering_info,
+            "cell_prop_prior": self.cell_prop_prior,
+            "high_corr_gene_list": high_corr_gene_list,
+            "filtering_by_gene_range": self.gep_filtering_by_gene_range,
+            "min_percentage_within_gene_range": self.gep_min_percentage_within_gene_range,
+            "gene_quantile_range": self.gep_gene_quantile_range,
+            "filtering_in_pca_space": self.gep_filtering_in_pca_space,
+            "pca_n_components": self.gep_pca_n_components,
+            "norm_ord": self.gep_norm_ord,
+        }
+
+    def validate(self) -> None:
+        if self.n_samples <= 0:
+            raise ValueError("simulation.n_samples must be > 0.")
+        if self.auto_generate_sct_dataset:
+            if not self.merged_sc_dataset_file_path:
+                raise ValueError(
+                    "input.merged_sc_dataset_file_path must be set when input.sct_dataset_file_path is empty."
+                )
+            if not Path(self.merged_sc_dataset_file_path).exists():
+                raise ValueError(
+                    "input.merged_sc_dataset_file_path points to a missing file: "
+                    f"{self.merged_sc_dataset_file_path}"
+                )
+            if self.sct_n_sample_each_cell_type <= 0:
+                raise ValueError("sct_generation.n_sample_each_cell_type must be > 0.")
+            if self.sct_n_base_for_positive_samples <= 0:
+                raise ValueError("sct_generation.n_base_for_positive_samples must be > 0.")
+            if self.sct_minimum_n_base <= 0:
+                raise ValueError("sct_generation.minimum_n_base must be > 0.")
+            if self.sct_sample_type not in {"positive", "negative"}:
+                raise ValueError("sct_generation.sample_type must be either 'positive' or 'negative'.")
+        elif not Path(self.sct_dataset_file_path).exists():
+            raise ValueError(
+                "input.sct_dataset_file_path points to a missing file: "
+                f"{self.sct_dataset_file_path}"
+            )
+        if self.gep_filtering_enabled:
+            if not self.gep_reference_file:
+                raise ValueError("gep_filtering.reference_file must be set when gep_filtering.enable=true.")
+            if not self.gep_ref_exp_type:
+                raise ValueError("gep_filtering.ref_exp_type must be set when gep_filtering.enable=true.")
+            if not self.gep_filtering_ref_types:
+                raise ValueError("gep_filtering.filtering_ref_types must be set when gep_filtering.enable=true.")
+        if self.gene_filtering_enabled:
+            if not self.gene_filtering_tcga_file:
+                raise ValueError("gene_filtering.tcga_file must be set when gene_filtering.enable=true.")
+            if "quantile_range" in self.gene_filtering_type and not self.gene_filtering_quantile_range:
+                raise ValueError(
+                    "gene_filtering.quantile_range must be set when the filtering type uses quantile_range."
+                )
+
+    @classmethod
+    def from_dict(cls, config_dict: Mapping[str, Any]) -> "BulkSimulationConfig":
+        raw = dict(config_dict)
+        return cls(
+            raw=raw,
+            input=dict(raw.get("input", {}) or {}),
+            output=dict(raw.get("output", {}) or {}),
+            simulation=dict(raw.get("simulation", {}) or {}),
+            sct_generation=dict(raw.get("sct_generation", {}) or {}),
+            gep_filtering=dict(raw.get("gep_filtering", {}) or {}),
+            gene_filtering=dict(raw.get("gene_filtering", {}) or {}),
+            runtime=dict(raw.get("runtime", {}) or {}),
+        )
+
+    @classmethod
+    def from_yaml(cls, yaml_path: PathLike) -> "BulkSimulationConfig":
+        yaml_path = Path(yaml_path)
+        if not yaml_path.is_absolute():
+            yaml_path = yaml_path.resolve()
+        if not yaml_path.exists():
+            raise FileNotFoundError(f"DeSide bulk simulation YAML config not found: {yaml_path}")
+        return cls.from_dict(_load_yaml(yaml_path))
+
+
 # Aliases for users coming from VAEDecon style naming.
 load_deside_yaml = DeSideConfig.from_yaml
 deside_config_from_dict = DeSideConfig.from_dict
 deside_config_from_yaml = DeSideConfig.from_yaml
+load_bulk_simulation_yaml = BulkSimulationConfig.from_yaml
+bulk_simulation_config_from_dict = BulkSimulationConfig.from_dict
+bulk_simulation_config_from_yaml = BulkSimulationConfig.from_yaml
