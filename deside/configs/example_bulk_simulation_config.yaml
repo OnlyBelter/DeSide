@@ -11,7 +11,8 @@ input:
   # when `gep_filtering.filtering_ref_types` is used to restrict the reference
   # cohort by cancer type.
   tcga2cancer_type_file_path: './datasets/TCGA/tpm/tcga_sample_id2cancer_type.csv'
-  # Cell types and subtypes used in the mini example notebook.
+  # Cell types and subtype labels used for the 16-cell-type simulation setting.
+  # Fine-grained labels below are read from `subtype_col_name`.
   cell_type2subtype:
     B Cells: ['Non-plasma B cells', 'Plasma B cells']
     CD4 T: ['CD4 T']
@@ -27,7 +28,7 @@ input:
     Double-neg-like T: ['Double-neg-like T']
     Monocytes: ['Monocytes']
   # The 12 merged single-cell datasets used in the mini example notebook.
-  sc_dataset_ids: ['hnscc_cillo_01', 'pdac_pengj_02', 'hnscc_puram_03', 'pdac_steele_04', 'luad_kim_05', 'nsclc_guo_06', 'pan_cancer_07', 'prad_cheng_08', 'prad_dong_09', 'hcc_sun_10', 'gbm_neftel_11', 'gbm_abdelfattah_12']
+  sc_dataset_ids: ['hnscc_cillo_01', 'pdac_peng_02', 'hnscc_puram_03', 'pdac_steele_04', 'luad_kim_05', 'nsclc_guo_06', 'pan_cancer_07', 'prad_cheng_08', 'prad_dong_09', 'hcc_sun_10', 'gbm_neftel_11', 'gbm_abdelfattah_12']
   # Total-RNA coefficients used in the notebook example. Setting all values to 1.0 keeps the legacy behavior unchanged.
   total_rna_coefficient:
     B Cells: 1.0
@@ -44,7 +45,8 @@ input:
     Double-neg-like T: 1.0
     Monocytes: 1.0
   cell_type_col_name: 'cell_type'
-  subtype_col_name: 'cell_type'
+  # Fine-grained subtype labels used for the 16-cell-type simulation setting.
+  subtype_col_name: 'cell_subtype'
 
 output:
   simu_bulk_dir: './datasets/simulated_bulk_cell_dataset'

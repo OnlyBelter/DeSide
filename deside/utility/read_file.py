@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import anndata as an
 from typing import Union
-from scipy.sparse import csr_matrix
+from scipy.sparse import issparse
 from .pub_func import (log_exp2cpm, read_df, non_log2log_cpm,
                        non_log2cpm, get_inx2cell_type)
 
@@ -42,8 +42,8 @@ class ReadH5AD(object):
         :param copy: if False the returned DataFrame may share memory with self.dataset.X; callers
             that will mutate the output frame must pass copy=True
         """
-        if type(self.dataset.X) == csr_matrix:
-            x_data = self.dataset.X.A.astype(np.float32, copy=False)
+        if issparse(self.dataset.X):
+            x_data = self.dataset.X.toarray().astype(np.float32, copy=False)
         else:
             x_data = np.asarray(self.dataset.X, dtype=np.float32)
 

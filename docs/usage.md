@@ -342,6 +342,11 @@ starts.
   - Defines which cell types and subtypes are included in simulation.
   - Keep a single subtype equal to the parent cell type, for example
     `CD4 T: ['CD4 T']`, when you don't want subtype splitting.
+  - If `subtype_col_name` points to a dedicated subtype column, this mapping
+    can include fine-grained labels such as `Non-plasma B cells`, `CD8 T
+    effector`, or `CAFs`.
+  - If `subtype_col_name` points to the same column as `cell_type_col_name`,
+    every subtype entry must match those parent cell-type labels directly.
 - `sc_dataset_ids`
   - Lists the merged single-cell datasets that can contribute cells during
     simulation.
@@ -352,6 +357,9 @@ starts.
 - `cell_type_col_name` and `subtype_col_name`
   - Define which columns in the merged single-cell `obs` table hold the cell
     type and subtype labels.
+  - For the 16-cell-type example configuration, `cell_type_col_name` stays at
+    `cell_type`, while `subtype_col_name` points to the fine-grained
+    `cell_subtype` column.
 
 #### output
 
