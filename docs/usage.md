@@ -221,8 +221,10 @@ The updated standalone workflow runs in three stages:
    - If `input.sct_dataset_file_path` is an existing `.h5ad` file, the
      workflow reuses it directly.
    - If `input.sct_dataset_file_path` is `''`, the workflow generates the
-     sctGEP reference from `input.merged_sc_dataset_file_path` by using
-     `sct_generation.*`.
+     sctGEP reference from `input.merged_sc_dataset_file_path` by using the
+     parameters in the `sct_generation` section, including the dataset name,
+     the number of samples per cell type, the number of cells averaged per
+     sample, and the SCT simulation method.
    - If `input.sct_dataset_file_path` is set but the file is missing, the
      workflow raises an error.
 2. Generate mixed bulk GEPs.
@@ -237,11 +239,21 @@ The updated standalone workflow runs in three stages:
 To run the example workflow, make sure you have the required inputs in place:
 
 1. Put the merged single-cell dataset at the path used by
-   `input.merged_sc_dataset_file_path`.
-2. Put the TCGA merged TPM matrix at the path used by
-   `gep_filtering.reference_file` and `gene_filtering.tcga_file`.
-3. Put the TCGA cancer-type annotation file at the path used by
-   `input.tcga2cancer_type_file_path`.
+   `input.merged_sc_dataset_file_path`. You can download the example S0 file
+   [`merged_12_sc_datasets_231003.h5ad` (merged_12_sc_datasets
+   (S0))](https://figshare.com/articles/dataset/Dataset_S0/23283908/2).
+2. Put the reference bulk expression matrix at the paths used by
+   `gep_filtering.reference_file` and `gene_filtering.reference_file`. In the
+   example config, both fields point to the same merged TCGA TPM file, so the
+   same TCGA reference is used for both GEP-level and gene-level filtering. You
+   can use a different compatible reference dataset if needed. You can
+   download the example `merged_tpm.csv` file
+   [here](https://doi.org/10.6084/m9.figshare.23047547.v2).
+3. Optional: Put the sample-to-cancer-type annotation file at the path used by
+   `input.tcga2cancer_type_file_path` if you want to restrict GEP-level
+   filtering to specific cancer types. You can find the example
+   [`tcga_sample_id2cancer_type.csv`](https://github.com/OnlyBelter/DeSide_mini_example/blob/main/datasets/TCGA/tpm/tcga_sample_id2cancer_type.csv)
+   in `DeSide_mini_example`.
 4. Run the standalone workflow:
 
 ```bash
@@ -322,8 +334,10 @@ starts.
   - Set this to an existing `.h5ad` path to reuse a previously generated or
     downloaded sctGEP dataset.
 - `tcga2cancer_type_file_path`
-  - Points to the TCGA sample-to-cancer-type mapping file used by GEP-level
-    filtering.
+  - Points to the sample-to-cancer-type mapping file used only when you want to
+    restrict GEP-level filtering to specific cancer types.
+  - Leave this empty when `gep_filtering.reference_file` already contains the
+    exact reference cohort you want to use.
 - `cell_type2subtype`
   - Defines which cell types and subtypes are included in simulation.
   - Keep a single subtype equal to the parent cell type, for example
@@ -431,7 +445,9 @@ mixed-bulk generation.
     `'marker_ratio'`.
   - The mini example uses `'median_gep'`.
 - `filtering_ref_types`
-  - Lists the TCGA cancer types used as the reference cohort.
+  - Optionally lists the cancer types used as the reference cohort for GEP-level
+    filtering.
+  - Leave this empty to use all samples in `reference_file` directly.
   - You can also set this to `['all']` to expand to every cancer type listed
     in `tcga2cancer_type_file_path`.
 - `gep_filtering_quantile`
@@ -474,8 +490,10 @@ the optional filtered dataset.
     `'all_genes'`, and `'high_corr_gene_and_quantile_range'`.
   - The example uses the intersection of high-correlation genes and
     quantile-range genes.
-- `tcga_file`
-  - Points to the TCGA TPM matrix used in gene filtering.
+- `reference_file`
+  - Points to the bulk reference matrix used in gene filtering.
+  - The example uses merged TCGA GEPs in TPM format by default, but you can
+    point this field to another compatible reference dataset.
 - `quantile_range`
   - Lower, center, and upper quantiles used to derive the quantile-range gene
     list.

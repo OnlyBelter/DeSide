@@ -7,7 +7,9 @@ input:
   # Single-cell-type reference used by the legacy bulk generator.
   # Leave this empty to auto-generate the sctGEP reference below before mixed-bulk simulation.
   sct_dataset_file_path: ''
-  # TCGA cancer-type annotation file used in the mini example notebook.
+  # Optional mapping from sample IDs to cancer types. This file is only needed
+  # when `gep_filtering.filtering_ref_types` is used to restrict the reference
+  # cohort by cancer type.
   tcga2cancer_type_file_path: './datasets/TCGA/tpm/tcga_sample_id2cancer_type.csv'
   # Cell types and subtypes used in the mini example notebook.
   cell_type2subtype:
@@ -89,9 +91,14 @@ sct_generation:
 
 gep_filtering:
   enable: true
+  # Reference matrix used for GEP-level filtering. The example uses merged TCGA TPM GEPs,
+  # but you can point this to another compatible bulk reference dataset.
   reference_file: './datasets/TCGA/tpm/merged_tpm.csv'
   ref_exp_type: 'TPM'
   filtering_method: 'median_gep'  # 'median_gep' | 'mean_gep' | 'linear_mmd' | 'marker_ratio'
+  # Optional cancer-type subset used for GEP-level filtering. Leave this empty
+  # to use all samples in `reference_file` directly. Set `['all']` to expand
+  # from `input.tcga2cancer_type_file_path`.
   filtering_ref_types: ['ACC', 'BLCA', 'BRCA', 'GBM', 'HNSC', 'LGG', 'LIHC', 'LUAD', 'PAAD', 'PRAD', 'CESC', 'COAD', 'KICH', 'KIRC', 'KIRP', 'LUSC', 'READ', 'THCA', 'UCEC']
   gep_filtering_quantile: [0.0, 0.95]
   n_top: 20  # Number of top marker-ratio features used by the legacy GEP-level filtering workflow; mainly relevant for filtering_method='marker_ratio'.
@@ -110,7 +117,9 @@ gene_filtering:
   enable: true
   # 'high_corr_gene' | 'quantile_range' | 'all_genes' | 'high_corr_gene_and_quantile_range'
   filtering_type: 'high_corr_gene_and_quantile_range'
-  tcga_file: './datasets/TCGA/tpm/merged_tpm.csv'
+  # Reference matrix used for gene-level filtering. The example uses merged TCGA TPM GEPs,
+  # but you can point this to another compatible bulk reference dataset.
+  reference_file: './datasets/TCGA/tpm/merged_tpm.csv'
   quantile_range: [0.005, 0.5, 0.995]
   q_col_name: ['q_0.5', 'q_50.0', 'q_99.5']
   corr_threshold: 0.3

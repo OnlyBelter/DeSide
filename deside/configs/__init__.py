@@ -798,11 +798,17 @@ class BulkSimulationConfig:
         return str(self.gene_filtering.get("filtering_type", "high_corr_gene_and_quantile_range"))
 
     @property
-    def gene_filtering_tcga_file(self) -> Optional[str]:
-        value = self.gene_filtering.get("tcga_file")
+    def gene_filtering_reference_file(self) -> Optional[str]:
+        value = self.gene_filtering.get("reference_file")
+        if value in (None, ""):
+            value = self.gene_filtering.get("tcga_file")
         if value in (None, ""):
             return None
         return str(value)
+
+    @property
+    def gene_filtering_tcga_file(self) -> Optional[str]:
+        return self.gene_filtering_reference_file
 
     @property
     def gene_filtering_quantile_range(self) -> Optional[List[float]]:
@@ -998,11 +1004,16 @@ class BulkSimulationConfig:
                 raise ValueError("gep_filtering.reference_file must be set when gep_filtering.enable=true.")
             if not self.gep_ref_exp_type:
                 raise ValueError("gep_filtering.ref_exp_type must be set when gep_filtering.enable=true.")
-            if not self.gep_filtering_ref_types:
-                raise ValueError("gep_filtering.filtering_ref_types must be set when gep_filtering.enable=true.")
+            if self.gep_filtering_ref_types and not self.tcga2cancer_type_file_path:
+                raise ValueError(
+                    "input.tcga2cancer_type_file_path must be set when "
+                    "gep_filtering.filtering_ref_types is provided."
+                )
         if self.gene_filtering_enabled:
-            if not self.gene_filtering_tcga_file:
-                raise ValueError("gene_filtering.tcga_file must be set when gene_filtering.enable=true.")
+            if not self.gene_filtering_reference_file:
+                raise ValueError(
+                    "gene_filtering.reference_file must be set when gene_filtering.enable=true."
+                )
             if "quantile_range" in self.gene_filtering_type and not self.gene_filtering_quantile_range:
                 raise ValueError(
                     "gene_filtering.quantile_range must be set when the filtering type uses quantile_range."

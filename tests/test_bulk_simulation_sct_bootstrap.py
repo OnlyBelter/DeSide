@@ -84,6 +84,65 @@ def test_bulk_simulation_config_requires_existing_merged_sc_for_bootstrap(tmp_pa
         config.validate()
 
 
+def test_bulk_simulation_config_accepts_legacy_gene_filtering_tcga_file(tmp_path):
+    config_dict = _base_config_dict(tmp_path)
+    reference_file = tmp_path / "reference_tpm.csv"
+    reference_file.write_text("gene,sample\nG1,1.0\n", encoding="utf-8")
+    config_dict["gene_filtering"] = {
+        "enable": True,
+        "filtering_type": "quantile_range",
+        "tcga_file": str(reference_file),
+        "quantile_range": [0.005, 0.5, 0.995],
+        "q_col_name": ["q_0.5", "q_50.0", "q_99.5"],
+    }
+
+    config = BulkSimulationConfig.from_dict(config_dict)
+
+    assert config.gene_filtering_reference_file == str(reference_file)
+    assert config.gene_filtering_tcga_file == str(reference_file)
+    config.validate()
+
+
+def test_bulk_simulation_config_allows_gep_filtering_without_cancer_type_subset(tmp_path):
+    config_dict = _base_config_dict(tmp_path)
+    reference_file = tmp_path / "reference_tpm.csv"
+    reference_file.write_text("gene,sample\nG1,1.0\n", encoding="utf-8")
+    config_dict["gep_filtering"] = {
+        "enable": True,
+        "reference_file": str(reference_file),
+        "ref_exp_type": "TPM",
+        "filtering_method": "median_gep",
+        "filtering_ref_types": [],
+    }
+
+    config = BulkSimulationConfig.from_dict(config_dict)
+
+    assert config.gep_filtering_ref_types is None
+    config.validate()
+    assert config.build_generate_gep_kwargs(high_corr_gene_list=None)["filtering_ref_types"] is None
+
+
+def test_bulk_simulation_config_requires_mapping_when_gep_filtering_ref_types_provided(tmp_path):
+    config_dict = _base_config_dict(tmp_path)
+    reference_file = tmp_path / "reference_tpm.csv"
+    reference_file.write_text("gene,sample\nG1,1.0\n", encoding="utf-8")
+    config_dict["gep_filtering"] = {
+        "enable": True,
+        "reference_file": str(reference_file),
+        "ref_exp_type": "TPM",
+        "filtering_method": "median_gep",
+        "filtering_ref_types": ["LUAD"],
+    }
+
+    config = BulkSimulationConfig.from_dict(config_dict)
+
+    with pytest.raises(
+        ValueError,
+        match="input.tcga2cancer_type_file_path must be set when gep_filtering.filtering_ref_types is provided.",
+    ):
+        config.validate()
+
+
 def test_resolve_sct_dataset_reference_generates_then_reuses(tmp_path, monkeypatch):
     config = BulkSimulationConfig.from_dict(_base_config_dict(tmp_path))
     generated_sct_file = tmp_path / "simu" / "simu_bulk_exp_mixed_sctGEP_nbase100_log2cpm1p.h5ad"

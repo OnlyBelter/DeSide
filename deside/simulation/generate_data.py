@@ -571,7 +571,8 @@ class BulkGEPGenerator(object):
                             exp_obj_ref = ExpObj(exp_file=reference_file, exp_type=ref_exp_type)
                             # exp_obj_ref.align_with_gene_list(gene_list=gene_list_in_sc_ds, fill_not_exist=True)
                             exp_ref_df = exp_obj_ref.get_exp()  # TPM
-                            exp_ref_df = exp_ref_df.loc[exp_ref_df.index.isin(sample_id_for_filtering), :]
+                            if filtering_ref_types is not None:
+                                exp_ref_df = exp_ref_df.loc[exp_ref_df.index.isin(sample_id_for_filtering), :]
 
                     if filtering and filtering_method == 'marker_ratio':
                         # print('   Filtering simulated bulk cell GEPs by marker gene ratio of TCGA...')
