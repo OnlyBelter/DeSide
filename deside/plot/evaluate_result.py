@@ -13,6 +13,19 @@ import seaborn as sns
 import gc
 
 
+def _get_legend_handles(legend):
+    """
+    Return legend handles across matplotlib versions.
+
+    Older versions expose `legendHandles`, while newer versions use
+    `legend_handles`.
+    """
+    handles = getattr(legend, 'legend_handles', None)
+    if handles is None:
+        handles = getattr(legend, 'legendHandles', [])
+    return handles
+
+
 class ScatterPlot(object):
     def __init__(self, x: Union[str, pd.DataFrame], y: Union[str, pd.DataFrame],
                  postfix: str = None, group_info: pd.DataFrame = None):
@@ -564,7 +577,7 @@ def plot_pca(data: pd.DataFrame, result_fp=None, color_code=None, s=5, figsize=(
             if show_legend:
                 # g_legend = ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.2 - 0.1 * n_class), ncol=2)
                 g_legend = ax.legend(loc='best', ncol=2)
-                for _ in g_legend.legendHandles:
+                for _ in _get_legend_handles(g_legend):
                     _.set_linewidth(1)
             else:
                 ax.legend([], [], frameon=False)

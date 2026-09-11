@@ -122,9 +122,16 @@ gene_filtering:
   # Reference matrix used for gene-level filtering. The example uses merged TCGA TPM GEPs,
   # but you can point this to another compatible bulk reference dataset.
   reference_file: './datasets/TCGA/tpm/merged_tpm.csv'
+  # Gene-wise quantiles computed from `reference_file` and used to keep genes whose
+  # simulated-bulk expression falls within the reference range.
   quantile_range: [0.005, 0.5, 0.995]
+  # Column names corresponding to `quantile_range` in the saved quantile summary table.
   q_col_name: ['q_0.5', 'q_50.0', 'q_99.5']
+  # Minimum absolute correlation between gene expression and cell fractions when
+  # selecting high-correlation genes from the reference-guided workflow.
   corr_threshold: 0.3
+  # Maximum number of genes retained after high-correlation filtering for each cell type.
+  # The top genes are ranked by correlation strength before applying this cap.
   n_gene_max: 1000
   # Optional precomputed high-correlation gene list. When provided together with
   # filtering_type='high_corr_gene_and_quantile_range', the workflow intersects

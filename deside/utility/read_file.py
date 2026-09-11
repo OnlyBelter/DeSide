@@ -216,7 +216,7 @@ class ReadExp(object):
             self.exp = self.exp / divide_by
 
     def align_with_gene_list(self, gene_list: list = None, fill_not_exist=False, pathway_list: bool = False,
-                             round_decimals: int = None):
+                             round_decimals: int = None, log_info: bool = True, message_handler=None):
         """
         Align the expression matrix with a gene list and rescale to TPM or log2(TPM + 1).
 
@@ -224,6 +224,8 @@ class ReadExp(object):
         :param fill_not_exist: fill 0 if gene not exist in the provided gene_list when True
         :param pathway_list: gene list contains pathway names, so TPM normalization is not suitable
         :param round_decimals: optional rounding applied after filling/alignment (None keeps native precision).
+        :param log_info: whether to emit alignment summary messages
+        :param message_handler: optional callable used to emit alignment messages
         """
         current_columns = self.exp.columns
         current_set = set(current_columns)
@@ -232,9 +234,12 @@ class ReadExp(object):
         common_genes = [g for g in gene_list if g in current_set]
         not_exist_in_gene_list = [g for g in gene_list if g not in current_set]
         removed_genes = [g for g in current_columns if g not in gene_set]
-        print(f'   {len(common_genes)} common genes will be used, {len(removed_genes)} genes will be removed.')
+        emit_message = message_handler or print
+        if log_info:
+            emit_message(f'   > Gene alignment: {len(common_genes)} common genes kept, {len(removed_genes)} removed.')
         if fill_not_exist and (len(not_exist_in_gene_list) != 0):
-            print(f'   {len(not_exist_in_gene_list)} genes are not in current dataset, 0 will be filled')
+            if log_info:
+                emit_message(f'   > Gene alignment: {len(not_exist_in_gene_list)} missing genes filled with 0.')
             # Use reindex on axis=1 to both preserve requested gene order and fill missing columns with 0.
             # Avoids pd.concat([zeros_df, self.exp]) allocation of a large zero-filled column block.
             self.exp = self.exp.reindex(columns=gene_list_pd, fill_value=0.0, copy=False)

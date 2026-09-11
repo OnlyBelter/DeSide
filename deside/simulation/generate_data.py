@@ -326,8 +326,26 @@ class BulkGEPGenerator(object):
         self.total_rna_coefficient = total_rna_coefficient
         self.subtype_col_name = subtype_col_name
         self.cell_type_col_name = cell_type_col_name
+        self._active_progress_bar = None
+        self._logged_status_keys = set()
         if check_basic_info and not os.path.exists(self.generated_bulk_gep_fp):
             self._check_basic_info()
+
+    def _log_status(self, message: str, once_key: str = None):
+        logged_status_keys = getattr(self, '_logged_status_keys', None)
+        if logged_status_keys is None:
+            logged_status_keys = set()
+            self._logged_status_keys = logged_status_keys
+        if once_key is not None:
+            if once_key in logged_status_keys:
+                return
+            logged_status_keys.add(once_key)
+
+        active_progress_bar = getattr(self, '_active_progress_bar', None)
+        if active_progress_bar is not None:
+            active_progress_bar.write(message)
+        else:
+            print(message)
 
     def _generate_cell_fraction(self, sampling_method: str, n_cell_frac: int, sampling_range: dict = None,
                                 sample_prefix: str = None, ref_distribution: dict = None,
@@ -436,6 +454,51 @@ class BulkGEPGenerator(object):
 
         return cell_type_used, sub_cell_type_used
 
+    def _resolve_subtype_column_name(self, obs_df: pd.DataFrame):
+        """
+        Resolve the subtype column against the merged single-cell metadata.
+
+        The config may use a column alias that differs from the actual merged
+        dataset. When the configured subtype column is missing, try a few legacy
+        names and accept the one that fully covers the requested subtype labels.
+        """
+        if not self.cell_subtype_used:
+            return
+
+        available_columns = obs_df.columns.to_list()
+        if self.subtype_col_name in available_columns:
+            return
+
+        requested_subtypes = {i for i in self.cell_subtype_used if isinstance(i, str)}
+        fallback_candidates = []
+        for candidate in ['cell_subtype', 'subtype', 'leiden', self.cell_type_col_name]:
+            if candidate and (candidate not in fallback_candidates):
+                fallback_candidates.append(candidate)
+
+        matched_candidates = []
+        for candidate in fallback_candidates:
+            if candidate not in available_columns:
+                continue
+            candidate_values = {
+                value for value in obs_df[candidate].dropna().unique().tolist() if isinstance(value, str)
+            }
+            if requested_subtypes.issubset(candidate_values):
+                matched_candidates.append(candidate)
+
+        if len(matched_candidates) == 1:
+            resolved_col_name = matched_candidates[0]
+            print(f'   > subtype_col_name "{self.subtype_col_name}" was not found; '
+                  f'using "{resolved_col_name}" instead.')
+            self.subtype_col_name = resolved_col_name
+            return
+
+        configured_name = self.subtype_col_name if self.subtype_col_name is not None else '<empty>'
+        available = ', '.join(available_columns)
+        raise KeyError(
+            f'Invalid subtype column "{configured_name}". Available columns in the merged single-cell dataset: '
+            f'{available}'
+        )
+
     def generate_gep(self, n_samples, sampling_range: dict = None, sampling_method: str = 'segment',
                      total_cell_number: int = 100, n_threads: int = 10, filtering: bool = True,
                      reference_file: Union[str, pd.DataFrame] = None, ref_exp_type: str = None,
@@ -500,6 +563,8 @@ class BulkGEPGenerator(object):
             min_n_cell_frac = np.min([5000, n_samples])  # bigger number of samples for filtering
         else:
             min_n_cell_frac = np.min([1000, n_samples])  # smaller number of samples without filtering
+        if (self.merged_sc_fp is not None) and (self.merged_sc_dataset_obs is None):
+            self._check_basic_info()
         if not os.path.exists(self.generated_bulk_gep_fp):
             # read generated single cell dataset into self.generated_sc_dataset
             self._check_intermediate_generated_gep()
@@ -536,197 +601,229 @@ class BulkGEPGenerator(object):
                 s2c = pd.read_csv(self.tcga2cancer_type_file_path, index_col=0)  # sample id to cancer type in TCGA
                 sample_id_for_filtering = s2c.loc[s2c['cancer_type'].isin(filtering_ref_types), :].index.to_list()
                 _str = ', '.join(filtering_ref_types)
-                print(f'   > {len(sample_id_for_filtering)} samples in {_str} are used '
-                      f'for {filtering_method} filtering.')
+                self._log_status(
+                    f'   > {len(sample_id_for_filtering)} samples in {_str} are used for {filtering_method} filtering.'
+                )
             if not filtering:
                 cell_prop_prior = None
             with tqdm(total=self.n_samples) as pbar:
-                if self.generated_bulk_gep_counter != 0:
-                    pbar.update(self.generated_bulk_gep_counter)
-                while self.generated_bulk_gep_counter < self.n_samples:
-                    generated_cell_frac = self._generate_cell_fraction(
-                        sampling_method=sampling_method, n_cell_frac=min_n_cell_frac,
-                        sampling_range=sampling_range, sample_prefix=f's_{sampling_method}_{self.n_round}',
-                        cell_prop_prior=cell_prop_prior)
-                    # setting step_size equals to n_cell_frac, so n_parts equals to 1
-                    selected_cell_ids = self._sc_sampling(cell_frac=generated_cell_frac,
-                                                          n_threads=n_threads, obs_df=obs_df, sc_dataset=sc_dataset)
-                    simulated_gep = self._map_cell_id2exp(selected_cell_id=selected_cell_ids,
-                                                          simu_method=simu_method,
-                                                          sc_dataset=sc_dataset,
-                                                          cell_frac=generated_cell_frac,
-                                                          add_noise=add_noise, noise_params=noise_params)
-                    simulated_gep_bak = simulated_gep.copy()  # TPM
-                    if filtering:
-                        if reference_file is None or ref_exp_type is None:
-                            raise ValueError('Both "reference_file" and "ref_exp_type" should not be None '
-                                             'when "filtering" is True')
-                        if high_corr_gene_list is not None:
-                            assert np.all([i in gene_list_in_sc_ds for i in high_corr_gene_list])
-                            gene_list_in_sc_ds = high_corr_gene_list
-                            print(f'   > {len(gene_list_in_sc_ds)} high corr genes are used for filtering.')
-                            simulated_gep = simulated_gep.loc[:, gene_list_in_sc_ds]
-                            simulated_gep = non_log2cpm(simulated_gep)
-                        if exp_ref_df is None:
-                            exp_obj_ref = ExpObj(exp_file=reference_file, exp_type=ref_exp_type)
-                            # exp_obj_ref.align_with_gene_list(gene_list=gene_list_in_sc_ds, fill_not_exist=True)
-                            exp_ref_df = exp_obj_ref.get_exp()  # TPM
-                            if filtering_ref_types is not None:
-                                exp_ref_df = exp_ref_df.loc[exp_ref_df.index.isin(sample_id_for_filtering), :]
+                self._active_progress_bar = pbar
+                try:
+                    if self.generated_bulk_gep_counter != 0:
+                        pbar.update(self.generated_bulk_gep_counter)
+                    while self.generated_bulk_gep_counter < self.n_samples:
+                        generated_cell_frac = self._generate_cell_fraction(
+                            sampling_method=sampling_method, n_cell_frac=min_n_cell_frac,
+                            sampling_range=sampling_range, sample_prefix=f's_{sampling_method}_{self.n_round}',
+                            cell_prop_prior=cell_prop_prior)
+                        # setting step_size equals to n_cell_frac, so n_parts equals to 1
+                        selected_cell_ids = self._sc_sampling(cell_frac=generated_cell_frac,
+                                                              n_threads=n_threads, obs_df=obs_df, sc_dataset=sc_dataset)
+                        simulated_gep = self._map_cell_id2exp(selected_cell_id=selected_cell_ids,
+                                                              simu_method=simu_method,
+                                                              sc_dataset=sc_dataset,
+                                                              cell_frac=generated_cell_frac,
+                                                              add_noise=add_noise, noise_params=noise_params)
+                        simulated_gep_bak = simulated_gep.copy()  # TPM
+                        if filtering:
+                            if reference_file is None or ref_exp_type is None:
+                                raise ValueError('Both "reference_file" and "ref_exp_type" should not be None '
+                                                 'when "filtering" is True')
+                            if high_corr_gene_list is not None:
+                                assert np.all([i in gene_list_in_sc_ds for i in high_corr_gene_list])
+                                gene_list_in_sc_ds = high_corr_gene_list
+                                self._log_status(
+                                    f'   > {len(gene_list_in_sc_ds)} high corr genes are used for filtering.',
+                                    once_key='high_corr_genes_for_filtering',
+                                )
+                                simulated_gep = simulated_gep.loc[:, gene_list_in_sc_ds]
+                                simulated_gep = non_log2cpm(simulated_gep)
+                            if exp_ref_df is None:
+                                exp_obj_ref = ExpObj(exp_file=reference_file, exp_type=ref_exp_type)
+                                # exp_obj_ref.align_with_gene_list(gene_list=gene_list_in_sc_ds, fill_not_exist=True)
+                                exp_ref_df = exp_obj_ref.get_exp()  # TPM
+                                if filtering_ref_types is not None:
+                                    exp_ref_df = exp_ref_df.loc[exp_ref_df.index.isin(sample_id_for_filtering), :]
 
-                    if filtering and filtering_method == 'marker_ratio':
-                        # print('   Filtering simulated bulk cell GEPs by marker gene ratio of TCGA...')
-                        if self.marker_ratio_ref is None:
-                            exp_obj_ref = ExpObj(exp_file=reference_file, exp_type=ref_exp_type)
-                            exp_obj_ref.cal_marker_gene_ratio(agg_methods={'CD4 T': 'max', 'B Cells': 'max'},
-                                                              cell_types=self.cell_type_used, show_marker_gene=True)
-                            self.marker_ratio_ref = exp_obj_ref.get_marker_ratios()
-                            n_ref = self.marker_ratio_ref.shape[0]
-                            if n_ref < self.n_samples:
-                                # skip some reference samples (1000) since non-epithelial cancers exist
-                                self.n_neighbors_each_ref = int(np.ceil(self.n_samples / (n_ref - 1000)))
-                            if not self.ref_neighbor_counter:
-                                self.ref_neighbor_counter = {i: 0 for i in self.marker_ratio_ref.index}
-                            n_top = min(n_top, self.n_neighbors_each_ref)
+                        if filtering and filtering_method == 'marker_ratio':
+                            # print('   Filtering simulated bulk cell GEPs by marker gene ratio of TCGA...')
+                            if self.marker_ratio_ref is None:
+                                exp_obj_ref = ExpObj(exp_file=reference_file, exp_type=ref_exp_type)
+                                exp_obj_ref.cal_marker_gene_ratio(agg_methods={'CD4 T': 'max', 'B Cells': 'max'},
+                                                                  cell_types=self.cell_type_used, show_marker_gene=True)
+                                self.marker_ratio_ref = exp_obj_ref.get_marker_ratios()
+                                n_ref = self.marker_ratio_ref.shape[0]
+                                if n_ref < self.n_samples:
+                                    # skip some reference samples (1000) since non-epithelial cancers exist
+                                    self.n_neighbors_each_ref = int(np.ceil(self.n_samples / (n_ref - 1000)))
+                                if not self.ref_neighbor_counter:
+                                    self.ref_neighbor_counter = {i: 0 for i in self.marker_ratio_ref.index}
+                                n_top = min(n_top, self.n_neighbors_each_ref)
 
-                        simulated_gep = self._filter_gep_by_reference(simulated_gep=simulated_gep,
-                                                                      n_top=n_top)
-                        if (simulated_gep is None) or (simulated_gep.shape[0] < 50):
-                            if self.filtering_quantile_upper < 0.999:
-                                # larger filtering_quantile to get more neighbors
-                                self.filtering_quantile_upper += 0.001
-                            else:
-                                self.filtering_quantile_upper += 0.0001
-                            qn1 = QueryNeighbors(df_file=self.marker_ratio_ref)
-                            self.q_dis_nn_ref_upper = qn1.get_quantile_of_nn_distance(
-                                quantile=self.filtering_quantile_upper)  # quantile of distance
-                            print(f'   > Larger filtering_quantile will be used to get more neighbors.')
-                            print(f'   > Quantile distance of {self.filtering_quantile_upper * 100}% is: {self.q_dis_nn_ref_upper}')
-                    if filtering and filtering_by_gene_range:
-                        if tcga_gene_info is None:
-                            if gene_quantile_range is None:
-                                quantile_range = [0.005, 0.5, 0.995]
-                            else:
-                                quantile_range = gene_quantile_range
-                            q_col_name = ['q_' + str(int(q * 1000) / 10) for q in quantile_range]
-                            tcga_gene_info = get_quantile(exp_ref_df, quantile_range=quantile_range,
-                                                          col_name=q_col_name)
-                        valid_gep_list = []
-                        for inx, row in simulated_gep.iterrows():
-                            valid = True
-                            current_gene_list = \
-                                get_gene_list_filtered_by_quantile_range(bulk_exp=row, tcga_exp=exp_ref_df,
-                                                                         tcga_gene_info=tcga_gene_info,
-                                                                         quantile_range=quantile_range,
-                                                                         q_col_name=q_col_name)
-                            if len(current_gene_list) / exp_ref_df.shape[1] < min_percentage_within_gene_range:
-                                valid = False
-                            valid_gep_list.append(valid)
-                        if show_filtering_info:
-                            print(f'   > {np.sum(valid_gep_list)} were kept after filtering by gene range.')
-                        simulated_gep = simulated_gep.loc[valid_gep_list, :].copy()
-
-                    if filtering and (filtering_method == 'median_gep' or
-                                      filtering_method == 'mean_gep' or filtering_method == 'linear_mmd') and \
-                            (simulated_gep is not None):
-                        if filtering_in_pca_space:
-                            if gene_list_in_pca is None:
-                                gene_list_in_pca = []
-                            pca_model_dir = os.path.dirname(os.path.dirname(reference_file))
-                            pca_model_dir = os.path.join(pca_model_dir, f'pca_model_{pca_n_components}')
-                            check_dir(pca_model_dir)
-                            pca_model_path = os.path.join(pca_model_dir, 'tcga_pca_model_for_gep_filtering.pkl')
-                            gene_list_in_pca_file_path = os.path.join(pca_model_dir, 'gene_list_for_pca.csv')
-                            if pca_model is None:
-                                if os.path.exists(pca_model_path) and os.path.exists(gene_list_in_pca_file_path):
-                                    pca_model = load(pca_model_path)
-                                    gene_list_in_pca = pd.read_csv(gene_list_in_pca_file_path,
-                                                                   index_col='0').index.to_list()
-                                    print(f'   > PCA model was loaded from {pca_model_path}, '
-                                          f'and gene list was loaded from {gene_list_in_pca_file_path}')
-                                    # align reference GEPs with the gene list in the PCA model
-                                    exp_obj_ref = ReadExp(exp_file=exp_ref_df, exp_type=ref_exp_type)
-                                    exp_obj_ref.align_with_gene_list(gene_list=gene_list_in_pca, fill_not_exist=True)
-                                    exp_ref_df = exp_obj_ref.get_exp()  # TPM
+                            simulated_gep = self._filter_gep_by_reference(simulated_gep=simulated_gep,
+                                                                          n_top=n_top)
+                            if (simulated_gep is None) or (simulated_gep.shape[0] < 50):
+                                if self.filtering_quantile_upper < 0.999:
+                                    # larger filtering_quantile to get more neighbors
+                                    self.filtering_quantile_upper += 0.001
                                 else:
-                                    pca_model = PCA(n_components=pca_n_components, random_state=42)
-                                    # using the intersection of gene list in sc_ds and gene list in TCGA
-                                    gene_list_in_pca = list(set(gene_list_in_sc_ds) & set(exp_ref_df.columns))
-                                    exp_ref_df = exp_ref_df.loc[:, gene_list_in_pca].copy()
-                                    exp_ref_df = non_log2cpm(exp_ref_df)  # TPM
-                                    exp_ref_df_log = log2_transform(exp_ref_df)  # using log2(TPM+1) for PCA
-                                    pca_model.fit(exp_ref_df_log)
-                                    dump(pca_model, pca_model_path)
-                                    # save the gene list for PCA
-                                    pd.DataFrame(gene_list_in_pca).to_csv(gene_list_in_pca_file_path)
-                                assert np.all(exp_ref_df.columns == gene_list_in_pca)
-                                exp_ref_df = log2_transform(exp_ref_df)
-                                exp_ref_df = pca_model.transform(exp_ref_df)
-                                exp_ref_df = pd.DataFrame(exp_ref_df, index=range(exp_ref_df.shape[0]),
-                                                          columns=range(exp_ref_df.shape[1]))
-                                if not os.path.exists(os.path.join(pca_model_dir, 'tcga_pca_ref.csv')):
-                                    exp_ref_df.to_csv(os.path.join(pca_model_dir, 'tcga_pca_ref.csv'))
-                                cumsum = np.cumsum(pca_model.explained_variance_ratio_)
-                                d = len(cumsum)
-                                print(f'   > {d} dimensions are needed to explain '
-                                      f'{cumsum.max() * 100}% variance.')  # 1515
-                                # exp_ref_df = exp_ref_df.iloc[:, :d].copy()
-                            # align simulated GEP with the gene list in the PCA model
-                            simulated_gep_obj = ReadExp(exp_file=simulated_gep, exp_type='TPM')
-                            simulated_gep_obj.align_with_gene_list(gene_list=gene_list_in_pca, fill_not_exist=True)
-                            simulated_gep = simulated_gep_obj.get_exp()  # TPM
-                            assert np.all(simulated_gep.columns == gene_list_in_pca)
-                            simulated_gep = log2_transform(simulated_gep)
-                            simulated_gep = pca_model.transform(simulated_gep)
-                            simulated_gep = pd.DataFrame(simulated_gep, index=simulated_gep_bak.index,
-                                                         columns=range(simulated_gep.shape[1]))
-                            # simulated_gep = simulated_gep.iloc[:, :d].copy()
-                        assert np.all(exp_ref_df.columns == simulated_gep.columns)
-                        if self.m_gep_ref is None:
-                            if ('mean_gep' in filtering_method) or ('linear_mmd' in filtering_method):
-                                # The maximum mean discrepancy (MMD) using
-                                # linear kernel is equivalent to "square of L2 norm"
-                                self.m_gep_ref = exp_ref_df.mean(axis=0).values.reshape(1, -1)
-                            elif 'median_gep' in filtering_method:
-                                self.m_gep_ref = exp_ref_df.median(axis=0).values.reshape(1, -1)  # TPM / PCs
-                            else:
-                                raise ValueError(f'filtering_method {filtering_method} is invalid')
-                            distance_with_center_ref = np.linalg.norm(exp_ref_df - self.m_gep_ref,
-                                                                      ord=norm_ord, axis=1)
-                            if 'linear_mmd' in filtering_method:
-                                distance_with_center_ref = distance_with_center_ref ** 2
-                            self.q_dis_nn_ref_upper = np.quantile(distance_with_center_ref,
-                                                                  self.filtering_quantile_upper)
-                        dis_ref_simu_gep = np.linalg.norm(simulated_gep.values - self.m_gep_ref,
-                                                          ord=norm_ord, axis=1)
-                        if 'linear_mmd' in filtering_method:
-                            dis_ref_simu_gep = dis_ref_simu_gep ** 2
-                        if self.filtering_quantile_lower is not None:
-                            self.q_dis_nn_ref_lower = np.quantile(distance_with_center_ref,
-                                                                  self.filtering_quantile_lower)
+                                    self.filtering_quantile_upper += 0.0001
+                                qn1 = QueryNeighbors(df_file=self.marker_ratio_ref)
+                                self.q_dis_nn_ref_upper = qn1.get_quantile_of_nn_distance(
+                                    quantile=self.filtering_quantile_upper)  # quantile of distance
+                                self._log_status('   > Larger filtering_quantile will be used to get more neighbors.')
+                                self._log_status(
+                                    f'   > Quantile distance of {self.filtering_quantile_upper * 100}% is: '
+                                    f'{self.q_dis_nn_ref_upper}'
+                                )
+                        if filtering and filtering_by_gene_range:
+                            if tcga_gene_info is None:
+                                if gene_quantile_range is None:
+                                    quantile_range = [0.005, 0.5, 0.995]
+                                else:
+                                    quantile_range = gene_quantile_range
+                                q_col_name = ['q_' + str(int(q * 1000) / 10) for q in quantile_range]
+                                tcga_gene_info = get_quantile(exp_ref_df, quantile_range=quantile_range,
+                                                              col_name=q_col_name)
+                            valid_gep_list = []
+                            for inx, row in simulated_gep.iterrows():
+                                valid = True
+                                current_gene_list = \
+                                    get_gene_list_filtered_by_quantile_range(bulk_exp=row, tcga_exp=exp_ref_df,
+                                                                             tcga_gene_info=tcga_gene_info,
+                                                                             quantile_range=quantile_range,
+                                                                             q_col_name=q_col_name)
+                                if len(current_gene_list) / exp_ref_df.shape[1] < min_percentage_within_gene_range:
+                                    valid = False
+                                valid_gep_list.append(valid)
                             if show_filtering_info:
-                                print(f'   > Quantile distance of {self.filtering_quantile_lower * 100}% is: '
-                                      f'{self.q_dis_nn_ref_lower}, {np.sum(dis_ref_simu_gep < self.q_dis_nn_ref_lower)} were removed')
-                                print(f'   > Quantile distance of {self.filtering_quantile_upper * 100}% is: '
-                                      f'{self.q_dis_nn_ref_upper}, {np.sum(dis_ref_simu_gep > self.q_dis_nn_ref_upper)} were removed')
-                            simulated_gep = simulated_gep.loc[(dis_ref_simu_gep <= self.q_dis_nn_ref_upper) &
-                                                              (dis_ref_simu_gep >= self.q_dis_nn_ref_lower), :]
-                        else:
-                            simulated_gep = simulated_gep.loc[dis_ref_simu_gep <= self.q_dis_nn_ref_upper, :].copy()
+                                self._log_status(
+                                    f'   > {np.sum(valid_gep_list)} were kept after filtering by gene range.'
+                                )
+                            simulated_gep = simulated_gep.loc[valid_gep_list, :].copy()
 
-                    if simulated_gep is not None:
-                        simulated_gep = simulated_gep_bak.loc[simulated_gep.index, :].copy()
-                        if (self.generated_bulk_gep_counter + simulated_gep.shape[0]) > self.n_samples:
-                            n_last_part = self.n_samples - self.generated_bulk_gep_counter
-                            simulated_gep = simulated_gep.iloc[range(n_last_part)].copy()
-                        simulated_gep = log2_transform(simulated_gep)
-                        self.generated_bulk_gep_counter += simulated_gep.shape[0]
-                        pbar.update(simulated_gep.shape[0])
-                        generated_cell_frac = generated_cell_frac.loc[simulated_gep.index, :].copy()
-                        selected_cell_ids = selected_cell_ids.loc[simulated_gep.index, :].copy()
-                        self._save_simulated_bulk_gep(gep=simulated_gep, cell_id=selected_cell_ids,
-                                                      cell_fraction=generated_cell_frac)
-                    self.n_round += 1
+                        if filtering and (filtering_method == 'median_gep' or
+                                          filtering_method == 'mean_gep' or filtering_method == 'linear_mmd') and \
+                                (simulated_gep is not None):
+                            if filtering_in_pca_space:
+                                if gene_list_in_pca is None:
+                                    gene_list_in_pca = []
+                                pca_model_dir = os.path.dirname(os.path.dirname(reference_file))
+                                pca_model_dir = os.path.join(pca_model_dir, f'pca_model_{pca_n_components}')
+                                check_dir(pca_model_dir)
+                                pca_model_path = os.path.join(pca_model_dir, 'tcga_pca_model_for_gep_filtering.pkl')
+                                gene_list_in_pca_file_path = os.path.join(pca_model_dir, 'gene_list_for_pca.csv')
+                                if pca_model is None:
+                                    if os.path.exists(pca_model_path) and os.path.exists(gene_list_in_pca_file_path):
+                                        pca_model = load(pca_model_path)
+                                        gene_list_in_pca = pd.read_csv(gene_list_in_pca_file_path,
+                                                                       index_col='0').index.to_list()
+                                        self._log_status(
+                                            f'   > PCA model was loaded from {pca_model_path}, and gene list was '
+                                            f'loaded from {gene_list_in_pca_file_path}',
+                                            once_key='pca_model_loaded',
+                                        )
+                                        # align reference GEPs with the gene list in the PCA model
+                                        exp_obj_ref = ReadExp(exp_file=exp_ref_df, exp_type=ref_exp_type)
+                                        exp_obj_ref.align_with_gene_list(
+                                            gene_list=gene_list_in_pca,
+                                            fill_not_exist=True,
+                                            message_handler=self._log_status,
+                                        )
+                                        exp_ref_df = exp_obj_ref.get_exp()  # TPM
+                                    else:
+                                        pca_model = PCA(n_components=pca_n_components, random_state=42)
+                                        # using the intersection of gene list in sc_ds and gene list in TCGA
+                                        gene_list_in_pca = list(set(gene_list_in_sc_ds) & set(exp_ref_df.columns))
+                                        exp_ref_df = exp_ref_df.loc[:, gene_list_in_pca].copy()
+                                        exp_ref_df = non_log2cpm(exp_ref_df)  # TPM
+                                        exp_ref_df_log = log2_transform(exp_ref_df)  # using log2(TPM+1) for PCA
+                                        pca_model.fit(exp_ref_df_log)
+                                        dump(pca_model, pca_model_path)
+                                        # save the gene list for PCA
+                                        pd.DataFrame(gene_list_in_pca).to_csv(gene_list_in_pca_file_path)
+                                    assert np.all(exp_ref_df.columns == gene_list_in_pca)
+                                    exp_ref_df = log2_transform(exp_ref_df)
+                                    exp_ref_df = pca_model.transform(exp_ref_df)
+                                    exp_ref_df = pd.DataFrame(exp_ref_df, index=range(exp_ref_df.shape[0]),
+                                                              columns=range(exp_ref_df.shape[1]))
+                                    if not os.path.exists(os.path.join(pca_model_dir, 'tcga_pca_ref.csv')):
+                                        exp_ref_df.to_csv(os.path.join(pca_model_dir, 'tcga_pca_ref.csv'))
+                                    cumsum = np.cumsum(pca_model.explained_variance_ratio_)
+                                    d = len(cumsum)
+                                    self._log_status(
+                                        f'   > {d} dimensions are needed to explain {cumsum.max() * 100}% variance.',
+                                        once_key='pca_dimensions_required',
+                                    )
+                                    # exp_ref_df = exp_ref_df.iloc[:, :d].copy()
+                                # align simulated GEP with the gene list in the PCA model
+                                simulated_gep_obj = ReadExp(exp_file=simulated_gep, exp_type='TPM')
+                                simulated_gep_obj.align_with_gene_list(
+                                    gene_list=gene_list_in_pca,
+                                    fill_not_exist=True,
+                                    log_info=False,
+                                )
+                                simulated_gep = simulated_gep_obj.get_exp()  # TPM
+                                assert np.all(simulated_gep.columns == gene_list_in_pca)
+                                simulated_gep = log2_transform(simulated_gep)
+                                simulated_gep = pca_model.transform(simulated_gep)
+                                simulated_gep = pd.DataFrame(simulated_gep, index=simulated_gep_bak.index,
+                                                             columns=range(simulated_gep.shape[1]))
+                                # simulated_gep = simulated_gep.iloc[:, :d].copy()
+                            assert np.all(exp_ref_df.columns == simulated_gep.columns)
+                            if self.m_gep_ref is None:
+                                if ('mean_gep' in filtering_method) or ('linear_mmd' in filtering_method):
+                                    # The maximum mean discrepancy (MMD) using
+                                    # linear kernel is equivalent to "square of L2 norm"
+                                    self.m_gep_ref = exp_ref_df.mean(axis=0).values.reshape(1, -1)
+                                elif 'median_gep' in filtering_method:
+                                    self.m_gep_ref = exp_ref_df.median(axis=0).values.reshape(1, -1)  # TPM / PCs
+                                else:
+                                    raise ValueError(f'filtering_method {filtering_method} is invalid')
+                                distance_with_center_ref = np.linalg.norm(exp_ref_df - self.m_gep_ref,
+                                                                          ord=norm_ord, axis=1)
+                                if 'linear_mmd' in filtering_method:
+                                    distance_with_center_ref = distance_with_center_ref ** 2
+                                self.q_dis_nn_ref_upper = np.quantile(distance_with_center_ref,
+                                                                      self.filtering_quantile_upper)
+                            dis_ref_simu_gep = np.linalg.norm(simulated_gep.values - self.m_gep_ref,
+                                                              ord=norm_ord, axis=1)
+                            if 'linear_mmd' in filtering_method:
+                                dis_ref_simu_gep = dis_ref_simu_gep ** 2
+                            if self.filtering_quantile_lower is not None:
+                                self.q_dis_nn_ref_lower = np.quantile(distance_with_center_ref,
+                                                                      self.filtering_quantile_lower)
+                                if show_filtering_info:
+                                    self._log_status(
+                                        f'   > Quantile distance of {self.filtering_quantile_lower * 100}% is: '
+                                        f'{self.q_dis_nn_ref_lower}, '
+                                        f'{np.sum(dis_ref_simu_gep < self.q_dis_nn_ref_lower)} were removed'
+                                    )
+                                    self._log_status(
+                                        f'   > Quantile distance of {self.filtering_quantile_upper * 100}% is: '
+                                        f'{self.q_dis_nn_ref_upper}, '
+                                        f'{np.sum(dis_ref_simu_gep > self.q_dis_nn_ref_upper)} were removed'
+                                    )
+                                simulated_gep = simulated_gep.loc[(dis_ref_simu_gep <= self.q_dis_nn_ref_upper) &
+                                                                  (dis_ref_simu_gep >= self.q_dis_nn_ref_lower), :]
+                            else:
+                                simulated_gep = simulated_gep.loc[dis_ref_simu_gep <= self.q_dis_nn_ref_upper, :].copy()
+
+                        if simulated_gep is not None:
+                            simulated_gep = simulated_gep_bak.loc[simulated_gep.index, :].copy()
+                            if (self.generated_bulk_gep_counter + simulated_gep.shape[0]) > self.n_samples:
+                                n_last_part = self.n_samples - self.generated_bulk_gep_counter
+                                simulated_gep = simulated_gep.iloc[range(n_last_part)].copy()
+                            simulated_gep = log2_transform(simulated_gep)
+                            self.generated_bulk_gep_counter += simulated_gep.shape[0]
+                            pbar.update(simulated_gep.shape[0])
+                            generated_cell_frac = generated_cell_frac.loc[simulated_gep.index, :].copy()
+                            selected_cell_ids = selected_cell_ids.loc[simulated_gep.index, :].copy()
+                            self._save_simulated_bulk_gep(gep=simulated_gep, cell_id=selected_cell_ids,
+                                                          cell_fraction=generated_cell_frac)
+                        self.n_round += 1
+                finally:
+                    self._active_progress_bar = None
             msg = f'   > Got {self.generated_bulk_gep_counter} samples from {self.n_round * min_n_cell_frac}'
             if sampling_method in ['segment', 'seg_random']:
                 q_dis = 'radius' if filtering_method == 'marker_ratio' else 'l1 distance'
@@ -812,6 +909,7 @@ class BulkGEPGenerator(object):
         # remove nan in the cell type list
         self.cell_type_in_sc = [i for i in self.cell_type_in_sc if type(i) == str]
         if self.subtype_col_name is not None:
+            self._resolve_subtype_column_name(self.merged_sc_dataset.obs)
             self.cell_subtype_in_sc = list(self.merged_sc_dataset.obs[self.subtype_col_name].unique())
         self.dataset_in_sc = list(self.merged_sc_dataset.obs['dataset_id'].unique())
         # self.merged_sc_dataset_obs = self.merged_sc_dataset.obs.copy()
@@ -866,6 +964,18 @@ class BulkGEPGenerator(object):
         """
         if total_cell_number is not None:
             self.total_cell_number = total_cell_number
+        sampling_label_col = self.cell_type_col_name
+        if sc_dataset == 'sct_dataset':
+            sampling_label_col = 'cell_type'
+        required_columns = [sampling_label_col]
+        if self.cell_subtype_used and sc_dataset != 'sct_dataset':
+            required_columns.append(self.subtype_col_name)
+        missing_columns = [col for col in required_columns if (col is not None) and (col not in obs_df.columns)]
+        if missing_columns:
+            available = ', '.join(obs_df.columns.to_list())
+            missing = ', '.join(missing_columns)
+            raise KeyError(f'Missing annotation columns in single-cell metadata: {missing}. '
+                           f'Available columns: {available}')
         # if self.obs_df is None:
         #     self.obs_df = obs_df
         cell_num = get_cell_num(cell_type_frac=cell_frac, total_num=self.total_cell_number)
@@ -878,8 +988,8 @@ class BulkGEPGenerator(object):
             _part = pd.DataFrame(index=cell_num.index)
             _part['cell_type'] = cell_type
             _part['n_cell'] = cell_num[cell_type]
-            _part['class_by'] = self.cell_type_col_name
-            if cell_type in self.cell_subtype_used:
+            _part['class_by'] = sampling_label_col
+            if (sc_dataset != 'sct_dataset') and (cell_type in self.cell_subtype_used):
                 _part['class_by'] = self.subtype_col_name
             # if all_cell_num_is_one:
             #     _selected_cell_ids = self.obs_df.loc[self.obs_df['cell_type'] == cell_type,
@@ -968,7 +1078,10 @@ class BulkGEPGenerator(object):
                         ct2rna_coefficient[cell_type] = self.total_rna_coefficient[subtype2cell_type[cell_type]]
                     else:
                         ct2rna_coefficient[cell_type] = 1.0
-                print('   > The following total RNA coefficient will be used: ', ct2rna_coefficient)
+                self._log_status(
+                    f'   > Total RNA coefficients: {ct2rna_coefficient}',
+                    once_key='total_rna_coefficients',
+                )
             for sample_id, group in selected_cell_id.groupby(by=selected_cell_id.index):
                 all_n_cell_is_one = np.all(group['n_cell'] == 1)
                 assert all_n_cell_is_one, 'n_cell should be 1 for all cell types'
@@ -1558,7 +1671,11 @@ def filtering_by_gene_list_and_pca_plot(bulk_exp: pd.DataFrame, tcga_exp: pd.Dat
 
         check_dir(result_dir)
         assert n_components >= 2, 'n_components must be >= 2'
-        if not os.path.exists(pca_data_file_path):
+        has_pca_data = os.path.exists(pca_data_file_path)
+        has_pca_model = (pca_model_file_path is not None) and os.path.exists(pca_model_file_path)
+        if (not has_pca_data) or (not has_pca_model):
+            if has_pca_data and (not has_pca_model):
+                print(f'{pca_model_file_path} does not exist, rerun PCA analysis to regenerate the PCA model.')
             # combine both simulated bulk cell GEPs and TCGA dataset together
             simu_bulk_with_tcga = pd.concat([bulk_exp, tcga_exp])
             pca_model = do_pca_analysis(exp_df=simu_bulk_with_tcga, n_components=n_components,
